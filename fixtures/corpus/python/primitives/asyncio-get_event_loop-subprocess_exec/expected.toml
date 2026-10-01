@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:asyncio.get_event_loop.subprocess_exec"
+destination = "param:1:probe"
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:asyncio.get_event_loop"
+destination = "expr:asyncio.get_event_loop()"

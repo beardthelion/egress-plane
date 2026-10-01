@@ -27,7 +27,11 @@ fn dir_components(path: &[u8]) -> Vec<&[u8]> {
 
 fn join(dir: &[&[u8]], module: &[&str]) -> Vec<u8> {
     let mut out = Vec::new();
-    for part in dir.iter().copied().chain(module.iter().map(|m| m.as_bytes())) {
+    for part in dir
+        .iter()
+        .copied()
+        .chain(module.iter().map(|m| m.as_bytes()))
+    {
         if !out.is_empty() {
             out.push(b'/');
         }

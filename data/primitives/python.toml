@@ -2071,6 +2071,83 @@ constructor = true
 fixture = "python/primitives/asyncio-get_event_loop"
 
 [[entry]]
+id = "python:asyncio.get_event_loop.create_connection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 3, port_keyword = "port", form = "host-port" }
+fixture = "python/primitives/asyncio-get_event_loop-create_connection"
+
+[[entry]]
+id = "python:asyncio.get_event_loop.create_datagram_endpoint"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, keyword = "remote_addr", form = "host-port" }
+fixture = "python/primitives/asyncio-get_event_loop-create_datagram_endpoint"
+
+[[entry]]
+id = "python:asyncio.get_event_loop.create_server"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 3, port_keyword = "port", form = "host-port" }
+fixture = "python/primitives/asyncio-get_event_loop-create_server"
+
+[[entry]]
+id = "python:asyncio.get_event_loop.create_unix_connection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "path", form = "address" }
+fixture = "python/primitives/asyncio-get_event_loop-create_unix_connection"
+
+[[entry]]
+id = "python:asyncio.get_event_loop.create_unix_server"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "path", form = "address" }
+fixture = "python/primitives/asyncio-get_event_loop-create_unix_server"
+
+[[entry]]
+id = "python:asyncio.get_event_loop.getaddrinfo"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "host", port = 2, port_keyword = "port", form = "host-port" }
+fixture = "python/primitives/asyncio-get_event_loop-getaddrinfo"
+
+[[entry]]
+id = "python:asyncio.get_event_loop.getnameinfo"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "sockaddr", form = "host-port" }
+fixture = "python/primitives/asyncio-get_event_loop-getnameinfo"
+
+[[entry]]
+id = "python:asyncio.get_event_loop.sock_connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "address", form = "host-port" }
+fixture = "python/primitives/asyncio-get_event_loop-sock_connect"
+
+[[entry]]
+id = "python:asyncio.get_event_loop.sock_sendto"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, keyword = "address", form = "host-port" }
+fixture = "python/primitives/asyncio-get_event_loop-sock_sendto"
+
+[[entry]]
+id = "python:asyncio.get_event_loop.subprocess_exec"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 2, keyword = "program", form = "program" }
+fixture = "python/primitives/asyncio-get_event_loop-subprocess_exec"
+
+[[entry]]
+id = "python:asyncio.get_event_loop.subprocess_shell"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 2, keyword = "cmd", form = "program" }
+fixture = "python/primitives/asyncio-get_event_loop-subprocess_shell"
+
+[[entry]]
 id = "python:asyncio.get_event_loop_policy"
 kind = "egress"
 mechanism = "network"
@@ -2085,11 +2162,165 @@ constructor = true
 fixture = "python/primitives/asyncio-get_running_loop"
 
 [[entry]]
+id = "python:asyncio.get_running_loop.create_connection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 3, port_keyword = "port", form = "host-port" }
+fixture = "python/primitives/asyncio-get_running_loop-create_connection"
+
+[[entry]]
+id = "python:asyncio.get_running_loop.create_datagram_endpoint"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, keyword = "remote_addr", form = "host-port" }
+fixture = "python/primitives/asyncio-get_running_loop-create_datagram_endpoint"
+
+[[entry]]
+id = "python:asyncio.get_running_loop.create_server"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 3, port_keyword = "port", form = "host-port" }
+fixture = "python/primitives/asyncio-get_running_loop-create_server"
+
+[[entry]]
+id = "python:asyncio.get_running_loop.create_unix_connection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "path", form = "address" }
+fixture = "python/primitives/asyncio-get_running_loop-create_unix_connection"
+
+[[entry]]
+id = "python:asyncio.get_running_loop.create_unix_server"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "path", form = "address" }
+fixture = "python/primitives/asyncio-get_running_loop-create_unix_server"
+
+[[entry]]
+id = "python:asyncio.get_running_loop.getaddrinfo"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "host", port = 2, port_keyword = "port", form = "host-port" }
+fixture = "python/primitives/asyncio-get_running_loop-getaddrinfo"
+
+[[entry]]
+id = "python:asyncio.get_running_loop.getnameinfo"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "sockaddr", form = "host-port" }
+fixture = "python/primitives/asyncio-get_running_loop-getnameinfo"
+
+[[entry]]
+id = "python:asyncio.get_running_loop.sock_connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "address", form = "host-port" }
+fixture = "python/primitives/asyncio-get_running_loop-sock_connect"
+
+[[entry]]
+id = "python:asyncio.get_running_loop.sock_sendto"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, keyword = "address", form = "host-port" }
+fixture = "python/primitives/asyncio-get_running_loop-sock_sendto"
+
+[[entry]]
+id = "python:asyncio.get_running_loop.subprocess_exec"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 2, keyword = "program", form = "program" }
+fixture = "python/primitives/asyncio-get_running_loop-subprocess_exec"
+
+[[entry]]
+id = "python:asyncio.get_running_loop.subprocess_shell"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 2, keyword = "cmd", form = "program" }
+fixture = "python/primitives/asyncio-get_running_loop-subprocess_shell"
+
+[[entry]]
 id = "python:asyncio.new_event_loop"
 kind = "egress"
 mechanism = "network"
 constructor = true
 fixture = "python/primitives/asyncio-new_event_loop"
+
+[[entry]]
+id = "python:asyncio.new_event_loop.create_connection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 3, port_keyword = "port", form = "host-port" }
+fixture = "python/primitives/asyncio-new_event_loop-create_connection"
+
+[[entry]]
+id = "python:asyncio.new_event_loop.create_datagram_endpoint"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, keyword = "remote_addr", form = "host-port" }
+fixture = "python/primitives/asyncio-new_event_loop-create_datagram_endpoint"
+
+[[entry]]
+id = "python:asyncio.new_event_loop.create_server"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 3, port_keyword = "port", form = "host-port" }
+fixture = "python/primitives/asyncio-new_event_loop-create_server"
+
+[[entry]]
+id = "python:asyncio.new_event_loop.create_unix_connection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "path", form = "address" }
+fixture = "python/primitives/asyncio-new_event_loop-create_unix_connection"
+
+[[entry]]
+id = "python:asyncio.new_event_loop.create_unix_server"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "path", form = "address" }
+fixture = "python/primitives/asyncio-new_event_loop-create_unix_server"
+
+[[entry]]
+id = "python:asyncio.new_event_loop.getaddrinfo"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "host", port = 2, port_keyword = "port", form = "host-port" }
+fixture = "python/primitives/asyncio-new_event_loop-getaddrinfo"
+
+[[entry]]
+id = "python:asyncio.new_event_loop.getnameinfo"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "sockaddr", form = "host-port" }
+fixture = "python/primitives/asyncio-new_event_loop-getnameinfo"
+
+[[entry]]
+id = "python:asyncio.new_event_loop.sock_connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "address", form = "host-port" }
+fixture = "python/primitives/asyncio-new_event_loop-sock_connect"
+
+[[entry]]
+id = "python:asyncio.new_event_loop.sock_sendto"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, keyword = "address", form = "host-port" }
+fixture = "python/primitives/asyncio-new_event_loop-sock_sendto"
+
+[[entry]]
+id = "python:asyncio.new_event_loop.subprocess_exec"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 2, keyword = "program", form = "program" }
+fixture = "python/primitives/asyncio-new_event_loop-subprocess_exec"
+
+[[entry]]
+id = "python:asyncio.new_event_loop.subprocess_shell"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 2, keyword = "cmd", form = "program" }
+fixture = "python/primitives/asyncio-new_event_loop-subprocess_shell"
 
 [[entry]]
 id = "python:asyncio.open_connection"

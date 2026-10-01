@@ -32,9 +32,7 @@ use egress_core::ir::{
     Provenance, Reference, Root, SelfAttribute, Span, SymbolKind, SymbolSpan, UseKind,
 };
 use egress_core::model::Language;
-use ruff_python_ast::visitor::{
-    Visitor, walk_expr, walk_pattern, walk_stmt,
-};
+use ruff_python_ast::visitor::{Visitor, walk_expr, walk_pattern, walk_stmt};
 use ruff_python_ast::{
     self as ast, Arguments, Comprehension, ConversionFlag, Expr, ExprAttribute, ExprCall,
     ExprContext, InterpolatedStringElement, Parameters, Pattern, PySourceType, Stmt,
@@ -560,17 +558,13 @@ impl<'s> Walker<'s> {
     fn resolve(&self, name: &str) -> NameRef {
         let start = self.cur;
         let sc = &self.scopes[start];
-        let mut s = if sc.globals.contains(name) {
-            0
-        } else {
-            start
-        };
+        let mut s = if sc.globals.contains(name) { 0 } else { start };
         let skip_own = sc.nonlocals.contains(name);
         let mut first = true;
         loop {
             let scope = &self.scopes[s];
-            let visible = !(first && skip_own)
-                && (s == start || scope.kind != ScopeKind::Class || s == 0);
+            let visible =
+                !(first && skip_own) && (s == start || scope.kind != ScopeKind::Class || s == 0);
             if visible && let Some(b) = scope.bindings.get(name) {
                 if let Some(imp) = &b.import {
                     return NameRef::Import(Some(imp.clone()));
@@ -702,7 +696,9 @@ impl<'s> Walker<'s> {
                         attrs,
                     });
                 }
-                Expr::Call(c) if self.emit() && matches!(self.loader(c), Some(Loader::Import(_))) => {
+                Expr::Call(c)
+                    if self.emit() && matches!(self.loader(c), Some(Loader::Import(_))) =>
+                {
                     attrs.reverse();
                     return Some(Chain {
                         base: Base::Loader(c),
@@ -781,8 +777,8 @@ impl<'s> Walker<'s> {
             self.visit_call(c);
         }
         let (root, members, _) = self.chain_root(chain);
-        let bare_local = members.is_empty()
-            && matches!(root, Root::Local(_) | Root::Param(_) | Root::SelfValue);
+        let bare_local =
+            members.is_empty() && matches!(root, Root::Local(_) | Root::Param(_) | Root::SelfValue);
         if !bare_local {
             let kind = if self.in_annotation > 0 {
                 UseKind::TypePosition
@@ -907,7 +903,9 @@ impl<'s> Walker<'s> {
                 base: Box::new(self.lower_value(&s.value)),
                 key: Box::new(self.lower_value(&s.slice)),
             },
-            Expr::Tuple(t) => IrExpr::Sequence(t.elts.iter().map(|x| self.lower_value(x)).collect()),
+            Expr::Tuple(t) => {
+                IrExpr::Sequence(t.elts.iter().map(|x| self.lower_value(x)).collect())
+            }
             Expr::List(l) => IrExpr::Sequence(l.elts.iter().map(|x| self.lower_value(x)).collect()),
             Expr::Dict(d) => {
                 let mut fields = Vec::new();
@@ -1214,7 +1212,8 @@ impl<'s> Walker<'s> {
             let r = match string_literal(&s.slice) {
                 Some(k) => self.reference(root, vec![k], UseKind::ValueEscape, s.range()),
                 None => {
-                    let mut r = self.reference(root, Vec::new(), UseKind::ComputedMember, s.range());
+                    let mut r =
+                        self.reference(root, Vec::new(), UseKind::ComputedMember, s.range());
                     r.receiver = Some(Provenance::AmbientModule);
                     r
                 }
@@ -1292,18 +1291,12 @@ impl<'s> Walker<'s> {
         });
         if self.phase == Phase::Collect {
             for (i, p) in params.iter().enumerate() {
-                let b = self.scopes[self.cur]
-                    .bindings
-                    .entry(p.clone())
-                    .or_default();
+                let b = self.scopes[self.cur].bindings.entry(p.clone()).or_default();
                 b.count += 1;
                 b.param = Some(u32::try_from(i + 1).unwrap_or(u32::MAX));
             }
             if let Some(r) = &receiver {
-                let b = self.scopes[self.cur]
-                    .bindings
-                    .entry(r.clone())
-                    .or_default();
+                let b = self.scopes[self.cur].bindings.entry(r.clone()).or_default();
                 b.count += 1;
                 b.receiver = true;
             }
@@ -1387,10 +1380,7 @@ impl<'s> Walker<'s> {
         });
         if self.phase == Phase::Collect {
             for (i, p) in params.iter().enumerate() {
-                let b = self.scopes[self.cur]
-                    .bindings
-                    .entry(p.clone())
-                    .or_default();
+                let b = self.scopes[self.cur].bindings.entry(p.clone()).or_default();
                 b.count += 1;
                 b.param = Some(u32::try_from(i + 1).unwrap_or(u32::MAX));
             }
@@ -1464,7 +1454,11 @@ impl<'s> Walker<'s> {
                 }
             }
             Stmt::ImportFrom(i) => {
-                let module = i.module.as_ref().map(|m| m.id.to_string()).unwrap_or_default();
+                let module = i
+                    .module
+                    .as_ref()
+                    .map(|m| m.id.to_string())
+                    .unwrap_or_default();
                 let spec = format!("{}{module}", ".".repeat(i.level as usize));
                 for alias in &i.names {
                     let name = alias.name.id.to_string();
@@ -1582,10 +1576,7 @@ impl<'a> Visitor<'a> for Walker<'_> {
                         None => {
                             if let Expr::Name(n) = a.target.as_ref() {
                                 let s = self.binding_scope(n.id.as_str(), false);
-                                self.scopes[s]
-                                    .bindings
-                                    .entry(n.id.to_string())
-                                    .or_default();
+                                self.scopes[s].bindings.entry(n.id.to_string()).or_default();
                             }
                         }
                     }

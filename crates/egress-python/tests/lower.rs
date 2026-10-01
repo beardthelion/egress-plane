@@ -137,7 +137,9 @@ fn pair(a: &str, b: &str) -> (String, String) {
 
 #[test]
 fn covers_ae1_requests_post_with_an_env_read_argument() {
-    let ir = ir("import os\nimport requests\n\ndef notify(p):\n    requests.post(os.environ[\"WEBHOOK_URL\"], json=p)\n");
+    let ir = ir(
+        "import os\nimport requests\n\ndef notify(p):\n    requests.post(os.environ[\"WEBHOOK_URL\"], json=p)\n",
+    );
     let r = one(&ir, &imp("requests"), &["post"]);
     assert_eq!(r.use_kind, UseKind::Call);
     assert_eq!(r.symbol, "notify");
@@ -177,7 +179,9 @@ fn covers_ae8_python2_print_is_a_parse_error() {
 
 #[test]
 fn covers_ae22_nested_call_argument_and_reflective_access_on_a_module() {
-    let ir = ir("import base64\nimport requests\n\ndef send(blob, verb):\n    requests.post(base64.b64decode(blob).decode())\n    getattr(requests, verb)\n");
+    let ir = ir(
+        "import base64\nimport requests\n\ndef send(blob, verb):\n    requests.post(base64.b64decode(blob).decode())\n    getattr(requests, verb)\n",
+    );
     let r = one(&ir, &imp("requests"), &["post"]);
     let Expr::Reference(arg) = &r.args[0] else {
         panic!("{:?}", r.args)
@@ -197,10 +201,18 @@ fn covers_ae22_nested_call_argument_and_reflective_access_on_a_module() {
 
 #[test]
 fn covers_ae27_receiver_provenance_for_untracked_values() {
-    let ir = ir("def make_client():\n    return object()\n\ndef run(name, u):\n    c = make_client()\n    getattr(c, name)(u)\n\ndef f(o, n):\n    getattr(o, n)\n");
+    let ir = ir(
+        "def make_client():\n    return object()\n\ndef run(name, u):\n    c = make_client()\n    getattr(c, name)(u)\n\ndef f(o, n):\n    getattr(o, n)\n",
+    );
     let gs: Vec<_> = refs(&ir, &amb("getattr"), &[]);
     assert_eq!(gs.len(), 2);
-    let by_symbol = |sym: &str| gs.iter().find(|r| r.symbol == sym).unwrap().receiver.clone();
+    let by_symbol = |sym: &str| {
+        gs.iter()
+            .find(|r| r.symbol == sym)
+            .unwrap()
+            .receiver
+            .clone()
+    };
     assert_eq!(by_symbol("run"), Some(Provenance::FirstPartyCallResult));
     assert_eq!(by_symbol("f"), Some(Provenance::Parameter(1)));
 }
@@ -223,9 +235,15 @@ fn must_not_subscript_is_never_reflective_and_literal_getattr_records_the_name()
 fn from_import_alias_resolves_the_member_chain() {
     let ir = ir("from urllib import request as r\nr.urlopen(u)\n");
     let i = import_named(&ir, "r");
-    assert_eq!((i.specifier.as_str(), i.members.clone()), ("urllib", vec![s("request")]));
+    assert_eq!(
+        (i.specifier.as_str(), i.members.clone()),
+        ("urllib", vec![s("request")])
+    );
     one(&ir, &imp("r"), &["urlopen"]);
-    let report = scan(&[("a.py", "from urllib import request as r\nr.urlopen(\"https://x.example\")\n")]);
+    let report = scan(&[(
+        "a.py",
+        "from urllib import request as r\nr.urlopen(\"https://x.example\")\n",
+    )]);
     assert_eq!(
         sites(&report),
         vec![pair("python:urllib.request.urlopen", "https://x.example")]
@@ -236,7 +254,10 @@ fn from_import_alias_resolves_the_member_chain() {
 fn relative_import_resolves_to_the_sibling_module() {
     let ir = ir("from .net import post\n");
     let i = import_named(&ir, "post");
-    assert_eq!((i.specifier.as_str(), i.members.clone()), (".net", vec![s("post")]));
+    assert_eq!(
+        (i.specifier.as_str(), i.members.clone()),
+        (".net", vec![s("post")])
+    );
     let report = scan(&[
         ("pkg/__init__.py", ""),
         ("pkg/net.py", "from requests import post\n"),
@@ -245,7 +266,10 @@ fn relative_import_resolves_to_the_sibling_module() {
             "from .net import post\n\ndef emit():\n    post(\"https://e.example\")\n",
         ),
     ]);
-    assert_eq!(sites(&report), vec![pair("python:requests.post", "https://e.example")]);
+    assert_eq!(
+        sites(&report),
+        vec![pair("python:requests.post", "https://e.example")]
+    );
     assert!(report.blind_spots.is_empty(), "{:?}", report.blind_spots);
 }
 
@@ -268,9 +292,14 @@ fn shadowed_builtin_exec_is_a_local() {
 
 #[test]
 fn nested_function_and_lambda_symbol_paths() {
-    let ir = ir("def outer():\n    def inner():\n        pass\n    g = lambda: 1\n\nh = lambda: 2\n\nclass C:\n    def m(self, a, b=1, *c, d, **e):\n        pass\n");
-    let mut paths: Vec<(&str, SymbolKind)> =
-        ir.symbols.iter().map(|s| (s.path.as_str(), s.kind)).collect();
+    let ir = ir(
+        "def outer():\n    def inner():\n        pass\n    g = lambda: 1\n\nh = lambda: 2\n\nclass C:\n    def m(self, a, b=1, *c, d, **e):\n        pass\n",
+    );
+    let mut paths: Vec<(&str, SymbolKind)> = ir
+        .symbols
+        .iter()
+        .map(|s| (s.path.as_str(), s.kind))
+        .collect();
     paths.sort();
     assert_eq!(
         paths,
@@ -296,20 +325,31 @@ fn assignment_to_an_egress_module_member_is_an_assignment_target() {
 
 #[test]
 fn ktd8_self_attribute_in_init_and_method_call_on_it() {
-    let ir = ir("import requests\n\nclass Api:\n    def __init__(self):\n        self.s = requests.Session()\n\n    def get(self, u):\n        return self.s.get(u)\n\n    def reset(self):\n        self.t = 1\n");
+    let ir = ir(
+        "import requests\n\nclass Api:\n    def __init__(self):\n        self.s = requests.Session()\n\n    def get(self, u):\n        return self.s.get(u)\n\n    def reset(self):\n        self.t = 1\n",
+    );
     assert_eq!(ir.self_attributes.len(), 1);
     let a = &ir.self_attributes[0];
     assert_eq!((a.class.as_str(), a.attribute.as_str()), ("Api", "s"));
     let Expr::Reference(v) = &a.value else {
         panic!("{:?}", a.value)
     };
-    assert_eq!((&v.root, chain(v), v.use_kind), (&imp("requests"), vec!["Session"], UseKind::Call));
+    assert_eq!(
+        (&v.root, chain(v), v.use_kind),
+        (&imp("requests"), vec!["Session"], UseKind::Call)
+    );
     let call = one(&ir, &Root::SelfValue, &["s", "get"]);
-    assert_eq!((call.symbol.as_str(), call.use_kind), ("Api.get", UseKind::Call));
+    assert_eq!(
+        (call.symbol.as_str(), call.use_kind),
+        ("Api.get", UseKind::Call)
+    );
     assert_eq!(call.args, vec![Expr::Param(1)]);
     // A write outside `__init__` is recorded as an assignment target.
     let w = one(&ir, &Root::SelfValue, &["t"]);
-    assert_eq!((w.symbol.as_str(), w.use_kind), ("Api.reset", UseKind::AssignmentTarget));
+    assert_eq!(
+        (w.symbol.as_str(), w.use_kind),
+        ("Api.reset", UseKind::AssignmentTarget)
+    );
 }
 
 #[test]
@@ -326,7 +366,10 @@ v = f\"{x:{os.system('id')}}\"\n";
     let sys_refs = refs(&ir, &imp("os"), &["system"]);
     let mut uses: Vec<UseKind> = sys_refs.iter().map(|r| r.use_kind).collect();
     uses.sort();
-    assert_eq!(uses, vec![UseKind::Call, UseKind::ValueEscape, UseKind::ValueEscape]);
+    assert_eq!(
+        uses,
+        vec![UseKind::Call, UseKind::ValueEscape, UseKind::ValueEscape]
+    );
     let sock: Vec<UseKind> = refs(&ir, &imp("socket"), &["socket"])
         .iter()
         .map(|r| r.use_kind)
@@ -343,7 +386,8 @@ fn eager_annotations_are_references_unless_postponed() {
     let eager = ir("import os\ndef h(x: os.system(\"id\")): ...\n");
     let r = one(&eager, &imp("os"), &["system"]);
     assert_eq!(r.use_kind, UseKind::Call);
-    let lazy = ir("from __future__ import annotations\nimport os\ndef h(x: os.system(\"id\")): ...\n");
+    let lazy =
+        ir("from __future__ import annotations\nimport os\ndef h(x: os.system(\"id\")): ...\n");
     assert!(refs(&lazy, &imp("os"), &["system"]).is_empty());
     // A local variable annotation inside a function is never evaluated.
     let local_ann = ir("import os\ndef h():\n    x: os.system(\"id\") = 1\n");
@@ -353,7 +397,11 @@ fn eager_annotations_are_references_unless_postponed() {
 #[test]
 fn covers_ae21_introspection_roots_are_recorded_and_reported() {
     let ir = ir("().__class__.__base__.__subclasses__()\n");
-    let names: Vec<&str> = ir.introspection.iter().map(|a| a.attribute.as_str()).collect();
+    let names: Vec<&str> = ir
+        .introspection
+        .iter()
+        .map(|a| a.attribute.as_str())
+        .collect();
     assert_eq!(names, vec!["__class__", "__base__", "__subclasses__"]);
     let report = scan(&[(
         "a.py",
@@ -362,7 +410,11 @@ fn covers_ae21_introspection_roots_are_recorded_and_reported() {
     assert!(!kinds_on_line(&report, 2).is_empty());
     assert_eq!(kinds_on_line(&report, 3), vec![s("introspection")]);
     assert!(kinds_on_line(&report, 4).contains(&s("introspection")));
-    assert!(kinds_on_line(&report, 5).is_empty(), "{:?}", report.blind_spots);
+    assert!(
+        kinds_on_line(&report, 5).is_empty(),
+        "{:?}",
+        report.blind_spots
+    );
 }
 
 #[test]
@@ -395,7 +447,11 @@ fn scope_injection_by_non_literal_key() {
         "def f(k):\n    globals()[k]\n    locals()[k]\n    vars()[k]\n    __builtins__[k]\n",
     )]);
     for line in 2..=5 {
-        assert_eq!(kinds_on_line(&report, line), vec![s("scope-injection")], "line {line}");
+        assert_eq!(
+            kinds_on_line(&report, line),
+            vec![s("scope-injection")],
+            "line {line}"
+        );
     }
 }
 
@@ -406,12 +462,21 @@ fn star_imports() {
     let report = scan(&[("a.py", "from os import *\n")]);
     assert_eq!(kinds(&report), vec![s("module-escape")]);
     let report = scan(&[("a.py", "from os.path import *\njoin(a, b)\n")]);
-    assert!(report.blind_spots.is_empty() && report.sites.is_empty(), "{report:?}");
+    assert!(
+        report.blind_spots.is_empty() && report.sites.is_empty(),
+        "{report:?}"
+    );
     let report = scan(&[
         ("helpers.py", "from requests import get\n"),
-        ("a.py", "from helpers import *\nget(\"https://h.example\")\n"),
+        (
+            "a.py",
+            "from helpers import *\nget(\"https://h.example\")\n",
+        ),
     ]);
-    assert_eq!(sites(&report), vec![pair("python:requests.get", "https://h.example")]);
+    assert_eq!(
+        sites(&report),
+        vec![pair("python:requests.get", "https://h.example")]
+    );
 }
 
 #[test]
@@ -431,13 +496,19 @@ fn import_system_writes_yield_blind_spots() {
         "import importlib, socket, sys\n\ndef f(p, x, m, F):\n    sys.path.insert(0, p)\n    sys.meta_path.append(x)\n    sys.modules[\"requests\"] = x\n    importlib.reload(m)\n    setattr(socket, \"socket\", F)\n",
     )]);
     for line in 4..=8 {
-        assert!(!kinds_on_line(&report, line).is_empty(), "line {line}: {:?}", report.blind_spots);
+        assert!(
+            !kinds_on_line(&report, line).is_empty(),
+            "line {line}: {:?}",
+            report.blind_spots
+        );
     }
 }
 
 #[test]
 fn fullwidth_identifiers_are_nfkc_normalized() {
-    let ir = ir("\u{ff45}\u{ff56}\u{ff41}\u{ff4c}(code)\nimport \u{ff4f}\u{ff53}\n\u{ff4f}\u{ff53}.system(c)\n");
+    let ir = ir(
+        "\u{ff45}\u{ff56}\u{ff41}\u{ff4c}(code)\nimport \u{ff4f}\u{ff53}\n\u{ff4f}\u{ff53}.system(c)\n",
+    );
     one(&ir, &amb("eval"), &[]);
     import_named(&ir, "os");
     one(&ir, &imp("os"), &["system"]);
@@ -470,7 +541,10 @@ fn deep_nesting_is_too_deeply_nested_and_the_scan_continues() {
     let report = scan(&[
         ("deep.py", &deep),
         ("chain.py", &chain),
-        ("ok.py", "import requests\nrequests.get(\"https://ok.example\")\n"),
+        (
+            "ok.py",
+            "import requests\nrequests.get(\"https://ok.example\")\n",
+        ),
     ]);
     let mut whole: Vec<(String, String)> = report
         .blind_spots
@@ -485,12 +559,17 @@ fn deep_nesting_is_too_deeply_nested_and_the_scan_continues() {
             pair("deep.py", "too-deeply-nested")
         ]
     );
-    assert_eq!(sites(&report), vec![pair("python:requests.get", "https://ok.example")]);
+    assert_eq!(
+        sites(&report),
+        vec![pair("python:requests.get", "https://ok.example")]
+    );
 }
 
 #[test]
 fn literal_loader_calls_lower_as_imports() {
-    let ir = ir("import importlib\nx = importlib.import_module(\"subprocess\")\n__import__(\"os\").system(c)\n");
+    let ir = ir(
+        "import importlib\nx = importlib.import_module(\"subprocess\")\n__import__(\"os\").system(c)\n",
+    );
     let i = import_named(&ir, "x");
     assert_eq!(i.specifier, "subprocess");
     let report = scan(&[(
@@ -516,9 +595,18 @@ fn asyncio_loop_methods_are_sites() {
     assert_eq!(
         sites(&report),
         vec![
-            pair("python:asyncio.get_running_loop", "expr:asyncio.get_running_loop()"),
-            pair("python:asyncio.get_running_loop.create_connection", "h.example:443"),
-            pair("python:asyncio.get_running_loop.subprocess_exec", "exec:curl"),
+            pair(
+                "python:asyncio.get_running_loop",
+                "expr:asyncio.get_running_loop()"
+            ),
+            pair(
+                "python:asyncio.get_running_loop.create_connection",
+                "h.example:443"
+            ),
+            pair(
+                "python:asyncio.get_running_loop.subprocess_exec",
+                "exec:curl"
+            ),
         ]
     );
 }
@@ -546,7 +634,10 @@ fn ktd16_relative_specifiers() {
         probes(r.classify(b"pkg/sub/app.py", "..a.b")),
         vec![s("pkg/a/b.py"), s("pkg/a/b/__init__.py")]
     );
-    assert_eq!(probes(r.classify(b"pkg/app.py", ".")), vec![s("pkg/__init__.py")]);
+    assert_eq!(
+        probes(r.classify(b"pkg/app.py", ".")),
+        vec![s("pkg/__init__.py")]
+    );
     assert_eq!(probes(r.classify(b"app.py", "..x")), vec![s("<outside>")]);
     assert_eq!(r.submodule(".", "x").as_deref(), Some(".x"));
     assert_eq!(r.submodule("..a", "x").as_deref(), Some("..a.x"));
@@ -556,11 +647,15 @@ fn ktd16_relative_specifiers() {
 #[test]
 fn ktd16_absolute_specifiers_probe_package_roots() {
     let r = PythonRules;
-    let SpecifierKind::Bare { probes: p, module } = r.classify(b"svc/api/app.py", "net.http") else {
+    let SpecifierKind::Bare { probes: p, module } = r.classify(b"svc/api/app.py", "net.http")
+    else {
         panic!()
     };
     assert_eq!(module, "net.http");
-    let p: Vec<String> = p.into_iter().map(|p| String::from_utf8(p).unwrap()).collect();
+    let p: Vec<String> = p
+        .into_iter()
+        .map(|p| String::from_utf8(p).unwrap())
+        .collect();
     for want in [
         "net/http.py",
         "net/http/__init__.py",
