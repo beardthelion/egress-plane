@@ -1,0 +1,477 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://egress-plane.invalid/schema/egress-report.v1.json",
+  "title": "egress-plane report, schema version 1",
+  "description": "Output of `egress-plane scan --json`. Additive optional fields keep schema_version 1; a removal, rename, or change of meaning bumps it. Consumers ignore unknown fields; this file is strict so the emitter cannot drift from it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "tool",
+    "completeness",
+    "caveats",
+    "sites",
+    "blind_spots",
+    "unscanned_dependencies",
+    "excluded"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "data_digest",
+        "runtime_range"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "data_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "runtime_range": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "python",
+            "node",
+            "rust"
+          ],
+          "properties": {
+            "python": {
+              "type": "string"
+            },
+            "node": {
+              "type": "string"
+            },
+            "rust": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "budget_exceeded",
+        "coverage"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "complete",
+            "incomplete",
+            "empty"
+          ]
+        },
+        "budget_exceeded": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "budget-files",
+              "budget-bytes",
+              "budget-findings",
+              "budget-resolver-steps"
+            ]
+          }
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "python",
+            "javascript",
+            "rust",
+            "unsupported"
+          ],
+          "properties": {
+            "python": {
+              "$ref": "#/$defs/counts"
+            },
+            "javascript": {
+              "$ref": "#/$defs/counts"
+            },
+            "rust": {
+              "$ref": "#/$defs/counts"
+            },
+            "unsupported": {
+              "$ref": "#/$defs/counts"
+            }
+          }
+        }
+      }
+    },
+    "caveats": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "sites": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/site"
+      }
+    },
+    "blind_spots": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/blind_spot"
+      }
+    },
+    "unscanned_dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "language",
+          "package",
+          "files"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "language": {
+            "$ref": "#/$defs/language"
+          },
+          "package": {
+            "type": "string",
+            "minLength": 1
+          },
+          "files": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "reason"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "path_bytes": {
+            "$ref": "#/$defs/raw_bytes"
+          },
+          "reason": {
+            "enum": [
+              "install-output",
+              "unconfirmed-install-output",
+              "vcs",
+              "symlink-alias",
+              "broken-symlink",
+              "symlink-hop-limit"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "raw_bytes": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})+$"
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scanned",
+        "skipped"
+      ],
+      "properties": {
+        "scanned": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "location": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "line",
+            "column"
+          ],
+          "properties": {
+            "line": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "column": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      ]
+    },
+    "labels": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "vendored",
+          "generated",
+          "minified",
+          "test",
+          "build-hook"
+        ]
+      }
+    },
+    "language": {
+      "enum": [
+        "python",
+        "javascript",
+        "rust"
+      ]
+    },
+    "destination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "value",
+        "display"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "literal",
+            "env",
+            "param",
+            "template",
+            "exec",
+            "lib",
+            "expr"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "description": "Normalized, redacted value without the kind prefix; exact string."
+        },
+        "default": {
+          "type": "string",
+          "description": "Literal default of an environment read, redacted."
+        },
+        "display": {
+          "type": "string",
+          "description": "Rendered form, escaped per KTD18."
+        }
+      }
+    },
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "language",
+        "file",
+        "symbol",
+        "bucket",
+        "mechanism",
+        "destination",
+        "ordinal",
+        "labels",
+        "location"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "language": {
+          "$ref": "#/$defs/language"
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "file_bytes": {
+          "$ref": "#/$defs/raw_bytes"
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bucket": {
+          "enum": [
+            "primitive",
+            "catalogued"
+          ]
+        },
+        "mechanism": {
+          "type": "string",
+          "minLength": 1
+        },
+        "destination": {
+          "$ref": "#/$defs/destination"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "labels": {
+          "$ref": "#/$defs/labels"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "blind_spot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "language",
+        "file",
+        "symbol",
+        "kind",
+        "whole_file",
+        "coverage_gap",
+        "construct",
+        "ordinal",
+        "labels",
+        "location"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "language": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/language"
+            }
+          ]
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "file_bytes": {
+          "$ref": "#/$defs/raw_bytes"
+        },
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "parse-error",
+            "unsupported-file-type",
+            "loaded-as-code",
+            "symlink-outside-root",
+            "not-regular-file",
+            "unsafe-open-unavailable",
+            "too-large",
+            "undecodable",
+            "unreadable",
+            "non-utf8-path",
+            "too-deeply-nested",
+            "frontend-failure",
+            "manifest-parse-error",
+            "reference-outside-root",
+            "reference-into-excluded",
+            "unconfirmed-exclusion",
+            "dynamic-code",
+            "dynamic-import",
+            "reflective-access",
+            "reflective-unknown",
+            "scope-injection",
+            "import-system-mutation",
+            "monkeypatch",
+            "introspection",
+            "native-code",
+            "macro-code",
+            "module-escape",
+            "shadowed-module",
+            "unresolved-module",
+            "resolution-limit",
+            "build-hook"
+          ]
+        },
+        "whole_file": {
+          "type": "boolean"
+        },
+        "coverage_gap": {
+          "type": "boolean"
+        },
+        "construct": {
+          "type": "string",
+          "description": "Redacted, truncated to 120 characters, then escaped per KTD18; empty for whole-file reasons."
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "labels": {
+          "$ref": "#/$defs/labels"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        }
+      }
+    }
+  }
+}

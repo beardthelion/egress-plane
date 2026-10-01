@@ -1,0 +1,90 @@
+# Credential redaction rules (KTD11, R21).
+#
+# These classes are the whole set. A new class, key, prefix, or pattern lands
+# here only together with a test fixture that exercises it
+# (crates/egress-core/tests/redaction.rs). Secrets that match none of these
+# rules are not recognized and can appear in output.
+#
+# Every match is replaced by the fixed token `<redacted>`. Redaction runs on
+# literals, rendered templates (holes rendered as `{...}` placeholders), env
+# defaults, `expr:` text, and blind-spot construct text, before identity and
+# before the 120-character truncation.
+#
+# Fixed classes implemented in code (crates/egress-core/src/redact.rs):
+# - URL userinfo: everything between `scheme://` and the last `@` of the
+#   authority. URLs parse with the `url` crate; when parsing fails, the span
+#   between `scheme://` and the last `@` before the first following `/` is
+#   redacted (fail closed).
+# - Query and fragment parameters: the value of a `key=value` pair that
+#   follows `?`, `&`, or `#` is redacted when its key matches `keys`.
+# - Keyword DSNs (libpq style `host=db password=x`): the value of a
+#   `key=value` pair that starts the text or follows whitespace is redacted
+#   when its key matches `keys`. A quoted value is redacted through its
+#   closing quote; an unquoted one runs to the next whitespace.
+# - Token runs: see `token_prefixes`.
+# - Provider path secrets: see `path_secrets`.
+
+# Keys whose values are redacted in query strings, fragments, and keyword
+# DSNs. Matching is ASCII case-insensitive, on the whole key or as a suffix
+# (`x_token` matches `token`). Percent-encoded keys are decoded first.
+keys = [
+    "token",
+    "key",
+    "api_key",
+    "apikey",
+    "secret",
+    "password",
+    "passwd",
+    "pwd",
+    "auth",
+    "sig",
+    "signature",
+    "access_token",
+    "client_secret",
+    "credential",
+    "session",
+]
+
+# A token run starts at a token boundary (start of text, or a character that
+# is not an ASCII letter or digit) with one of these prefixes (case
+# sensitive), and continues over ASCII letters, digits, `_`, `-`, and `.`. At
+# least one character must follow the prefix. The boundary rule keeps
+# `risk-free` and `keyJar` intact.
+token_prefixes = [
+    "ghp_",
+    "github_pat_",
+    "glpat-",
+    "sk-",
+    "sk_live_",
+    "AKIA",
+    "AIza",
+    "xoxb-",
+    "xoxp-",
+    "npm_",
+    "pypi-",
+    "eyJ",
+]
+
+# Provider path secrets. Each pattern is a Rust `regex` with one named group
+# `secret`; the text that group matches becomes `<redacted>`. Secret
+# character classes exclude `{` and `}` so a symbolic template hole such as
+# `{env:SLACK_PATH}` stays readable, and exclude `<` and `>` so the rules are
+# idempotent.
+
+# Telegram bot API: `/bot<id>:<token>/method`. The whole `<id>:<token>` pair
+# is the credential, so both parts are redacted and the method is kept.
+[[path_secrets]]
+name = "telegram-bot-token"
+pattern = '''/bot(?P<secret>[0-9]+:[A-Za-z0-9_-]+)'''
+
+# Slack incoming webhooks: everything after `/services/` (workspace, channel,
+# and secret segments together form the credential).
+[[path_secrets]]
+name = "slack-webhook"
+pattern = '''(?i:hooks\.slack\.com)/services/(?P<secret>[^?#\s"'`{}<>]+)'''
+
+# Discord webhooks: `/api[/vN]/webhooks/<id>/<token>`. The numeric id is kept
+# and the token segment is redacted.
+[[path_secrets]]
+name = "discord-webhook"
+pattern = '''/api/(?:v[0-9]+/)?webhooks/[0-9]+/(?P<secret>[^/?#\s"'`{}<>]+)'''
