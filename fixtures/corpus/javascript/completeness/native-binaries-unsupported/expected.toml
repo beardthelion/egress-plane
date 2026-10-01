@@ -1,0 +1,12 @@
+state = "incomplete"
+exit_code = 2
+
+[[blind_spots]]
+file = "native/addon.node"
+symbol = "<module>"
+kind = "unsupported-file-type"
+
+[[blind_spots]]
+file = "wasm/core.wasm"
+symbol = "<module>"
+kind = "unsupported-file-type"

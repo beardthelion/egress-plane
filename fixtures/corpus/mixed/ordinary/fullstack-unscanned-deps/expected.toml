@@ -1,0 +1,22 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "server/app.py"
+symbol = "proxy"
+mechanism = "python:requests.get"
+destination = "env:UPSTREAM_URL"
+
+[[sites]]
+file = "client/src/App.tsx"
+symbol = "App"
+mechanism = "javascript:globalThis.fetch"
+destination = "/proxy"
+
+[[unscanned_dependencies]]
+language = "python"
+package = "flask"
+
+[[unscanned_dependencies]]
+language = "javascript"
+package = "react"

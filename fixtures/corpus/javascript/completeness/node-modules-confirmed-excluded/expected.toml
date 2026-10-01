@@ -1,0 +1,10 @@
+state = "complete"
+exit_code = 0
+
+[[excluded]]
+path = "node_modules"
+reason = "install-output"
+
+[[unscanned_dependencies]]
+language = "javascript"
+package = "leftpad"

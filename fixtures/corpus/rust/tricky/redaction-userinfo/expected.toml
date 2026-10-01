@@ -1,0 +1,9 @@
+state = "complete"
+exit_code = 0
+absent_text = ["hunter2"]
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "hook"
+mechanism = "rust:reqwest::blocking::get"
+destination = "https://<redacted>@api.example.com/hook"

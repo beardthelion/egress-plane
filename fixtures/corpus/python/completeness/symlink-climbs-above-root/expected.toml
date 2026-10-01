@@ -1,0 +1,8 @@
+state = "incomplete"
+exit_code = 2
+absent_text = ["outside_fixture"]
+
+[[blind_spots]]
+file = "src/up.py"
+symbol = "<module>"
+kind = "symlink-outside-root"

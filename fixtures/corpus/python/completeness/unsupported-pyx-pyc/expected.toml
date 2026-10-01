@@ -1,0 +1,12 @@
+state = "incomplete"
+exit_code = 2
+
+[[blind_spots]]
+file = "fast.pyx"
+symbol = "<module>"
+kind = "unsupported-file-type"
+
+[[blind_spots]]
+file = "cache/mod.cpython-312.pyc"
+symbol = "<module>"
+kind = "unsupported-file-type"

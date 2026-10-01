@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "api.py"
+symbol = "Api.__init__"
+mechanism = "python:httpx.Client"
+destination = "https://api.example.com"
+
+[[sites]]
+file = "api.py"
+symbol = "Api.users"
+mechanism = "python:httpx.Client.get"
+destination = "/users"

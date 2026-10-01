@@ -1,0 +1,11 @@
+state = "incomplete"
+exit_code = 2
+
+[[excluded]]
+path = "lib/node_modules"
+reason = "unconfirmed-install-output"
+
+[[blind_spots]]
+file = "lib/node_modules"
+symbol = "<module>"
+kind = "unconfirmed-exclusion"

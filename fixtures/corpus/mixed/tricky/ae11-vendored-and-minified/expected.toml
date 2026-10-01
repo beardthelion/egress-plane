@@ -1,0 +1,16 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "vendor/httplib_copy/client.py"
+symbol = "connect"
+mechanism = "python:socket.create_connection"
+destination = "api.example.com:80"
+labels = ["vendored"]
+
+[[sites]]
+file = "dist/app.min.js"
+symbol = "l"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/t"
+labels = ["generated", "minified"]

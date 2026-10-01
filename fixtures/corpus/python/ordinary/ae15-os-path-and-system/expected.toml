@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "build.py"
+symbol = "build_and_run"
+mechanism = "python:os.system"
+destination = "param:3:build_and_run"

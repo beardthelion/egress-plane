@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "crlf.py"
+symbol = "ping"
+mechanism = "python:requests.head"
+destination = "https://api.example.com/ping"

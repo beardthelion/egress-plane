@@ -1,0 +1,9 @@
+state = "complete"
+exit_code = 0
+absent_text = ["AKIAFAKEFAKEFAKE1234"]
+
+[[sites]]
+file = "keys.py"
+symbol = "lookup"
+mechanism = "python:requests.get"
+destination = "https://api.example.com/lookup?id=<redacted>&page=1"

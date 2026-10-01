@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "conn.py"
+symbol = "open_conn"
+mechanism = "python:http.client.HTTPSConnection"
+destination = "api.example.com"

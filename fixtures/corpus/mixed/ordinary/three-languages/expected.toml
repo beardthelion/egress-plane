@@ -1,0 +1,21 @@
+state = "complete"
+exit_code = 0
+caveats = ["browser-dom"]
+
+[[sites]]
+file = "backend/app.py"
+symbol = "sync"
+mechanism = "python:requests.post"
+destination = "https://api.example.com/sync"
+
+[[sites]]
+file = "web/src/main.ts"
+symbol = "load"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/load"
+
+[[sites]]
+file = "agent/src/main.rs"
+symbol = "main"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "collector.example.com:4317"

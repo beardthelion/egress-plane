@@ -1,0 +1,7 @@
+state = "complete"
+exit_code = 0
+
+[[blind_spots]]
+file = "pkg/app.py"
+symbol = "<module>"
+kind = "unresolved-module"

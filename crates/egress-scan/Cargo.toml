@@ -1,0 +1,9 @@
+[package]
+name = "egress-scan"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+egress-core.workspace = true

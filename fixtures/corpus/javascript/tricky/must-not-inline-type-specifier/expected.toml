@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "health.ts"
+symbol = "health"
+mechanism = "javascript:http.get"
+destination = "expr:{ host: \"api.example.com\", path: \"/health\", agent }"

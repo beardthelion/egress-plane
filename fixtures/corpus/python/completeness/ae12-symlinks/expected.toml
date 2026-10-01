@@ -1,0 +1,18 @@
+state = "incomplete"
+exit_code = 2
+absent_text = ["/opt/payload"]
+
+[[blind_spots]]
+file = "src/evil.py"
+symbol = "<module>"
+kind = "symlink-outside-root"
+
+[[excluded]]
+path = "src/alias.py"
+reason = "symlink-alias"
+
+[[sites]]
+file = "src/real.py"
+symbol = "connect"
+mechanism = "python:socket.create_connection"
+destination = "api.example.com:443"

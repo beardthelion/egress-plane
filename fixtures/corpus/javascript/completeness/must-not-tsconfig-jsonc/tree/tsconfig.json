@@ -1,0 +1,6 @@
+{
+  // compiler settings
+  "compilerOptions": {
+    "strict": true,
+  },
+}

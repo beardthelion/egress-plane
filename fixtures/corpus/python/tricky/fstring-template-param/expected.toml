@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "users.py"
+symbol = "get_user"
+mechanism = "python:requests.get"
+destination = "https://api.example.com/users/{param:1:get_user}"

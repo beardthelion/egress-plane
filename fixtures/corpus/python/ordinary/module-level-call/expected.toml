@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "boot.py"
+symbol = "<module>"
+mechanism = "python:requests.get"
+destination = "https://api.example.com/boot"

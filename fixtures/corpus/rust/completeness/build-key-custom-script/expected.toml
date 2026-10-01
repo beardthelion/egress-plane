@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[blind_spots]]
+file = "tools/gen.rs"
+symbol = "<module>"
+kind = "build-hook"
+
+[[sites]]
+file = "tools/gen.rs"
+symbol = "main"
+mechanism = "rust:std::process::Command::new"
+destination = "exec:protoc"
+labels = ["build-hook"]

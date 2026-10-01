@@ -1,0 +1,6 @@
+state = "complete"
+exit_code = 0
+
+[[excluded]]
+path = ".venv"
+reason = "install-output"

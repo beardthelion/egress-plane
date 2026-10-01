@@ -1,0 +1,8 @@
+[project]
+name = "fixture"
+version = "0.1.0"
+
+[build-system]
+requires = []
+build-backend = "backend"
+backend-path = ["_custom_build"]

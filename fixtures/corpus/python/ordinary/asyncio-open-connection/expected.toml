@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "stream.py"
+symbol = "open_stream"
+mechanism = "python:asyncio.open_connection"
+destination = "api.example.com:8443"

@@ -1,0 +1,9 @@
+state = "complete"
+exit_code = 0
+absent_text = ["hunter2", "abc"]
+
+[[sites]]
+file = "page.py"
+symbol = "fetch_page"
+mechanism = "python:requests.get"
+destination = "https://<redacted>@api.example.com/x?token=<redacted>&page=2"

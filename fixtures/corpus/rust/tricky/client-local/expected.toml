@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "load"
+mechanism = "rust:reqwest::Client::new"
+destination = "expr:reqwest::Client::new()"
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "load"
+mechanism = "rust:reqwest::Client::get"
+destination = "https://api.example.com/items"

@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/platform/linux_net.rs"
+symbol = "connect"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "api.example.com:443"

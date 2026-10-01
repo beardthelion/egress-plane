@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "beacon.js"
+symbol = "track"
+mechanism = "javascript:globalThis.navigator.sendBeacon"
+destination = "https://api.example.com/beacon"

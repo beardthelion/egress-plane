@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "connect_db"
+mechanism = "python:socket.create_connection"
+destination = "db.example.com:5432"

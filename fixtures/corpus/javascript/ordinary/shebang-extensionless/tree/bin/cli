@@ -1,0 +1,6 @@
+#!/usr/bin/env node
+async function main() {
+  await fetch("https://api.example.com/cli");
+}
+
+main();

@@ -1,0 +1,27 @@
+# cargo-deny configuration (KTD21). The Verification Contract runs
+# `cargo deny check advisories sources` on every change to Cargo.lock.
+
+[graph]
+all-features = true
+
+[advisories]
+# Any advisory against a locked dependency fails the check, including
+# unmaintained and unsound notices. Exceptions go in `ignore` with a reason.
+version = 2
+yanked = "deny"
+unmaintained = "all"
+unsound = "all"
+ignore = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+# The one permitted git source is ruff, pinned by full commit rev in
+# Cargo.toml when egress-python lands (U5). No other git source is allowed.
+allow-git = ["https://github.com/astral-sh/ruff"]
+
+[sources.allow-org]
+github = []
+gitlab = []
+bitbucket = []

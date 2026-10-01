@@ -1,0 +1,30 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "public/bundle.js"
+symbol = "t"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/t"
+labels = ["minified"]
+
+[[sites]]
+file = "vendor/sdk.min.js"
+symbol = "s"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://sdk.example.com/s"
+labels = ["minified", "vendored"]
+
+[[sites]]
+file = "src/gen/client.js"
+symbol = "getPet"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/pet"
+labels = ["generated"]
+
+[[sites]]
+file = "build/out.js"
+symbol = "o"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/o"
+labels = ["generated"]

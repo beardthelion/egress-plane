@@ -1,0 +1,23 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "connect"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "api.example.com:443"
+labels = []
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "tests::staging_up"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "staging.example.com:443"
+labels = ["test"]
+
+[[sites]]
+file = "tests/it.rs"
+symbol = "integration"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "it.example.com:443"
+labels = ["test"]

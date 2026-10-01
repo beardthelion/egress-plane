@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "req.mjs"
+symbol = "ping"
+mechanism = "javascript:undici.request"
+destination = "https://api.example.com/ping"

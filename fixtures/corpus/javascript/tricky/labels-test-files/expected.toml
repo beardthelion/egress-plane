@@ -1,0 +1,30 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/main.js"
+symbol = "main"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/main"
+labels = []
+
+[[sites]]
+file = "src/api.test.ts"
+symbol = "testApi"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://staging.example.com/api"
+labels = ["test"]
+
+[[sites]]
+file = "src/api.spec.js"
+symbol = "specApi"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://staging.example.com/spec"
+labels = ["test"]
+
+[[sites]]
+file = "src/__tests__/client.js"
+symbol = "clientTest"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://staging.example.com/client"
+labels = ["test"]

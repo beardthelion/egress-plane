@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "probe.js"
+symbol = "probe"
+mechanism = "javascript:net.connect"
+destination = "api.example.com:443"

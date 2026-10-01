@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "notify.py"
+symbol = "notify"
+mechanism = "python:requests.post"
+destination = "env:WEBHOOK_URL"

@@ -1,0 +1,10 @@
+state = "complete"
+exit_code = 0
+
+[[unscanned_dependencies]]
+language = "rust"
+package = "serde_json"
+
+[[unscanned_dependencies]]
+language = "rust"
+package = "rand"

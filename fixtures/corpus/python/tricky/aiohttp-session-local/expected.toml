@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "feed.py"
+symbol = "load"
+mechanism = "python:aiohttp.ClientSession"
+destination = "expr:aiohttp.ClientSession()"
+
+[[sites]]
+file = "feed.py"
+symbol = "load"
+mechanism = "python:aiohttp.ClientSession.get"
+destination = "https://api.example.com/feed"

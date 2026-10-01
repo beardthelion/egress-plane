@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "feed.py"
+symbol = "load"
+mechanism = "python:urllib.request.urlopen"
+destination = "https://api.example.com/v2"

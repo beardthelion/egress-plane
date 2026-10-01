@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "status.js"
+symbol = "status"
+mechanism = "javascript:https.get"
+destination = "https://api.example.com/status"

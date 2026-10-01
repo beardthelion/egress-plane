@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "ping"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "api.example.com:443"
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "ping"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "api.example.com:443"

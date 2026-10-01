@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "http.js"
+symbol = "Http.send"
+mechanism = "javascript:axios.post"
+destination = "param:1:Http.send"

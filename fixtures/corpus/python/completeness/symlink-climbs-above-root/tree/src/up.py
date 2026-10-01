@@ -1,0 +1,1 @@
+../../outside_fixture/up.py

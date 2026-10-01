@@ -1,0 +1,11 @@
+state = "incomplete"
+exit_code = 2
+
+[[excluded]]
+path = "src/lib"
+reason = "unconfirmed-install-output"
+
+[[blind_spots]]
+file = "src/lib"
+symbol = "<module>"
+kind = "unconfirmed-exclusion"

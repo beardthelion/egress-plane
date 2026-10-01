@@ -1,0 +1,30 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "health"
+mechanism = "python:requests.get"
+destination = "https://api.example.com/health"
+labels = []
+
+[[sites]]
+file = "tests/test_client.py"
+symbol = "test_health"
+mechanism = "python:requests.get"
+destination = "https://staging.example.com/health"
+labels = ["test"]
+
+[[sites]]
+file = "client_test.py"
+symbol = "test_ping"
+mechanism = "python:requests.get"
+destination = "https://staging.example.com/ping"
+labels = ["test"]
+
+[[sites]]
+file = "conftest.py"
+symbol = "live_server"
+mechanism = "python:requests.get"
+destination = "https://staging.example.com/ready"
+labels = ["test"]

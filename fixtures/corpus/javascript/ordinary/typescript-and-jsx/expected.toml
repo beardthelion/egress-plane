@@ -1,0 +1,20 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/profile.tsx"
+symbol = "loadProfile"
+mechanism = "javascript:globalThis.fetch"
+destination = "/api/profile"
+
+[[sites]]
+file = "src/Badge.jsx"
+symbol = "Badge"
+mechanism = "javascript:globalThis.fetch"
+destination = "/api/badge"
+
+[[sites]]
+file = "src/user.ts"
+symbol = "saveUser"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/users"

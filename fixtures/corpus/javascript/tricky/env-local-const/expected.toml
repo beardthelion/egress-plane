@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "report.js"
+symbol = "report"
+mechanism = "javascript:globalThis.fetch"
+destination = "env:REPORT_URL"

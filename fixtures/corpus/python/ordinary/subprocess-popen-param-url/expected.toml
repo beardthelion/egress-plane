@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "download.py"
+symbol = "download"
+mechanism = "python:subprocess.Popen"
+destination = "exec:wget"

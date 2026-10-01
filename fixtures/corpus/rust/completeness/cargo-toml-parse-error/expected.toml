@@ -1,0 +1,7 @@
+state = "incomplete"
+exit_code = 2
+
+[[blind_spots]]
+file = "Cargo.toml"
+symbol = "<module>"
+kind = "manifest-parse-error"

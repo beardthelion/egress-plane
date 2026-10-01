@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "conn.js"
+symbol = "Conn"
+mechanism = "javascript:net.Socket"
+destination = "expr:net.Socket"

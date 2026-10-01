@@ -1,0 +1,15 @@
+state = "complete"
+exit_code = 0
+absent_text = ["ghp_abc123"]
+
+[[sites]]
+file = "repo.py"
+symbol = "fetch_repo"
+mechanism = "python:requests.get"
+destination = "https://h.example/x/<redacted>"
+
+[[sites]]
+file = "repo.py"
+symbol = "fetch_offer"
+mechanism = "python:requests.get"
+destination = "https://h.example/offers/risk-free"

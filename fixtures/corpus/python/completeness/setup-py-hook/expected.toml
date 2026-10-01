@@ -1,0 +1,18 @@
+state = "complete"
+exit_code = 0
+
+[[blind_spots]]
+file = "setup.py"
+symbol = "<module>"
+kind = "build-hook"
+
+[[sites]]
+file = "setup.py"
+symbol = "<module>"
+mechanism = "python:urllib.request.urlopen"
+destination = "https://telemetry.example.com/install"
+labels = ["build-hook"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "setuptools"

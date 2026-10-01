@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "crates/app/src/main.rs"
+symbol = "main"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "db.example.com:5432"

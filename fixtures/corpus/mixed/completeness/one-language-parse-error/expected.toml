@@ -1,0 +1,13 @@
+state = "incomplete"
+exit_code = 2
+
+[[sites]]
+file = "app.py"
+symbol = "ping"
+mechanism = "python:requests.get"
+destination = "https://api.example.com/ping"
+
+[[blind_spots]]
+file = "web/broken.js"
+symbol = "<module>"
+kind = "parse-error"

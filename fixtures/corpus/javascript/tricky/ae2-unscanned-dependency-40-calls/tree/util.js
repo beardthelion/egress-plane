@@ -1,0 +1,46 @@
+import _ from "lodash";
+
+export function work(xs) {
+  const out = [];
+  out.push(_.chunk(xs, 1));
+  out.push(_.chunk(xs, 2));
+  out.push(_.chunk(xs, 3));
+  out.push(_.chunk(xs, 4));
+  out.push(_.chunk(xs, 5));
+  out.push(_.chunk(xs, 6));
+  out.push(_.chunk(xs, 7));
+  out.push(_.chunk(xs, 8));
+  out.push(_.chunk(xs, 9));
+  out.push(_.chunk(xs, 10));
+  out.push(_.chunk(xs, 11));
+  out.push(_.chunk(xs, 12));
+  out.push(_.chunk(xs, 13));
+  out.push(_.chunk(xs, 14));
+  out.push(_.chunk(xs, 15));
+  out.push(_.chunk(xs, 16));
+  out.push(_.chunk(xs, 17));
+  out.push(_.chunk(xs, 18));
+  out.push(_.chunk(xs, 19));
+  out.push(_.chunk(xs, 20));
+  out.push(_.chunk(xs, 21));
+  out.push(_.chunk(xs, 22));
+  out.push(_.chunk(xs, 23));
+  out.push(_.chunk(xs, 24));
+  out.push(_.chunk(xs, 25));
+  out.push(_.chunk(xs, 26));
+  out.push(_.chunk(xs, 27));
+  out.push(_.chunk(xs, 28));
+  out.push(_.chunk(xs, 29));
+  out.push(_.chunk(xs, 30));
+  out.push(_.chunk(xs, 31));
+  out.push(_.chunk(xs, 32));
+  out.push(_.chunk(xs, 33));
+  out.push(_.chunk(xs, 34));
+  out.push(_.chunk(xs, 35));
+  out.push(_.chunk(xs, 36));
+  out.push(_.chunk(xs, 37));
+  out.push(_.chunk(xs, 38));
+  out.push(_.chunk(xs, 39));
+  out.push(_.chunk(xs, 40));
+  return out;
+}

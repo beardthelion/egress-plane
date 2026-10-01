@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[excluded]]
+path = "src/current"
+reason = "symlink-alias"
+
+[[sites]]
+file = "src/v2/client.py"
+symbol = "fetch"
+mechanism = "python:requests.get"
+destination = "https://api.example.com/v2"

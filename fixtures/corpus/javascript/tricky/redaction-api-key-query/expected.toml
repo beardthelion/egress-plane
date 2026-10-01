@@ -1,0 +1,9 @@
+state = "complete"
+exit_code = 0
+absent_text = ["sk_live_FAKE123"]
+
+[[sites]]
+file = "data.js"
+symbol = "data"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/v1/data?api_key=<redacted>&page=1"

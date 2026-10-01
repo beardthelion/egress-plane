@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "fetch"
+mechanism = "rust:reqwest::blocking::get"
+destination = "https://api.example.com/alias"
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "tunnel"
+mechanism = "rust:std::process::Command::new"
+destination = "exec:ssh"

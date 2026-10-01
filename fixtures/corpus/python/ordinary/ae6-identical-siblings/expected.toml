@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "poll.py"
+symbol = "poll"
+mechanism = "python:requests.get"
+destination = "https://api.example.com/poll"
+
+[[sites]]
+file = "poll.py"
+symbol = "poll"
+mechanism = "python:requests.get"
+destination = "https://api.example.com/poll"

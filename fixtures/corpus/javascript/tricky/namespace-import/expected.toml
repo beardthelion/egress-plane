@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "db.ts"
+symbol = "connectDb"
+mechanism = "javascript:net.createConnection"
+destination = "db.example.com:5432"

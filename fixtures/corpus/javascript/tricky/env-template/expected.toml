@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "users.js"
+symbol = "users"
+mechanism = "javascript:globalThis.fetch"
+destination = "{env:API_BASE}/v1/users"

@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "report.py"
+symbol = "report"
+mechanism = "python:requests.post"
+destination = "env:REPORT_URL"

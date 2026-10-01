@@ -1,0 +1,12 @@
+state = "empty"
+exit_code = 3
+
+[[blind_spots]]
+file = "analysis.ipynb"
+symbol = "<module>"
+kind = "unsupported-file-type"
+
+[[blind_spots]]
+file = "App.vue"
+symbol = "<module>"
+kind = "unsupported-file-type"

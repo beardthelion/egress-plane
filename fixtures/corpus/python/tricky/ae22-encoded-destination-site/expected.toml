@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "send.py"
+symbol = "send"
+mechanism = "python:requests.post"
+destination = "expr:base64.b64decode(blob).decode()"

@@ -1,0 +1,20 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "sync.py"
+symbol = "fetch_all"
+mechanism = "python:requests.Session"
+destination = "expr:requests.Session()"
+
+[[sites]]
+file = "sync.py"
+symbol = "fetch_all"
+mechanism = "python:requests.Session.get"
+destination = "https://api.example.com/a"
+
+[[sites]]
+file = "sync.py"
+symbol = "fetch_all"
+mechanism = "python:requests.Session.post"
+destination = "https://api.example.com/b"

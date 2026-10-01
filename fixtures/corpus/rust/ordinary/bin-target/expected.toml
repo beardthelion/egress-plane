@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/bin/tool.rs"
+symbol = "main"
+mechanism = "rust:std::process::Command::new"
+destination = "exec:git"

@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "<impl Store>::sync"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "store.example.com:6379"

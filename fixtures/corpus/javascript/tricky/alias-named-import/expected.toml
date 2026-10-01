@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "health.js"
+symbol = "health"
+mechanism = "javascript:http.get"
+destination = "http://api.example.com/health"

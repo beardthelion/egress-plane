@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "<impl Api>::new"
+mechanism = "rust:reqwest::blocking::Client::new"
+destination = "expr:reqwest::blocking::Client::new()"

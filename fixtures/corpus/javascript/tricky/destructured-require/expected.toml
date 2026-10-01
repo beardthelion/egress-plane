@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "ping.cjs"
+symbol = "ping"
+mechanism = "javascript:https.request"
+destination = "https://api.example.com/ping"

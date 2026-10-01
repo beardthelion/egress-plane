@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "api.js"
+symbol = "api.post"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/p"

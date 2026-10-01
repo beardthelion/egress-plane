@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "run.js"
+symbol = "upload"
+mechanism = "javascript:child_process.execFile"
+destination = "exec:curl"
+
+[[sites]]
+file = "run.js"
+symbol = "pull"
+mechanism = "javascript:child_process.spawn"
+destination = "exec:git"

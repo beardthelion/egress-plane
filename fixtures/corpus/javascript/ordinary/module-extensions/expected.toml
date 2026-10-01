@@ -1,0 +1,26 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "a.mjs"
+symbol = "a"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/a"
+
+[[sites]]
+file = "b.cjs"
+symbol = "b"
+mechanism = "javascript:https.get"
+destination = "https://api.example.com/b"
+
+[[sites]]
+file = "c.mts"
+symbol = "c"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/c"
+
+[[sites]]
+file = "d.cts"
+symbol = "d"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/d"

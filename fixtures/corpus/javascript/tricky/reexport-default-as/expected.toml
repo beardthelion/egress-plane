@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/app.js"
+symbol = "me"
+mechanism = "javascript:axios.get"
+destination = "https://api.example.com/me"

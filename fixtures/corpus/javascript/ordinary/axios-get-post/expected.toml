@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "users.js"
+symbol = "listUsers"
+mechanism = "javascript:axios.get"
+destination = "https://api.example.com/users"
+
+[[sites]]
+file = "users.js"
+symbol = "createUser"
+mechanism = "javascript:axios.post"
+destination = "https://api.example.com/users"

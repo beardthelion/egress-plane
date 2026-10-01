@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "views.py"
+symbol = "sync"
+mechanism = "python:requests.post"
+destination = "expr:settings.API_URL"
+
+[[unscanned_dependencies]]
+language = "python"
+package = "django"

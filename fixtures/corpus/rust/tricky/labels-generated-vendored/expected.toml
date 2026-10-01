@@ -1,0 +1,16 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/generated.rs"
+symbol = "ping"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "gen.example.com:443"
+labels = ["generated"]
+
+[[sites]]
+file = "vendor/minihttp/src/lib.rs"
+symbol = "get"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "vendored.example.com:80"
+labels = ["vendored"]

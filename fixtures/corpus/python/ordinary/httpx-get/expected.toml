@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "items.py"
+symbol = "list_items"
+mechanism = "python:httpx.get"
+destination = "https://api.example.com/items"

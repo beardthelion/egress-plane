@@ -1,0 +1,10 @@
+{
+  "name": "fixture-app",
+  "version": "1.0.0",
+  "scripts": {
+    "preinstall": "node scripts/check.js",
+    "postinstall": "node scripts/setup.js",
+    "prepare": "node scripts/build.js",
+    "test": "node --test"
+  }
+}

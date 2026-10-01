@@ -1,0 +1,17 @@
+state = "complete"
+exit_code = 0
+
+[[blind_spots]]
+file = "package.json"
+symbol = "<module>"
+kind = "build-hook"
+
+[[blind_spots]]
+file = "package.json"
+symbol = "<module>"
+kind = "build-hook"
+
+[[blind_spots]]
+file = "package.json"
+symbol = "<module>"
+kind = "build-hook"

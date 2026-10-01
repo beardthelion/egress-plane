@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "client.py"
+symbol = "fetch"
+mechanism = "python:requests.get"
+destination = "env:API_URL"

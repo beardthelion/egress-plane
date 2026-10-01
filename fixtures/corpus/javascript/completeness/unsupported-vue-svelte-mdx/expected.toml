@@ -1,0 +1,17 @@
+state = "incomplete"
+exit_code = 2
+
+[[blind_spots]]
+file = "src/App.vue"
+symbol = "<module>"
+kind = "unsupported-file-type"
+
+[[blind_spots]]
+file = "src/Widget.svelte"
+symbol = "<module>"
+kind = "unsupported-file-type"
+
+[[blind_spots]]
+file = "docs/page.mdx"
+symbol = "<module>"
+kind = "unsupported-file-type"

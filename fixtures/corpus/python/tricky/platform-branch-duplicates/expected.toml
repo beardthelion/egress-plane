@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "ping.py"
+symbol = "ping"
+mechanism = "python:requests.get"
+destination = "https://api.example.com/ping"
+
+[[sites]]
+file = "ping.py"
+symbol = "ping"
+mechanism = "python:requests.get"
+destination = "https://api.example.com/ping"

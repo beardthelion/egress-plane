@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "status"
+mechanism = "rust:ureq::get"
+destination = "https://api.example.com/status"

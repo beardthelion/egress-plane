@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "probe.py"
+symbol = "probe"
+mechanism = "python:socket.create_connection"
+destination = "api.example.com:443"

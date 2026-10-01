@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "<impl Api>::fetch"
+mechanism = "rust:reqwest::blocking::get"
+destination = "https://api.example.com/me"

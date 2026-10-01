@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "notify.js"
+symbol = "notify"
+mechanism = "javascript:globalThis.fetch"
+destination = "env:WEBHOOK_URL"

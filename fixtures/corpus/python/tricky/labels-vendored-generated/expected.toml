@@ -1,0 +1,23 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "vendor/sdk/transport.py"
+symbol = "connect"
+mechanism = "python:socket.create_connection"
+destination = "sdk.example.com:443"
+labels = ["vendored"]
+
+[[sites]]
+file = "third_party/metrics.py"
+symbol = "push"
+mechanism = "python:urllib.request.urlopen"
+destination = "https://metrics.example.com/push"
+labels = ["vendored"]
+
+[[sites]]
+file = "api_pb2.py"
+symbol = "fetch_schema"
+mechanism = "python:urllib.request.urlopen"
+destination = "https://schema.example.com/api.proto"
+labels = ["generated"]

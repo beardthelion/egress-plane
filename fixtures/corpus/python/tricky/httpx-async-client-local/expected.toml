@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "load.py"
+symbol = "load"
+mechanism = "python:httpx.AsyncClient"
+destination = "expr:httpx.AsyncClient()"
+
+[[sites]]
+file = "load.py"
+symbol = "load"
+mechanism = "python:httpx.AsyncClient.get"
+destination = "https://api.example.com/async"

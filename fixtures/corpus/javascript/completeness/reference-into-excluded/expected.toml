@@ -1,0 +1,11 @@
+state = "incomplete"
+exit_code = 2
+
+[[excluded]]
+path = "node_modules"
+reason = "install-output"
+
+[[blind_spots]]
+file = "app.js"
+symbol = "<module>"
+kind = "reference-into-excluded"

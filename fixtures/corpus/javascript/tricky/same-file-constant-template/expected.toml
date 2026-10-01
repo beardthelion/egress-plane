@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "items.js"
+symbol = "items"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/v2/items"

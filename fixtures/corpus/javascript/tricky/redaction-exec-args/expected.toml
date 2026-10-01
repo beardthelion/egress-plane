@@ -1,0 +1,9 @@
+state = "complete"
+exit_code = 0
+absent_text = ["ghp_FAKE0123456789"]
+
+[[sites]]
+file = "deploy.js"
+symbol = "deploy"
+mechanism = "javascript:child_process.execFile"
+destination = "exec:curl"

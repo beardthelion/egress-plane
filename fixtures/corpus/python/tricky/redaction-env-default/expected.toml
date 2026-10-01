@@ -1,0 +1,9 @@
+state = "complete"
+exit_code = 0
+absent_text = ["hunter2"]
+
+[[sites]]
+file = "client.py"
+symbol = "fetch"
+mechanism = "python:requests.get"
+destination = "env:API_URL"
