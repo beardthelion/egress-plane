@@ -485,7 +485,7 @@ export function e() { return fetch(process.env.URL); }
 fn covers_ae4_non_literal_loaders_are_dynamic_import_triggers() {
     for src in [
         "require(variable);",
-        "createRequire(import.meta.url)(x);",
+        "createRequire(__filename)(x);",
         "module.require(x);",
         "require.main.require(x);",
         "process.mainModule.require(x);",
@@ -639,7 +639,9 @@ fn recovered_parse_errors_and_flow_are_parse_errors() {
 fn columns_count_unicode_scalar_values() {
     let f = ir("a.js", "/* 😀界 */ fetch(u);");
     let r = one(&f, "fetch(u)");
-    assert_eq!((r.location.line, r.location.column), (1, 11));
+    // Nine scalar values precede `fetch`; the emoji is four UTF-8 bytes and
+    // two UTF-16 units, the CJK character three bytes and one unit.
+    assert_eq!((r.location.line, r.location.column), (1, 10));
 }
 
 #[test]
