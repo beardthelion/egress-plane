@@ -1,0 +1,32 @@
+# File labels (KTD12, R18). Labels mark vendored, generated, minified, and
+# test code. They never change what is scanned.
+#
+# - `dirs`: the label applies when any directory component of the
+#   repo-relative path equals one of these names.
+# - `name_globs`: the label applies when the file name matches one of these
+#   patterns; `*` matches any run of characters.
+# - `name_suffixes`: the label applies when the file name ends with one of
+#   these suffixes.
+# - `header_markers`: the label applies when one of these strings occurs in
+#   the first `header_lines` lines of the file.
+# - `max_line_chars`: the label applies when any line holds more characters
+#   than this.
+#
+# The Rust `#[cfg(test)]` scope rule for `test` is applied per site by the Rust
+# frontend, not here.
+
+[vendored]
+dirs = ["vendor", "third_party", "external"]
+
+[generated]
+dirs = ["dist", "build", "out"]
+header_markers = ["@generated", "DO NOT EDIT", "Code generated"]
+header_lines = 10
+
+[minified]
+name_suffixes = [".min.js", ".min.mjs", ".min.cjs"]
+max_line_chars = 1000
+
+[test]
+dirs = ["tests", "__tests__"]
+name_globs = ["test_*.py", "*_test.py", "*.test.*", "*.spec.*", "conftest.py"]

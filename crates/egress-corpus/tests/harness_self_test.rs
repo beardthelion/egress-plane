@@ -601,28 +601,46 @@ fn pending_ledger_rejects_duplicates_and_unknown_keys() {
     assert!(p.cases.contains("a/b/c"));
 }
 
-// Integration with the real corpus and the tool-error stub.
+// Integration with the real corpus and a tool-error stub. The real scanner
+// runs against the real ledger in `tests/corpus.rs`; these tests pin the
+// harness behavior itself, so they keep the U1 stub as the scan and a ledger
+// that lists every case.
 
-fn real_pending() -> Pending {
-    load_pending(&corpus_root().join("pending.toml")).expect("pending.toml loads")
+fn stub(_: &Path) -> Result<Report, ToolError> {
+    Err(ToolError::Internal("stub scan"))
+}
+
+/// A ledger naming every case in the real corpus.
+fn all_pending() -> Pending {
+    let cases = discover_cases(&corpus_root()).expect("corpus discovers");
+    Pending {
+        cases: cases.into_iter().map(|c| c.id).collect(),
+    }
 }
 
 #[test]
-fn real_corpus_loads_and_every_case_is_pending() {
+fn real_ledger_loads_and_names_only_existing_cases() {
+    let all = all_pending();
+    let real = load_pending(&corpus_root().join("pending.toml")).expect("pending.toml loads");
+    for id in &real.cases {
+        assert!(all.cases.contains(id), "{id} is not a corpus case");
+    }
+}
+
+#[test]
+fn real_corpus_loads_and_every_case_fails_against_the_stub() {
     let cases = discover_cases(&corpus_root()).expect("corpus discovers");
     assert!(cases.len() > 100, "corpus has {} cases", cases.len());
-    let p = real_pending();
     for c in &cases {
         load_expected(&c.dir.join("expected.toml")).unwrap();
-        assert!(p.cases.contains(&c.id), "{} is not pending", c.id);
     }
-    let s = run_corpus(&corpus_root(), &p, egress_scan::scan);
+    let s = run_corpus(&corpus_root(), &all_pending(), stub);
     assert!(s.passed(), "{:#?}", s.errors);
 }
 
 #[test]
 fn removing_any_one_case_from_the_ledger_turns_the_run_red() {
-    let full = real_pending();
+    let full = all_pending();
     assert!(
         full.cases.len() > 100,
         "ledger has {} cases",
@@ -632,7 +650,7 @@ fn removing_any_one_case_from_the_ledger_turns_the_run_red() {
     for id in &full.cases {
         let mut p = full.clone();
         p.cases.remove(id);
-        let s = run_corpus(&corpus_root(), &p, egress_scan::scan);
+        let s = run_corpus(&corpus_root(), &p, stub);
         by_case.insert(id.clone(), s);
     }
     for (id, s) in &by_case {
@@ -647,9 +665,9 @@ fn ae9_go_only_case_fails_against_the_stub() {
     let e = load_expected(&corpus_root().join(id).join("expected.toml")).unwrap();
     assert_eq!(e.state, CompletenessState::Empty);
     assert_eq!(e.exit_code, 3);
-    let mut p = real_pending();
-    assert!(p.cases.remove(id), "{id} is in the ledger");
-    let s = run_corpus(&corpus_root(), &p, egress_scan::scan);
+    let mut p = all_pending();
+    assert!(p.cases.remove(id), "{id} is a corpus case");
+    let s = run_corpus(&corpus_root(), &p, stub);
     assert!(!s.passed());
     let msg = s.errors.join("\n");
     assert!(msg.contains(id) && msg.contains("tool error"), "{msg}");

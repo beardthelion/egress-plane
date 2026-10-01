@@ -4,9 +4,11 @@
 
 pub mod data;
 pub mod destination;
+pub mod discover;
 pub mod escape;
 pub mod identity;
 pub mod ir;
 pub mod json;
 pub mod model;
+pub mod prescan;
 pub mod redact;

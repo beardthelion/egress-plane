@@ -1,0 +1,18 @@
+# Global resource budgets (KTD19, R15, R22). Each is a deterministic count, so
+# output never depends on host speed. Files and bytes are charged in byte-wise
+# repo-relative path order during discovery; the findings cap applies after
+# sorting by identity; resolver steps are charged in sorted reference order.
+# An exhausted budget is listed in `completeness.budget_exceeded` and makes the
+# account incomplete.
+#
+# Defaults are set well above the largest repositories expected in the first
+# real runs; revisit them with those measurements.
+
+# Supported source files parsed.
+files = 500000
+# Source bytes parsed (2 GiB).
+bytes = 2147483648
+# Sites, blind spots, and unscanned dependencies kept in the report.
+findings = 1000000
+# Alias-resolution steps across the whole scan.
+resolver_steps = 100000000

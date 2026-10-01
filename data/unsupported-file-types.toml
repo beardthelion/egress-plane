@@ -1,0 +1,31 @@
+# Code file types the scanner does not parse (KTD12, R15).
+#
+# A regular file whose name ends in one of these extensions is a whole-file
+# blind spot `unsupported-file-type`, counted as skipped under `unsupported`,
+# and makes the account incomplete. Matching ignores ASCII case. Files of any
+# other unlisted type (docs, images, shell, CI) are not counted at all.
+
+extensions = [
+    # Notebooks and component or markup formats that embed code.
+    ".ipynb",
+    ".vue",
+    ".svelte",
+    ".astro",
+    ".mdx",
+    # Compiled-language sources the frontends do not parse.
+    ".pyx",
+    ".pxd",
+    ".coffee",
+    # Sourceless or archived Python.
+    ".pyc",
+    ".pyz",
+    ".egg",
+    ".whl",
+    # Native binaries.
+    ".node",
+    ".so",
+    ".dylib",
+    ".dll",
+    ".pyd",
+    ".wasm",
+]

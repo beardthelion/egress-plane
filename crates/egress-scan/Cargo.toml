@@ -7,3 +7,6 @@ publish.workspace = true
 
 [dependencies]
 egress-core.workspace = true
+
+[dev-dependencies]
+libc = "=0.2.189"

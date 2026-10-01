@@ -53,6 +53,11 @@ macro_rules! embed {
 /// budgets, caveats, redaction, unsupported file types) append them here so
 /// `data_digest` covers them.
 pub const EMBEDDED: &[DataFile] = &[
+    embed!("data/budgets.toml"),
+    embed!("data/caveats.toml"),
+    embed!("data/labels.toml"),
+    embed!("data/unsupported-file-types.toml"),
+    embed!("data/redaction.toml"),
     embed!("data/catalog/javascript.toml"),
     embed!("data/catalog/python.toml"),
     embed!("data/catalog/rust.toml"),
