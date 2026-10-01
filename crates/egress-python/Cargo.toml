@@ -1,0 +1,19 @@
+[package]
+name = "egress-python"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# Astral does not publish ruff's parser as a stable crate, so it is a git
+# dependency pinned by full commit rev (KTD1, KTD21). The rev is the ruff
+# 0.16.9 release commit; bump it only as its own change with the lockfile
+# diff and the corpus green.
+[dependencies]
+egress-core.workspace = true
+ruff_python_ast = { git = "https://github.com/astral-sh/ruff", rev = "0be08a206f9c3180afd3e93bcc792ed5cb1f4db1" }
+ruff_python_parser = { git = "https://github.com/astral-sh/ruff", rev = "0be08a206f9c3180afd3e93bcc792ed5cb1f4db1" }
+ruff_text_size = { git = "https://github.com/astral-sh/ruff", rev = "0be08a206f9c3180afd3e93bcc792ed5cb1f4db1" }
+
+[dev-dependencies]
+egress-scan = { path = "../egress-scan" }
