@@ -2,6 +2,7 @@
 //! redaction, escaping, identity, and JSON output, plus data loading,
 //! classifier, resolver, and discovery as later units land.
 
+pub mod classify;
 pub mod data;
 pub mod destination;
 pub mod discover;
@@ -12,3 +13,4 @@ pub mod json;
 pub mod model;
 pub mod prescan;
 pub mod redact;
+pub mod resolve;

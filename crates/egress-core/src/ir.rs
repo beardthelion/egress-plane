@@ -56,7 +56,11 @@ impl FileIr {
     }
 }
 
-/// One import, re-export, or `use` binding.
+/// One import, re-export, or `use` binding. A loader call with a literal
+/// specifier (`require("http")`, `__import__("os")`,
+/// `importlib.import_module("json")`, TS `import x = require("net")`) is
+/// lowered as an import too; the core gives the call itself no finding
+/// (KTD15).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Import {
     /// The name bound in this file, or `None` for a star or glob import and a
@@ -102,6 +106,8 @@ pub enum UseKind {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Root {
     /// A name bound by an import in this file; the string is the local name.
+    /// A name that only a star import can bind may also use this root; the
+    /// core then looks it up through the file's star imports.
     Import(String),
     /// A definition in this file (function, class, local variable).
     Local(String),
@@ -171,6 +177,16 @@ pub enum Expr {
     Param(u32),
     /// A nested reference, for example an environment read.
     Reference(Box<Reference>),
+    /// A list, tuple, or array literal, elements in order
+    /// (`["curl", url]`, `("host", 443)`).
+    Sequence(Vec<Expr>),
+    /// An object or dict literal with literal keys, in source order
+    /// (`{ host: h, port: 80 }`).
+    Object(Vec<(String, Expr)>),
+    /// A subscript with a key, such as Python `os.environ["X"]`. A JS
+    /// computed member with a literal key is lowered as a plain member
+    /// instead.
+    Subscript { base: Box<Expr>, key: Box<Expr> },
     /// Anything else, as source text.
     Opaque(String),
 }

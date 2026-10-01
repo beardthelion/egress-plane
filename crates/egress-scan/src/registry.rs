@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use egress_core::ir::FileIr;
 use egress_core::model::Language;
+use egress_core::resolve::SpecifierRules;
 
 /// Why a frontend could not lower a file. Each maps to a fixed whole-file
 /// blind-spot reason; parser messages never reach output (KTD13).
@@ -35,6 +36,12 @@ pub struct SourceInput<'a> {
 pub trait Frontend: Send + Sync {
     fn language(&self) -> Language;
     fn lower(&self, input: &SourceInput<'_>) -> Result<FileIr, FrontendError>;
+
+    /// The language's specifier rules (KTD16). `None` resolves only exact
+    /// relative paths.
+    fn specifier_rules(&self) -> Option<&dyn SpecifierRules> {
+        None
+    }
 }
 
 /// Frontends by language.

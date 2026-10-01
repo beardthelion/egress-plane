@@ -3,9 +3,11 @@
 //! `scan` runs discovery, then reads, pre-scans, and lowers every admitted
 //! source file on worker threads with 64 MiB stacks, catching a frontend
 //! panic per file and capping the source bytes in flight (KTD13). It then
-//! assembles the report: completeness and coverage, caveats (R23), identity
-//! and ordering, and the findings budget (KTD19). The classification stage
-//! (U4) consumes the lowered files.
+//! classifies the lowered files (U4: alias resolution, member-level
+//! classification, destinations, and the resolver budget) and assembles the
+//! report: completeness and coverage, caveats (R23), identity and ordering,
+//! and the findings budget (KTD19), which applies after classification so it
+//! counts every finding.
 
 pub mod registry;
 
@@ -13,6 +15,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex, OnceLock};
 
+use egress_core::classify::classify;
 use egress_core::data::Data;
 use egress_core::discover::budgets::apply_findings_budget;
 use egress_core::discover::completeness::{caveats, counts_mut, state};
@@ -27,6 +30,7 @@ use egress_core::model::{
     ToolError,
 };
 use egress_core::prescan;
+use egress_core::resolve::{Program, ProgramFile};
 
 pub use registry::{Frontend, FrontendError, Registry, SourceInput};
 
@@ -257,6 +261,31 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
     }
 
     let mut budget_exceeded = discovery.budget_exceeded.clone();
+    let mut program = Program::new(&discovery.index, &discovery.excluded_dirs);
+    for lang in Language::ALL {
+        if let Some(rules) = options.registry.get(lang).and_then(|f| f.specifier_rules()) {
+            program.set_rules(lang, rules);
+        }
+    }
+    for f in &files {
+        program.add_file(
+            f.path.clone(),
+            ProgramFile {
+                file: f.file.clone(),
+                language: f.language,
+                labels: f.labels.clone(),
+                ir: &f.ir,
+            },
+        );
+    }
+    let classified = classify(data, &program, options.config.budgets.resolver_steps);
+    drop(program);
+    blind_spots.extend(classified.blind_spots);
+    coverage.unsupported.skipped += classified.loaded_as_code;
+    if classified.resolver_budget_exceeded {
+        budget_exceeded.push(BudgetReason::ResolverSteps);
+    }
+
     let mut report = Report {
         schema_version: SCHEMA_VERSION,
         tool: Tool {
@@ -271,9 +300,9 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
             coverage,
         },
         caveats: caveats(&discovery.languages),
-        sites: Vec::new(),
+        sites: classified.sites,
         blind_spots,
-        unscanned_dependencies: Vec::new(),
+        unscanned_dependencies: classified.unscanned_dependencies,
         excluded: discovery.excluded.clone(),
     };
     finalize(&mut report);
