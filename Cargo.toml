@@ -4,6 +4,7 @@ members = [
     "crates/egress-core",
     "crates/egress-scan",
     "crates/egress-corpus",
+    "crates/egress-js",
 ]
 # Fixture trees contain Cargo manifests and build scripts that are scan input,
 # never workspace members.
