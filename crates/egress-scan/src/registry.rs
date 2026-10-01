@@ -44,6 +44,26 @@ pub trait Frontend: Send + Sync {
     }
 }
 
+/// The Python frontend (U5).
+struct Python(egress_python::PythonRules);
+
+impl Frontend for Python {
+    fn language(&self) -> Language {
+        Language::Python
+    }
+
+    fn lower(&self, input: &SourceInput<'_>) -> Result<FileIr, FrontendError> {
+        egress_python::lower(input.text).map_err(|e| match e {
+            egress_python::LowerError::Parse => FrontendError::Parse,
+            egress_python::LowerError::TooDeeplyNested => FrontendError::TooDeeplyNested,
+        })
+    }
+
+    fn specifier_rules(&self) -> Option<&dyn SpecifierRules> {
+        Some(&self.0)
+    }
+}
+
 /// Frontends by language.
 #[derive(Clone, Default)]
 pub struct Registry {
@@ -59,7 +79,9 @@ impl Registry {
     /// The registry `scan` uses: every frontend built into the tool. U5, U6,
     /// and U7 add theirs here.
     pub fn builtin() -> Registry {
-        Registry::new()
+        let mut r = Registry::new();
+        r.register(Python(egress_python::PythonRules));
+        r
     }
 
     /// Registers `frontend` for its language, replacing any earlier one.

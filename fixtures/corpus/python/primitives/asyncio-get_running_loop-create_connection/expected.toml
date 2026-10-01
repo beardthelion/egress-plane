@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:asyncio.get_running_loop.create_connection"
+destination = "param:1:probe"
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:asyncio.get_running_loop"
+destination = "expr:asyncio.get_running_loop()"
