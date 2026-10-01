@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "<module>"
+mechanism = "rust:std::net::ToSocketAddrs"
+destination = "expr:std::net::ToSocketAddrs"

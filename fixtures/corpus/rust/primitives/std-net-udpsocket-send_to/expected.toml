@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "probe"
+mechanism = "rust:std::net::UdpSocket::send_to"
+destination = "param:1:probe"
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "probe"
+mechanism = "rust:std::net::UdpSocket::bind"
+destination = "0.0.0.0:0"

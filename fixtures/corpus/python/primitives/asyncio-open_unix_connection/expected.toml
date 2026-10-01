@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:asyncio.open_unix_connection"
+destination = "param:1:probe"

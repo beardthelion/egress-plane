@@ -1,0 +1,1975 @@
+# JavaScript primitive list (KTD6): the globalThis ambient module and its aliases
+# (KTD5), closure sections (KTD15), the classification of every Node builtin
+# module across Node 18 to 22 (KTD20), and member entries.
+
+language = "javascript"
+runtime_range = "18-22"
+
+[ambient]
+module = "globalThis"
+aliases = ["window", "self", "global", "top", "parent", "frames", "document.defaultView"]
+[ambient.module_members]
+"process" = "process"
+
+[closure]
+require_equivalents = [
+    "require",
+    "createRequire",
+    "module.createRequire",
+    "module.require",
+    "require.main.require",
+    "process.mainModule.require",
+    "module.constructor._load",
+    "module.Module._load",
+    "process.getBuiltinModule",
+]
+introspection_roots = [
+    "constructor",
+    "Object.getPrototypeOf",
+    "Reflect.getPrototypeOf",
+    "__proto__",
+]
+introspection_prefixes = [
+]
+egress_traits = [
+]
+
+# Standard library and builtin module classification (KTD6).
+
+[[module]]
+name = "_http_agent"
+class = "egress"
+
+[[module]]
+name = "_http_client"
+class = "egress"
+
+[[module]]
+name = "_http_common"
+class = "inert"
+justification = "HTTP parser helpers shared by client and server; open nothing."
+
+[[module]]
+name = "_http_incoming"
+class = "inert"
+justification = "Incoming message class over sockets opened elsewhere."
+
+[[module]]
+name = "_http_outgoing"
+class = "inert"
+justification = "Outgoing message base class over sockets opened elsewhere."
+
+[[module]]
+name = "_http_server"
+class = "egress"
+
+[[module]]
+name = "_stream_duplex"
+class = "inert"
+justification = "In-process stream, event, and buffer plumbing over data the caller passes; opens nothing."
+
+[[module]]
+name = "_stream_passthrough"
+class = "inert"
+justification = "In-process stream, event, and buffer plumbing over data the caller passes; opens nothing."
+
+[[module]]
+name = "_stream_readable"
+class = "inert"
+justification = "In-process stream, event, and buffer plumbing over data the caller passes; opens nothing."
+
+[[module]]
+name = "_stream_transform"
+class = "inert"
+justification = "In-process stream, event, and buffer plumbing over data the caller passes; opens nothing."
+
+[[module]]
+name = "_stream_wrap"
+class = "inert"
+justification = "In-process stream, event, and buffer plumbing over data the caller passes; opens nothing."
+
+[[module]]
+name = "_stream_writable"
+class = "inert"
+justification = "In-process stream, event, and buffer plumbing over data the caller passes; opens nothing."
+
+[[module]]
+name = "_tls_common"
+class = "inert"
+justification = "Secure context construction from key material; opens no connection."
+
+[[module]]
+name = "_tls_wrap"
+class = "egress"
+
+[[module]]
+name = "assert"
+class = "inert"
+justification = "Pure computation on values passed in; returns plain data, opens nothing, and loads no code."
+
+[[module]]
+name = "assert/strict"
+class = "inert"
+justification = "Pure computation on values passed in; returns plain data, opens nothing, and loads no code."
+
+[[module]]
+name = "async_hooks"
+class = "inert"
+justification = "Async context tracking hooks over callbacks the caller passes."
+
+[[module]]
+name = "buffer"
+class = "inert"
+justification = "Pure computation on values passed in; returns plain data, opens nothing, and loads no code."
+
+[[module]]
+name = "child_process"
+class = "egress"
+
+[[module]]
+name = "cluster"
+class = "egress"
+
+[[module]]
+name = "console"
+class = "inert"
+justification = "Writes to the process's standard streams."
+
+[[module]]
+name = "constants"
+class = "inert"
+justification = "Constant tables."
+
+[[module]]
+name = "crypto"
+class = "inert"
+justification = "Cryptographic primitives over data in hand."
+
+[[module]]
+name = "dgram"
+class = "egress"
+
+[[module]]
+name = "diagnostics_channel"
+class = "inert"
+justification = "In-process publish and subscribe channels."
+
+[[module]]
+name = "dns"
+class = "egress"
+
+[[module]]
+name = "dns/promises"
+class = "egress"
+
+[[module]]
+name = "domain"
+class = "inert"
+justification = "Deprecated in-process error grouping."
+
+[[module]]
+name = "events"
+class = "inert"
+justification = "In-process stream, event, and buffer plumbing over data the caller passes; opens nothing."
+
+[[module]]
+name = "fs"
+class = "inert"
+justification = "Local file and stream operations; opens no socket, spawns no process, and loads no code."
+
+[[module]]
+name = "fs/promises"
+class = "inert"
+justification = "Local file and stream operations; opens no socket, spawns no process, and loads no code."
+
+[[module]]
+name = "globalThis"
+class = "egress"
+
+[[module]]
+name = "http"
+class = "egress"
+
+[[module]]
+name = "http2"
+class = "egress"
+
+[[module]]
+name = "https"
+class = "egress"
+
+[[module]]
+name = "inspector"
+class = "egress"
+
+[[module]]
+name = "inspector/promises"
+class = "egress"
+
+[[module]]
+name = "module"
+class = "egress"
+
+[[module]]
+name = "net"
+class = "egress"
+
+[[module]]
+name = "os"
+class = "inert"
+justification = "Host information and local process priority; spawns nothing."
+
+[[module]]
+name = "path"
+class = "inert"
+justification = "Pure computation on values passed in; returns plain data, opens nothing, and loads no code."
+
+[[module]]
+name = "path/posix"
+class = "inert"
+justification = "Pure computation on values passed in; returns plain data, opens nothing, and loads no code."
+
+[[module]]
+name = "path/win32"
+class = "inert"
+justification = "Pure computation on values passed in; returns plain data, opens nothing, and loads no code."
+
+[[module]]
+name = "perf_hooks"
+class = "inert"
+justification = "In-process performance timing."
+
+[[module]]
+name = "process"
+class = "egress"
+
+[[module]]
+name = "punycode"
+class = "inert"
+justification = "Pure computation on values passed in; returns plain data, opens nothing, and loads no code."
+
+[[module]]
+name = "querystring"
+class = "inert"
+justification = "Pure computation on values passed in; returns plain data, opens nothing, and loads no code."
+
+[[module]]
+name = "readline"
+class = "inert"
+justification = "Line reading over streams the caller passes."
+
+[[module]]
+name = "readline/promises"
+class = "inert"
+justification = "Line reading over streams the caller passes."
+
+[[module]]
+name = "repl"
+class = "egress"
+
+[[module]]
+name = "sea"
+class = "inert"
+justification = "Reads assets embedded in a single executable; plain data."
+
+[[module]]
+name = "sqlite"
+class = "egress"
+
+[[module]]
+name = "stream"
+class = "inert"
+justification = "In-process stream, event, and buffer plumbing over data the caller passes; opens nothing."
+
+[[module]]
+name = "stream/consumers"
+class = "inert"
+justification = "In-process stream, event, and buffer plumbing over data the caller passes; opens nothing."
+
+[[module]]
+name = "stream/promises"
+class = "inert"
+justification = "In-process stream, event, and buffer plumbing over data the caller passes; opens nothing."
+
+[[module]]
+name = "stream/web"
+class = "inert"
+justification = "In-process stream, event, and buffer plumbing over data the caller passes; opens nothing."
+
+[[module]]
+name = "string_decoder"
+class = "inert"
+justification = "Pure computation on values passed in; returns plain data, opens nothing, and loads no code."
+
+[[module]]
+name = "sys"
+class = "inert"
+justification = "Deprecated alias of util; formatting and type helpers."
+
+[[module]]
+name = "test"
+class = "egress"
+
+[[module]]
+name = "test/reporters"
+class = "inert"
+justification = "Test result formatters over event streams."
+
+[[module]]
+name = "timers"
+class = "inert"
+justification = "Timers over callbacks the caller passes; Node rejects string callbacks."
+
+[[module]]
+name = "timers/promises"
+class = "inert"
+justification = "Promise timers."
+
+[[module]]
+name = "tls"
+class = "egress"
+
+[[module]]
+name = "trace_events"
+class = "inert"
+justification = "In-process trace category control."
+
+[[module]]
+name = "tty"
+class = "inert"
+justification = "Terminal stream helpers over descriptors in hand."
+
+[[module]]
+name = "url"
+class = "inert"
+justification = "Pure computation on values passed in; returns plain data, opens nothing, and loads no code."
+
+[[module]]
+name = "util"
+class = "inert"
+justification = "Formatting, inspection, promisification, and type helpers over values in hand."
+
+[[module]]
+name = "util/types"
+class = "inert"
+justification = "Pure computation on values passed in; returns plain data, opens nothing, and loads no code."
+
+[[module]]
+name = "v8"
+class = "egress"
+
+[[module]]
+name = "vm"
+class = "egress"
+
+[[module]]
+name = "wasi"
+class = "egress"
+
+[[module]]
+name = "worker_threads"
+class = "egress"
+
+[[module]]
+name = "zlib"
+class = "inert"
+justification = "Pure computation on values passed in; returns plain data, opens nothing, and loads no code."
+
+# Member entries and inert patterns.
+
+[[entry]]
+id = "javascript:_http_agent"
+kind = "egress"
+mechanism = "network"
+fixture = "javascript/primitives/_http_agent"
+
+[[entry]]
+id = "javascript:_http_client"
+kind = "egress"
+mechanism = "network"
+fixture = "javascript/primitives/_http_client"
+
+[[entry]]
+id = "javascript:_http_server"
+kind = "egress"
+mechanism = "network"
+fixture = "javascript/primitives/_http_server"
+
+[[entry]]
+id = "javascript:_tls_wrap"
+kind = "egress"
+mechanism = "network"
+fixture = "javascript/primitives/_tls_wrap"
+
+[[entry]]
+id = "javascript:child_process.ChildProcess"
+kind = "egress"
+mechanism = "process"
+constructor = true
+fixture = "javascript/primitives/child_process-childprocess-type"
+
+[[entry]]
+id = "javascript:child_process._forkChild"
+kind = "egress"
+mechanism = "process"
+fixture = "javascript/primitives/child_process-_forkchild-type"
+
+[[entry]]
+id = "javascript:child_process.exec"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, keyword = "command", form = "program" }
+fixture = "javascript/primitives/child_process-exec"
+
+[[entry]]
+id = "javascript:child_process.execFile"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, keyword = "file", form = "program" }
+fixture = "javascript/ordinary/child-process-execfile-spawn"
+
+[[entry]]
+id = "javascript:child_process.execFileSync"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, keyword = "file", form = "program" }
+fixture = "javascript/primitives/child_process-execfilesync-type"
+
+[[entry]]
+id = "javascript:child_process.execSync"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, keyword = "command", form = "program" }
+fixture = "javascript/primitives/child_process-execsync-type"
+
+[[entry]]
+id = "javascript:child_process.fork"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, keyword = "modulePath", form = "program" }
+fixture = "javascript/primitives/child_process-fork"
+
+[[entry]]
+id = "javascript:child_process.spawn"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, keyword = "command", form = "program" }
+fixture = "javascript/ordinary/child-process-execfile-spawn"
+
+[[entry]]
+id = "javascript:child_process.spawnSync"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, keyword = "command", form = "program" }
+fixture = "javascript/primitives/child_process-spawnsync-type"
+
+[[entry]]
+id = "javascript:cluster.fork"
+kind = "egress"
+mechanism = "process"
+fixture = "javascript/primitives/cluster-fork"
+
+[[entry]]
+id = "javascript:cluster.setupMaster"
+kind = "egress"
+mechanism = "process"
+fixture = "javascript/primitives/cluster-setupmaster-type"
+
+[[entry]]
+id = "javascript:cluster.setupPrimary"
+kind = "egress"
+mechanism = "process"
+fixture = "javascript/primitives/cluster-setupprimary-type"
+
+[[entry]]
+id = "javascript:dgram.Socket"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/dgram-socket-type"
+
+[[entry]]
+id = "javascript:dgram._createSocketHandle"
+kind = "egress"
+mechanism = "network"
+fixture = "javascript/primitives/dgram-_createsockethandle-type"
+
+[[entry]]
+id = "javascript:dgram.createSocket"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/dgram-createsocket-type"
+
+[[entry]]
+id = "javascript:dgram.createSocket.send"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, keyword = "address", port = 2, port_keyword = "port", form = "host-port" }
+fixture = "javascript/primitives/dgram-createsocket-send"
+
+[[entry]]
+id = "javascript:dns.Resolver"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/dns-resolver-type"
+
+[[entry]]
+id = "javascript:dns.lookup"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-lookup"
+
+[[entry]]
+id = "javascript:dns.lookupService"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "address", port = 2, port_keyword = "port", form = "host-port" }
+fixture = "javascript/primitives/dns-lookupservice-type"
+
+[[entry]]
+id = "javascript:dns.promises"
+kind = "egress"
+mechanism = "network"
+fixture = "javascript/primitives/dns-promises"
+
+[[entry]]
+id = "javascript:dns.resolve"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolve"
+
+[[entry]]
+id = "javascript:dns.resolve4"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolve4"
+
+[[entry]]
+id = "javascript:dns.resolve6"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolve6"
+
+[[entry]]
+id = "javascript:dns.resolveAny"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolveany-type"
+
+[[entry]]
+id = "javascript:dns.resolveCaa"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolvecaa-type"
+
+[[entry]]
+id = "javascript:dns.resolveCname"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolvecname-type"
+
+[[entry]]
+id = "javascript:dns.resolveMx"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolvemx-type"
+
+[[entry]]
+id = "javascript:dns.resolveNaptr"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolvenaptr-type"
+
+[[entry]]
+id = "javascript:dns.resolveNs"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolvens-type"
+
+[[entry]]
+id = "javascript:dns.resolvePtr"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolveptr-type"
+
+[[entry]]
+id = "javascript:dns.resolveSoa"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolvesoa-type"
+
+[[entry]]
+id = "javascript:dns.resolveSrv"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolvesrv-type"
+
+[[entry]]
+id = "javascript:dns.resolveTlsa"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolvetlsa-type"
+
+[[entry]]
+id = "javascript:dns.resolveTxt"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-resolvetxt-type"
+
+[[entry]]
+id = "javascript:dns.reverse"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-reverse"
+
+[[entry]]
+id = "javascript:dns/promises.Resolver"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/dns-promises-resolver-type"
+
+[[entry]]
+id = "javascript:dns/promises.lookup"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-lookup"
+
+[[entry]]
+id = "javascript:dns/promises.lookupService"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "address", port = 2, port_keyword = "port", form = "host-port" }
+fixture = "javascript/primitives/dns-promises-lookupservice-type"
+
+[[entry]]
+id = "javascript:dns/promises.resolve"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolve"
+
+[[entry]]
+id = "javascript:dns/promises.resolve4"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolve4"
+
+[[entry]]
+id = "javascript:dns/promises.resolve6"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolve6"
+
+[[entry]]
+id = "javascript:dns/promises.resolveAny"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolveany-type"
+
+[[entry]]
+id = "javascript:dns/promises.resolveCaa"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolvecaa-type"
+
+[[entry]]
+id = "javascript:dns/promises.resolveCname"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolvecname-type"
+
+[[entry]]
+id = "javascript:dns/promises.resolveMx"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolvemx-type"
+
+[[entry]]
+id = "javascript:dns/promises.resolveNaptr"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolvenaptr-type"
+
+[[entry]]
+id = "javascript:dns/promises.resolveNs"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolvens-type"
+
+[[entry]]
+id = "javascript:dns/promises.resolvePtr"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolveptr-type"
+
+[[entry]]
+id = "javascript:dns/promises.resolveSoa"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolvesoa-type"
+
+[[entry]]
+id = "javascript:dns/promises.resolveSrv"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolvesrv-type"
+
+[[entry]]
+id = "javascript:dns/promises.resolveTlsa"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolvetlsa-type"
+
+[[entry]]
+id = "javascript:dns/promises.resolveTxt"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-resolvetxt-type"
+
+[[entry]]
+id = "javascript:dns/promises.reverse"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "javascript/primitives/dns-promises-reverse"
+
+[[entry]]
+id = "javascript:globalThis.EventSource"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/primitives/globalthis-eventsource-type"
+
+[[entry]]
+id = "javascript:globalThis.Function"
+kind = "blind-spot"
+blind_spot = "dynamic-code"
+reason = "builds a function from source text"
+fixture = "javascript/primitives/globalthis-function-type"
+
+[[entry]]
+id = "javascript:globalThis.RTCPeerConnection"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/globalthis-rtcpeerconnection-type"
+
+[[entry]]
+id = "javascript:globalThis.Reflect.defineProperty"
+kind = "blind-spot"
+blind_spot = "monkeypatch"
+reason = "defines a property; on a module this is a monkeypatch (KTD15)"
+fixture = "javascript/primitives/globalthis-reflect-defineproperty-type"
+
+[[entry]]
+id = "javascript:globalThis.Reflect.deleteProperty"
+kind = "blind-spot"
+blind_spot = "monkeypatch"
+reason = "deletes a property; on a module this is a monkeypatch (KTD15)"
+fixture = "javascript/primitives/globalthis-reflect-deleteproperty-type"
+
+[[entry]]
+id = "javascript:globalThis.Reflect.get"
+kind = "blind-spot"
+blind_spot = "reflective-access"
+reason = "reads a property named by a value; a literal key resolves as member access (KTD15)"
+fixture = "javascript/primitives/globalthis-reflect-get"
+
+[[entry]]
+id = "javascript:globalThis.Reflect.set"
+kind = "blind-spot"
+blind_spot = "monkeypatch"
+reason = "writes a property; on a module this is a monkeypatch (KTD15)"
+fixture = "javascript/primitives/globalthis-reflect-set"
+
+[[entry]]
+id = "javascript:globalThis.SharedWorker"
+kind = "blind-spot"
+blind_spot = "dynamic-import"
+reason = "runs a script named by a URL"
+fixture = "javascript/primitives/globalthis-sharedworker-type"
+
+[[entry]]
+id = "javascript:globalThis.WebAssembly"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "compiles and runs WebAssembly modules"
+fixture = "javascript/primitives/globalthis-webassembly-type"
+
+[[entry]]
+id = "javascript:globalThis.WebSocket"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/ordinary/websocket-global"
+
+[[entry]]
+id = "javascript:globalThis.WebTransport"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/primitives/globalthis-webtransport-type"
+
+[[entry]]
+id = "javascript:globalThis.Worker"
+kind = "blind-spot"
+blind_spot = "dynamic-import"
+reason = "runs a script named by a URL"
+fixture = "javascript/primitives/globalthis-worker-type"
+
+[[entry]]
+id = "javascript:globalThis.XMLHttpRequest"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/globalthis-xmlhttprequest-type"
+
+[[entry]]
+id = "javascript:globalThis.eval"
+kind = "blind-spot"
+blind_spot = "dynamic-code"
+reason = "evaluates source text"
+fixture = "javascript/primitives/globalthis-eval"
+
+[[entry]]
+id = "javascript:globalThis.fetch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "input", form = "url" }
+fixture = "javascript/ordinary/ae16-fetch-ambient-global"
+
+[[entry]]
+id = "javascript:globalThis.global"
+kind = "blind-spot"
+blind_spot = "module-escape"
+reason = "the global object itself, which holds blind-spot members"
+fixture = "javascript/primitives/globalthis-global"
+
+[[entry]]
+id = "javascript:globalThis.globalThis"
+kind = "blind-spot"
+blind_spot = "module-escape"
+reason = "the global object itself, which holds blind-spot members"
+fixture = "javascript/primitives/globalthis-globalthis-type"
+
+[[entry]]
+id = "javascript:globalThis.importScripts"
+kind = "blind-spot"
+blind_spot = "dynamic-import"
+reason = "loads and runs scripts from URLs in a worker"
+fixture = "javascript/primitives/globalthis-importscripts-type"
+
+[[entry]]
+id = "javascript:globalThis.location.assign"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/globalthis-location-assign"
+
+[[entry]]
+id = "javascript:globalThis.location.replace"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/globalthis-location-replace"
+
+[[entry]]
+id = "javascript:globalThis.navigator.sendBeacon"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/ordinary/navigator-send-beacon"
+
+[[entry]]
+id = "javascript:globalThis.navigator.serviceWorker"
+kind = "blind-spot"
+blind_spot = "dynamic-import"
+reason = "registers scripts named by URLs"
+fixture = "javascript/primitives/globalthis-navigator-serviceworker-type"
+
+[[entry]]
+id = "javascript:globalThis.open"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/globalthis-open"
+
+[[entry]]
+id = "javascript:globalThis.postMessage"
+kind = "egress"
+mechanism = "ipc"
+destination = { arg = 2, keyword = "targetOrigin", form = "url" }
+fixture = "javascript/primitives/globalthis-postmessage-type"
+
+[[entry]]
+id = "javascript:http.Agent"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/http-agent-type"
+
+[[entry]]
+id = "javascript:http.ClientRequest"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/primitives/http-clientrequest-type"
+
+[[entry]]
+id = "javascript:http.Server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/http-server-type"
+
+[[entry]]
+id = "javascript:http.WebSocket"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/primitives/http-websocket-type"
+
+[[entry]]
+id = "javascript:http.createServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/http-createserver-type"
+
+[[entry]]
+id = "javascript:http.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/tricky/workspace-sibling-package"
+
+[[entry]]
+id = "javascript:http.globalAgent"
+kind = "egress"
+mechanism = "network"
+fixture = "javascript/primitives/http-globalagent-type"
+
+[[entry]]
+id = "javascript:http.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/http-request"
+
+[[entry]]
+id = "javascript:http2.connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "authority", form = "url" }
+constructor = true
+fixture = "javascript/primitives/http2-connect"
+
+[[entry]]
+id = "javascript:http2.createSecureServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/http2-createsecureserver-type"
+
+[[entry]]
+id = "javascript:http2.createServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/http2-createserver-type"
+
+[[entry]]
+id = "javascript:https.Agent"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/https-agent-type"
+
+[[entry]]
+id = "javascript:https.Server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/https-server-type"
+
+[[entry]]
+id = "javascript:https.createServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/https-createserver-type"
+
+[[entry]]
+id = "javascript:https.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/ordinary/module-extensions"
+
+[[entry]]
+id = "javascript:https.globalAgent"
+kind = "egress"
+mechanism = "network"
+fixture = "javascript/primitives/https-globalagent-type"
+
+[[entry]]
+id = "javascript:https.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/tricky/ts-js-extension-probe"
+
+[[entry]]
+id = "javascript:inspector.Session"
+kind = "blind-spot"
+blind_spot = "dynamic-code"
+reason = "Session.post can call Runtime.evaluate, which evaluates source text"
+fixture = "javascript/primitives/inspector-session-type"
+
+[[entry]]
+id = "javascript:inspector.open"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 1, port_keyword = "port", form = "host-port" }
+fixture = "javascript/primitives/inspector-open"
+
+[[entry]]
+id = "javascript:inspector/promises.Session"
+kind = "blind-spot"
+blind_spot = "dynamic-code"
+reason = "Session.post can call Runtime.evaluate, which evaluates source text"
+fixture = "javascript/primitives/inspector-promises-session-type"
+
+[[entry]]
+id = "javascript:inspector/promises.open"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 1, port_keyword = "port", form = "host-port" }
+fixture = "javascript/primitives/inspector-promises-open"
+
+[[entry]]
+id = "javascript:module.Module"
+kind = "blind-spot"
+blind_spot = "dynamic-import"
+reason = "loads a module named by a string; a literal specifier resolves as an import (KTD15)"
+fixture = "javascript/primitives/module-module-type"
+
+[[entry]]
+id = "javascript:module._cache"
+kind = "blind-spot"
+blind_spot = "import-system-mutation"
+reason = "the require cache; writes replace loaded modules"
+fixture = "javascript/primitives/module-_cache"
+
+[[entry]]
+id = "javascript:module._extensions"
+kind = "blind-spot"
+blind_spot = "import-system-mutation"
+reason = "loader table by file extension; writes change how files are loaded"
+fixture = "javascript/primitives/module-_extensions"
+
+[[entry]]
+id = "javascript:module._initPaths"
+kind = "blind-spot"
+blind_spot = "import-system-mutation"
+reason = "resets module search paths"
+fixture = "javascript/primitives/module-_initpaths-type"
+
+[[entry]]
+id = "javascript:module._load"
+kind = "blind-spot"
+blind_spot = "dynamic-import"
+reason = "loads a module named by a string; a literal specifier resolves as an import (KTD15)"
+fixture = "javascript/primitives/module-_load"
+
+[[entry]]
+id = "javascript:module._pathCache"
+kind = "blind-spot"
+blind_spot = "import-system-mutation"
+reason = "resolution cache; writes change what require loads"
+fixture = "javascript/primitives/module-_pathcache-type"
+
+[[entry]]
+id = "javascript:module._preloadModules"
+kind = "blind-spot"
+blind_spot = "dynamic-import"
+reason = "loads a module named by a string; a literal specifier resolves as an import (KTD15)"
+fixture = "javascript/primitives/module-_preloadmodules-type"
+
+[[entry]]
+id = "javascript:module._resolveFilename"
+kind = "blind-spot"
+blind_spot = "import-system-mutation"
+reason = "module resolution internals; writes change what require loads"
+fixture = "javascript/primitives/module-_resolvefilename-type"
+
+[[entry]]
+id = "javascript:module.createRequire"
+kind = "blind-spot"
+blind_spot = "dynamic-import"
+reason = "loads a module named by a string; a literal specifier resolves as an import (KTD15)"
+fixture = "javascript/primitives/module-createrequire-type"
+
+[[entry]]
+id = "javascript:module.globalPaths"
+kind = "blind-spot"
+blind_spot = "import-system-mutation"
+reason = "module search paths; writes change what require loads"
+fixture = "javascript/primitives/module-globalpaths-type"
+
+[[entry]]
+id = "javascript:module.prototype"
+kind = "blind-spot"
+blind_spot = "import-system-mutation"
+reason = "Module.prototype.require and friends; writes change every require"
+fixture = "javascript/primitives/module-prototype"
+
+[[entry]]
+id = "javascript:module.register"
+kind = "blind-spot"
+blind_spot = "import-system-mutation"
+reason = "registers loader hooks that rewrite imports"
+fixture = "javascript/primitives/module-register"
+
+[[entry]]
+id = "javascript:module.registerHooks"
+kind = "blind-spot"
+blind_spot = "import-system-mutation"
+reason = "registers loader hooks that rewrite imports"
+fixture = "javascript/primitives/module-registerhooks-type"
+
+[[entry]]
+id = "javascript:module.runMain"
+kind = "blind-spot"
+blind_spot = "dynamic-import"
+reason = "loads a module named by a string; a literal specifier resolves as an import (KTD15)"
+fixture = "javascript/primitives/module-runmain-type"
+
+[[entry]]
+id = "javascript:module.syncBuiltinESMExports"
+kind = "blind-spot"
+blind_spot = "import-system-mutation"
+reason = "propagates monkeypatched builtin exports"
+fixture = "javascript/primitives/module-syncbuiltinesmexports-type"
+
+[[entry]]
+id = "javascript:net.Server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/net-server-type"
+
+[[entry]]
+id = "javascript:net.Socket"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/tricky/ae20-extends-net-socket"
+
+[[entry]]
+id = "javascript:net.Stream"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/net-stream-type"
+
+[[entry]]
+id = "javascript:net._createServerHandle"
+kind = "egress"
+mechanism = "network"
+fixture = "javascript/primitives/net-_createserverhandle-type"
+
+[[entry]]
+id = "javascript:net.connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 1, port_keyword = "port", form = "host-port" }
+fixture = "javascript/ordinary/net-connect"
+
+[[entry]]
+id = "javascript:net.createConnection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 1, port_keyword = "port", form = "host-port" }
+fixture = "javascript/tricky/namespace-import"
+
+[[entry]]
+id = "javascript:net.createServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/net-createserver-type"
+
+[[entry]]
+id = "javascript:process._debugProcess"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "activates the inspector in another process"
+fixture = "javascript/primitives/process-_debugprocess-type"
+
+[[entry]]
+id = "javascript:process._linkedBinding"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "returns linked native bindings"
+fixture = "javascript/primitives/process-_linkedbinding-type"
+
+[[entry]]
+id = "javascript:process.binding"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "returns internal native bindings"
+fixture = "javascript/primitives/process-binding"
+
+[[entry]]
+id = "javascript:process.channel"
+kind = "egress"
+mechanism = "ipc"
+fixture = "javascript/primitives/process-channel"
+
+[[entry]]
+id = "javascript:process.dlopen"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "loads a native addon"
+fixture = "javascript/primitives/process-dlopen"
+
+[[entry]]
+id = "javascript:process.execve"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, keyword = "file", form = "program" }
+fixture = "javascript/primitives/process-execve"
+
+[[entry]]
+id = "javascript:process.getBuiltinModule"
+kind = "blind-spot"
+blind_spot = "dynamic-import"
+reason = "loads a builtin module named by a string; a literal name resolves as an import (KTD15)"
+fixture = "javascript/primitives/process-getbuiltinmodule-type"
+
+[[entry]]
+id = "javascript:process.mainModule"
+kind = "blind-spot"
+blind_spot = "dynamic-import"
+reason = "the main module object, whose require loads modules by name"
+fixture = "javascript/primitives/process-mainmodule-type"
+
+[[entry]]
+id = "javascript:process.send"
+kind = "egress"
+mechanism = "ipc"
+fixture = "javascript/primitives/process-send"
+
+[[entry]]
+id = "javascript:repl"
+kind = "blind-spot"
+blind_spot = "dynamic-code"
+reason = "REPL servers evaluate source text"
+fixture = "javascript/primitives/repl"
+
+[[entry]]
+id = "javascript:sqlite.DatabaseSync"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "loadExtension loads native code when extensions are allowed"
+fixture = "javascript/primitives/sqlite-databasesync-type"
+
+[[entry]]
+id = "javascript:test.mock"
+kind = "blind-spot"
+blind_spot = "import-system-mutation"
+reason = "mock.module replaces modules and mock.method replaces members"
+fixture = "javascript/primitives/test-mock"
+
+[[entry]]
+id = "javascript:test.run"
+kind = "egress"
+mechanism = "process"
+fixture = "javascript/primitives/test-run"
+
+[[entry]]
+id = "javascript:tls.Server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/tls-server-type"
+
+[[entry]]
+id = "javascript:tls.TLSSocket"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/tls-tlssocket-type"
+
+[[entry]]
+id = "javascript:tls.connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 1, port_keyword = "port", form = "host-port" }
+constructor = true
+fixture = "javascript/primitives/tls-connect"
+
+[[entry]]
+id = "javascript:tls.createServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/tls-createserver-type"
+
+[[entry]]
+id = "javascript:v8.queryObjects"
+kind = "blind-spot"
+blind_spot = "introspection"
+reason = "finds every object with a given prototype"
+fixture = "javascript/primitives/v8-queryobjects-type"
+
+[[entry]]
+id = "javascript:v8.setFlagsFromString"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "sets engine flags such as --allow-natives-syntax that expose engine internals"
+fixture = "javascript/primitives/v8-setflagsfromstring-type"
+
+[[entry]]
+id = "javascript:vm"
+kind = "blind-spot"
+blind_spot = "dynamic-code"
+reason = "compiles and runs source strings in contexts"
+fixture = "javascript/primitives/vm"
+
+[[entry]]
+id = "javascript:wasi"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "runs WebAssembly modules with system interface access"
+fixture = "javascript/primitives/wasi"
+
+[[entry]]
+id = "javascript:worker_threads.Worker"
+kind = "blind-spot"
+blind_spot = "dynamic-import"
+reason = "runs code named by a specifier or given as source with eval: true; a literal in-root specifier resolves (KTD15)"
+fixture = "javascript/primitives/worker_threads-worker-type"
+
+[[inert]]
+module = "cluster"
+members = [
+    "SCHED_NONE",
+    "SCHED_RR",
+    "Worker",
+    "_events",
+    "_eventsCount",
+    "_maxListeners",
+    "disconnect",
+    "isMaster",
+    "isPrimary",
+    "isWorker",
+    "schedulingPolicy",
+    "settings",
+    "workers",
+]
+justification = "Worker handles for processes already forked, role flags, settings, and event emitter state."
+fixture = "javascript/primitives/must-not-cluster-sched_none-type"
+
+[[inert]]
+module = "dns"
+members = [
+    "ADDRCONFIG",
+    "ADDRGETNETWORKPARAMS",
+    "ALL",
+    "BADFAMILY",
+    "BADFLAGS",
+    "BADHINTS",
+    "BADNAME",
+    "BADQUERY",
+    "BADRESP",
+    "BADSTR",
+    "CANCELLED",
+    "CONNREFUSED",
+    "DESTRUCTION",
+    "EOF",
+    "FILE",
+    "FORMERR",
+    "LOADIPHLPAPI",
+    "NODATA",
+    "NOMEM",
+    "NONAME",
+    "NOTFOUND",
+    "NOTIMP",
+    "NOTINITIALIZED",
+    "REFUSED",
+    "SERVFAIL",
+    "TIMEOUT",
+    "V4MAPPED",
+    "getDefaultResultOrder",
+    "getServers",
+    "setDefaultResultOrder",
+    "setServers",
+]
+justification = "Error code constants, resolver configuration setters and getters, and result-order settings; none sends a query."
+fixture = "javascript/primitives/must-not-dns-addrconfig-type"
+
+[[inert]]
+module = "dns/promises"
+members = [
+    "ADDRGETNETWORKPARAMS",
+    "BADFAMILY",
+    "BADFLAGS",
+    "BADHINTS",
+    "BADNAME",
+    "BADQUERY",
+    "BADRESP",
+    "BADSTR",
+    "CANCELLED",
+    "CONNREFUSED",
+    "DESTRUCTION",
+    "EOF",
+    "FILE",
+    "FORMERR",
+    "LOADIPHLPAPI",
+    "NODATA",
+    "NOMEM",
+    "NONAME",
+    "NOTFOUND",
+    "NOTIMP",
+    "NOTINITIALIZED",
+    "REFUSED",
+    "SERVFAIL",
+    "TIMEOUT",
+    "getDefaultResultOrder",
+    "getServers",
+    "setDefaultResultOrder",
+    "setServers",
+]
+justification = "Error code constants, resolver configuration setters and getters, and result-order settings; none sends a query."
+fixture = "javascript/primitives/must-not-dns-promises-addrgetnetworkparams-type"
+
+[[inert]]
+module = "globalThis"
+members = [
+    "AbortController",
+    "AbortSignal",
+    "AggregateError",
+    "Array",
+    "ArrayBuffer",
+    "Atomics",
+    "BigInt",
+    "BigInt64Array",
+    "BigUint64Array",
+    "Blob",
+    "Boolean",
+    "BroadcastChannel",
+    "Buffer",
+    "ByteLengthQueuingStrategy",
+    "CompressionStream",
+    "CountQueuingStrategy",
+    "Crypto",
+    "CryptoKey",
+    "CustomEvent",
+    "DOMException",
+    "DataView",
+    "Date",
+    "DecompressionStream",
+    "Error",
+    "EvalError",
+    "Event",
+    "EventTarget",
+    "File",
+    "FinalizationRegistry",
+    "Float32Array",
+    "Float64Array",
+    "FormData",
+    "Headers",
+    "Infinity",
+    "Int16Array",
+    "Int32Array",
+    "Int8Array",
+    "Intl",
+    "Iterator",
+    "JSON",
+    "Map",
+    "Math",
+    "MessageChannel",
+    "MessageEvent",
+    "MessagePort",
+    "NaN",
+    "Navigator",
+    "Number",
+    "Object",
+    "Performance",
+    "PerformanceEntry",
+    "PerformanceMark",
+    "PerformanceMeasure",
+    "PerformanceObserver",
+    "PerformanceObserverEntryList",
+    "PerformanceResourceTiming",
+    "Promise",
+    "Proxy",
+    "RangeError",
+    "ReadableByteStreamController",
+    "ReadableStream",
+    "ReadableStreamBYOBReader",
+    "ReadableStreamBYOBRequest",
+    "ReadableStreamDefaultController",
+    "ReadableStreamDefaultReader",
+    "ReferenceError",
+    "RegExp",
+    "Request",
+    "Response",
+    "Set",
+    "SharedArrayBuffer",
+    "String",
+    "SubtleCrypto",
+    "Symbol",
+    "SyntaxError",
+    "TextDecoder",
+    "TextDecoderStream",
+    "TextEncoder",
+    "TextEncoderStream",
+    "TransformStream",
+    "TransformStreamDefaultController",
+    "TypeError",
+    "URIError",
+    "URL",
+    "URLSearchParams",
+    "Uint16Array",
+    "Uint32Array",
+    "Uint8Array",
+    "Uint8ClampedArray",
+    "WeakMap",
+    "WeakRef",
+    "WeakSet",
+    "WritableStream",
+    "WritableStreamDefaultController",
+    "WritableStreamDefaultWriter",
+    "atob",
+    "btoa",
+    "clearImmediate",
+    "clearInterval",
+    "clearTimeout",
+    "console",
+    "crypto",
+    "decodeURI",
+    "decodeURIComponent",
+    "encodeURI",
+    "encodeURIComponent",
+    "escape",
+    "isFinite",
+    "isNaN",
+    "parseFloat",
+    "parseInt",
+    "performance",
+    "queueMicrotask",
+    "setImmediate",
+    "structuredClone",
+    "undefined",
+    "unescape",
+]
+justification = "ECMAScript and Web platform globals: constructors, typed arrays, collections, errors, encoding, URL and stream classes, crypto, timers, and request or response objects that send nothing until passed to fetch."
+fixture = "javascript/primitives/must-not-globalthis-type-abortcontroller-type"
+
+[[inert]]
+module = "globalThis"
+members = [
+    "Reflect",
+]
+justification = "Reflection helpers over objects in hand; property reads and writes by key are classified separately."
+fixture = "javascript/primitives/must-not-globalthis-type-reflect-type"
+
+[[inert]]
+module = "globalThis"
+members = [
+    "document",
+    "localStorage",
+    "sessionStorage",
+    "indexedDB",
+    "history",
+    "screen",
+    "alert",
+    "confirm",
+    "prompt",
+    "requestAnimationFrame",
+    "cancelAnimationFrame",
+    "requestIdleCallback",
+    "getComputedStyle",
+    "matchMedia",
+    "customElements",
+    "HTMLElement",
+    "Element",
+    "Node",
+    "Image",
+    "Audio",
+    "Option",
+    "MutationObserver",
+    "IntersectionObserver",
+    "ResizeObserver",
+    "devicePixelRatio",
+    "innerWidth",
+    "innerHeight",
+    "scrollTo",
+    "scrollX",
+    "scrollY",
+    "addEventListener",
+    "removeEventListener",
+    "dispatchEvent",
+    "caches",
+    "name",
+    "origin",
+    "isSecureContext",
+]
+justification = "Browser DOM, storage, layout, and timing globals; DOM-mediated requests (src, href, action, form submission) are the fixed caveat (R23), not sites."
+fixture = "javascript/primitives/must-not-globalthis-type-document"
+
+[[inert]]
+module = "globalThis"
+members = [
+    "navigator",
+]
+justification = "Platform and user-agent properties; sendBeacon and serviceWorker are classified separately."
+fixture = "javascript/primitives/must-not-globalthis-type-navigator"
+
+[[inert]]
+module = "globalThis"
+members = [
+    "setTimeout",
+    "setInterval",
+]
+justification = "Timers over callbacks; a string callback is a structural dynamic-code blind spot (KTD15)."
+fixture = "javascript/primitives/must-not-globalthis-type-settimeout-type"
+
+[[inert]]
+module = "http"
+members = [
+    "CloseEvent",
+    "IncomingMessage",
+    "METHODS",
+    "MessageEvent",
+    "OutgoingMessage",
+    "STATUS_CODES",
+    "ServerResponse",
+    "_connectionListener",
+    "maxHeaderSize",
+    "setMaxIdleHTTPParsers",
+    "validateHeaderName",
+    "validateHeaderValue",
+]
+justification = "Message classes over sockets opened elsewhere, header validators, status and method tables, and server internals."
+fixture = "javascript/primitives/must-not-http-closeevent-type"
+
+[[inert]]
+module = "http2"
+members = [
+    "Http2ServerRequest",
+    "Http2ServerResponse",
+    "constants",
+    "getDefaultSettings",
+    "getPackedSettings",
+    "getUnpackedSettings",
+    "performServerHandshake",
+    "sensitiveHeaders",
+]
+justification = "Request and response classes over sessions opened elsewhere, settings codecs, constants, and handshakes over sockets in hand."
+fixture = "javascript/primitives/must-not-http2-http2serverrequest-type"
+
+[[inert]]
+module = "inspector"
+members = [
+    "Network",
+    "NetworkResources",
+    "close",
+    "console",
+    "url",
+    "waitForDebugger",
+]
+justification = "Inspector URL, console bridge, wait and close controls, and network event emitters."
+fixture = "javascript/primitives/must-not-inspector-network-type"
+
+[[inert]]
+module = "inspector/promises"
+members = [
+    "Network",
+    "NetworkResources",
+    "close",
+    "console",
+    "url",
+    "waitForDebugger",
+]
+justification = "Inspector URL, console bridge, wait and close controls, and network event emitters."
+fixture = "javascript/primitives/must-not-inspector-promises-network-type"
+
+[[inert]]
+module = "module"
+members = [
+    "SourceMap",
+    "_debug",
+    "_findPath",
+    "_nodeModulePaths",
+    "_readPackage",
+    "_resolveLookupPaths",
+    "_stat",
+    "builtinModules",
+    "constants",
+    "enableCompileCache",
+    "findPackageJSON",
+    "findSourceMap",
+    "flushCompileCache",
+    "getCompileCacheDir",
+    "getSourceMapsSupport",
+    "isBuiltin",
+    "length",
+    "name",
+    "setSourceMapsSupport",
+    "stripTypeScriptTypes",
+    "wrap",
+    "wrapper",
+]
+justification = "Builtin module lists, source map and compile cache helpers, path and package.json lookups, and wrapper strings; none loads code."
+fixture = "javascript/primitives/must-not-module-sourcemap-type"
+
+[[inert]]
+module = "net"
+members = [
+    "BlockList",
+    "SocketAddress",
+    "_normalizeArgs",
+    "_setSimultaneousAccepts",
+    "getDefaultAutoSelectFamily",
+    "getDefaultAutoSelectFamilyAttemptTimeout",
+    "isIP",
+    "isIPv4",
+    "isIPv6",
+    "setDefaultAutoSelectFamily",
+    "setDefaultAutoSelectFamilyAttemptTimeout",
+]
+justification = "Address and block-list helpers, IP predicates, auto-select-family settings, and argument normalization."
+fixture = "javascript/primitives/must-not-net-blocklist-type"
+
+[[inert]]
+module = "process"
+members = [
+    "_debugEnd",
+    "_events",
+    "_eventsCount",
+    "_exiting",
+    "_fatalException",
+    "_getActiveHandles",
+    "_getActiveRequests",
+    "_kill",
+    "_maxListeners",
+    "_preload_modules",
+    "_rawDebug",
+    "_startProfilerIdleNotifier",
+    "_stopProfilerIdleNotifier",
+    "_tickCallback",
+    "abort",
+    "allowedNodeEnvironmentFlags",
+    "arch",
+    "argv",
+    "argv0",
+    "assert",
+    "availableMemory",
+    "chdir",
+    "config",
+    "constrainedMemory",
+    "cpuUsage",
+    "cwd",
+    "debugPort",
+    "domain",
+    "emitWarning",
+    "env",
+    "execArgv",
+    "execPath",
+    "exit",
+    "exitCode",
+    "features",
+    "finalization",
+    "getActiveResourcesInfo",
+    "getegid",
+    "geteuid",
+    "getgid",
+    "getgroups",
+    "getuid",
+    "hasUncaughtExceptionCaptureCallback",
+    "hrtime",
+    "initgroups",
+    "kill",
+    "loadEnvFile",
+    "memoryUsage",
+    "moduleLoadList",
+    "nextTick",
+    "openStdin",
+    "pid",
+    "platform",
+    "ppid",
+    "reallyExit",
+    "ref",
+    "release",
+    "report",
+    "resourceUsage",
+    "setSourceMapsEnabled",
+    "setUncaughtExceptionCaptureCallback",
+    "setegid",
+    "seteuid",
+    "setgid",
+    "setgroups",
+    "setuid",
+    "sourceMapsEnabled",
+    "stderr",
+    "stdin",
+    "stdout",
+    "threadCpuUsage",
+    "title",
+    "umask",
+    "unref",
+    "uptime",
+    "version",
+    "versions",
+]
+justification = "Process state, environment, signals, timing, resource usage, standard streams, and exit controls; none spawns a program, opens a socket, or loads code."
+fixture = "javascript/primitives/must-not-process-_debugend-type"
+
+[[inert]]
+module = "sqlite"
+members = [
+    "StatementSync",
+    "backup",
+    "constants",
+]
+justification = "Prepared statements, backups, and constants over databases opened elsewhere."
+fixture = "javascript/primitives/must-not-sqlite-statementsync-type"
+
+[[inert]]
+module = "test"
+members = [
+    "after",
+    "afterEach",
+    "assert",
+    "before",
+    "beforeEach",
+    "describe",
+    "it",
+    "length",
+    "name",
+    "only",
+    "skip",
+    "snapshot",
+    "suite",
+    "test",
+    "todo",
+]
+justification = "Test declaration and hook functions over callbacks in hand, snapshot helpers, and function metadata."
+fixture = "javascript/primitives/must-not-test-after"
+
+[[inert]]
+module = "tls"
+members = [
+    "CLIENT_RENEG_LIMIT",
+    "CLIENT_RENEG_WINDOW",
+    "DEFAULT_CIPHERS",
+    "DEFAULT_ECDH_CURVE",
+    "DEFAULT_MAX_VERSION",
+    "DEFAULT_MIN_VERSION",
+    "SecureContext",
+    "checkServerIdentity",
+    "convertALPNProtocols",
+    "createSecureContext",
+    "createSecurePair",
+    "getCACertificates",
+    "getCiphers",
+    "rootCertificates",
+    "setDefaultCACertificates",
+]
+justification = "Secure contexts, certificate stores and checks, cipher lists, and constants over sockets opened elsewhere."
+fixture = "javascript/primitives/must-not-tls-client_reneg_limit-type"
+
+[[inert]]
+module = "v8"
+members = [
+    "DefaultDeserializer",
+    "DefaultSerializer",
+    "Deserializer",
+    "GCProfiler",
+    "Serializer",
+    "cachedDataVersionTag",
+    "deserialize",
+    "getCppHeapStatistics",
+    "getHeapCodeStatistics",
+    "getHeapSnapshot",
+    "getHeapSpaceStatistics",
+    "getHeapStatistics",
+    "isStringOneByteRepresentation",
+    "promiseHooks",
+    "serialize",
+    "setHeapSnapshotNearHeapLimit",
+    "startupSnapshot",
+    "stopCoverage",
+    "takeCoverage",
+    "writeHeapSnapshot",
+]
+justification = "Heap statistics and snapshots, coverage control, and structured clone serialization of plain data."
+fixture = "javascript/primitives/must-not-v8-defaultdeserializer-type"
+
+[[inert]]
+module = "worker_threads"
+members = [
+    "BroadcastChannel",
+    "MessageChannel",
+    "MessagePort",
+    "SHARE_ENV",
+    "getEnvironmentData",
+    "isInternalThread",
+    "isMainThread",
+    "isMarkedAsUntransferable",
+    "markAsUncloneable",
+    "markAsUntransferable",
+    "moveMessagePortToContext",
+    "parentPort",
+    "postMessageToThread",
+    "receiveMessageOnPort",
+    "resourceLimits",
+    "setEnvironmentData",
+    "threadId",
+    "threadName",
+    "workerData",
+]
+justification = "Message ports and channels, thread identity, environment data, and transfer markers."
+fixture = "javascript/primitives/must-not-worker_threads-broadcastchannel-type"

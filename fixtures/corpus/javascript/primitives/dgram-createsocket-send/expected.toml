@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.mjs"
+symbol = "probe"
+mechanism = "javascript:dgram.createSocket.send"
+destination = "api.example.test:443"
+
+[[sites]]
+file = "app.mjs"
+symbol = "probe"
+mechanism = "javascript:dgram.createSocket"
+destination = "expr:dgram.createSocket(\"udp4\")"

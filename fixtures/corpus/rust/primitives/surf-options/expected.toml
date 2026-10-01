@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "probe"
+mechanism = "rust:surf::options"
+destination = "param:1:probe"

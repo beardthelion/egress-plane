@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:logging.handlers.DatagramHandler"
+destination = "api.example.test:443"

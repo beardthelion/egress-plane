@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:urllib.request._proxy_bypass_winreg_override"
+destination = "expr:urllib.request._proxy_bypass_winreg_override()"

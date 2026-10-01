@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:httpx.AsyncClient.options"
+destination = "param:1:probe"
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:httpx.AsyncClient"
+destination = "expr:httpx.AsyncClient()"

@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "probe"
+mechanism = "rust:libc::socket"
+destination = "expr:libc::socket()"

@@ -1,0 +1,960 @@
+# Rust egress catalog (KTD6). A member matching neither an egress nor an
+# inert pattern lists its crate as an unscanned dependency (KTD5).
+
+language = "rust"
+
+[[package]]
+name = "attohttpc"
+
+[[package]]
+name = "hyper"
+
+[[package]]
+name = "isahc"
+
+[[package]]
+name = "libc"
+
+[[package]]
+name = "libloading"
+
+[[package]]
+name = "reqwest"
+
+[[package]]
+name = "surf"
+
+[[package]]
+name = "tokio"
+
+[[package]]
+name = "ureq"
+
+[[entry]]
+id = "rust:attohttpc::Session::new"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/attohttpc-session-new"
+
+[[entry]]
+id = "rust:attohttpc::delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/attohttpc-delete"
+
+[[entry]]
+id = "rust:attohttpc::get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/attohttpc-get"
+
+[[entry]]
+id = "rust:attohttpc::head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/attohttpc-head"
+
+[[entry]]
+id = "rust:attohttpc::options"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/attohttpc-options"
+
+[[entry]]
+id = "rust:attohttpc::patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/attohttpc-patch"
+
+[[entry]]
+id = "rust:attohttpc::post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/attohttpc-post"
+
+[[entry]]
+id = "rust:attohttpc::put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/attohttpc-put"
+
+[[entry]]
+id = "rust:attohttpc::trace"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/attohttpc-trace"
+
+[[entry]]
+id = "rust:hyper::Client::builder"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/hyper-client-builder"
+
+[[entry]]
+id = "rust:hyper::Client::new"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/hyper-client-new"
+
+[[entry]]
+id = "rust:hyper::Server::bind"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "rust/primitives/hyper-server-bind"
+
+[[entry]]
+id = "rust:hyper::client"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/hyper-client"
+
+[[entry]]
+id = "rust:hyper::server"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/hyper-server"
+
+[[entry]]
+id = "rust:isahc::HttpClient::builder"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/isahc-httpclient-builder"
+
+[[entry]]
+id = "rust:isahc::HttpClient::new"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/isahc-httpclient-new"
+
+[[entry]]
+id = "rust:isahc::HttpClientBuilder::build"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/isahc-httpclientbuilder-build"
+
+[[entry]]
+id = "rust:isahc::delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/isahc-delete"
+
+[[entry]]
+id = "rust:isahc::delete_async"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/isahc-delete_async"
+
+[[entry]]
+id = "rust:isahc::get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/isahc-get"
+
+[[entry]]
+id = "rust:isahc::get_async"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/isahc-get_async"
+
+[[entry]]
+id = "rust:isahc::head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/isahc-head"
+
+[[entry]]
+id = "rust:isahc::head_async"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/isahc-head_async"
+
+[[entry]]
+id = "rust:isahc::post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/isahc-post"
+
+[[entry]]
+id = "rust:isahc::post_async"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/isahc-post_async"
+
+[[entry]]
+id = "rust:isahc::put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/isahc-put"
+
+[[entry]]
+id = "rust:isahc::put_async"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/isahc-put_async"
+
+[[entry]]
+id = "rust:isahc::send"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/isahc-send"
+
+[[entry]]
+id = "rust:isahc::send_async"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/isahc-send_async"
+
+[[entry]]
+id = "rust:libc"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "raw C library bindings"
+fixture = "rust/primitives/libc"
+
+[[entry]]
+id = "rust:libc::bind"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/libc-bind"
+
+[[entry]]
+id = "rust:libc::connect"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/libc-connect"
+
+[[entry]]
+id = "rust:libc::dlopen"
+kind = "egress"
+mechanism = "native"
+fixture = "rust/primitives/libc-dlopen"
+
+[[entry]]
+id = "rust:libc::execl"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/libc-execl"
+
+[[entry]]
+id = "rust:libc::execle"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/libc-execle"
+
+[[entry]]
+id = "rust:libc::execlp"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/libc-execlp"
+
+[[entry]]
+id = "rust:libc::execv"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/libc-execv"
+
+[[entry]]
+id = "rust:libc::execve"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/libc-execve"
+
+[[entry]]
+id = "rust:libc::execvp"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/libc-execvp"
+
+[[entry]]
+id = "rust:libc::getaddrinfo"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/libc-getaddrinfo"
+
+[[entry]]
+id = "rust:libc::gethostbyname"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/libc-gethostbyname"
+
+[[entry]]
+id = "rust:libc::popen"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/libc-popen"
+
+[[entry]]
+id = "rust:libc::posix_spawn"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/libc-posix_spawn"
+
+[[entry]]
+id = "rust:libc::posix_spawnp"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/libc-posix_spawnp"
+
+[[entry]]
+id = "rust:libc::sendmsg"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/libc-sendmsg"
+
+[[entry]]
+id = "rust:libc::sendto"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/libc-sendto"
+
+[[entry]]
+id = "rust:libc::socket"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/libc-socket"
+
+[[entry]]
+id = "rust:libc::system"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/libc-system"
+
+[[entry]]
+id = "rust:libloading"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dynamic library loading and symbol lookup"
+fixture = "rust/primitives/libloading"
+
+[[entry]]
+id = "rust:libloading::Library::get"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "looks up a symbol to call as native code"
+fixture = "rust/primitives/libloading-library-get"
+
+[[entry]]
+id = "rust:libloading::Library::new"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+constructor = true
+fixture = "rust/primitives/libloading-library-new"
+
+[[entry]]
+id = "rust:libloading::os::unix::Library::new"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+constructor = true
+fixture = "rust/primitives/libloading-os-unix-library-new"
+
+[[entry]]
+id = "rust:libloading::os::unix::Library::open"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+constructor = true
+fixture = "rust/primitives/libloading-os-unix-library-open"
+
+[[entry]]
+id = "rust:reqwest::Client::builder"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/reqwest-client-builder"
+
+[[entry]]
+id = "rust:reqwest::Client::delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/reqwest-client-delete"
+
+[[entry]]
+id = "rust:reqwest::Client::execute"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/reqwest-client-execute"
+
+[[entry]]
+id = "rust:reqwest::Client::get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/tricky/client-local"
+
+[[entry]]
+id = "rust:reqwest::Client::head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/reqwest-client-head"
+
+[[entry]]
+id = "rust:reqwest::Client::new"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/tricky/client-local"
+
+[[entry]]
+id = "rust:reqwest::Client::patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/reqwest-client-patch"
+
+[[entry]]
+id = "rust:reqwest::Client::post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/reqwest-client-post"
+
+[[entry]]
+id = "rust:reqwest::Client::put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/reqwest-client-put"
+
+[[entry]]
+id = "rust:reqwest::Client::request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "rust/primitives/reqwest-client-request"
+
+[[entry]]
+id = "rust:reqwest::ClientBuilder::build"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/reqwest-clientbuilder-build"
+
+[[entry]]
+id = "rust:reqwest::blocking::Client::builder"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/reqwest-blocking-client-builder"
+
+[[entry]]
+id = "rust:reqwest::blocking::Client::delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/reqwest-blocking-client-delete"
+
+[[entry]]
+id = "rust:reqwest::blocking::Client::execute"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/reqwest-blocking-client-execute"
+
+[[entry]]
+id = "rust:reqwest::blocking::Client::get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/reqwest-blocking-client-get"
+
+[[entry]]
+id = "rust:reqwest::blocking::Client::head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/reqwest-blocking-client-head"
+
+[[entry]]
+id = "rust:reqwest::blocking::Client::new"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/tricky/struct-field-client-constructor-site"
+
+[[entry]]
+id = "rust:reqwest::blocking::Client::patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/reqwest-blocking-client-patch"
+
+[[entry]]
+id = "rust:reqwest::blocking::Client::post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/reqwest-blocking-client-post"
+
+[[entry]]
+id = "rust:reqwest::blocking::Client::put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/reqwest-blocking-client-put"
+
+[[entry]]
+id = "rust:reqwest::blocking::Client::request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "rust/primitives/reqwest-blocking-client-request"
+
+[[entry]]
+id = "rust:reqwest::blocking::ClientBuilder::build"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/reqwest-blocking-clientbuilder-build"
+
+[[entry]]
+id = "rust:reqwest::blocking::get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/tricky/redaction-userinfo"
+
+[[entry]]
+id = "rust:reqwest::get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/ordinary/reqwest-get-async"
+
+[[entry]]
+id = "rust:surf::Client::new"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/surf-client-new"
+
+[[entry]]
+id = "rust:surf::client"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/surf-client"
+
+[[entry]]
+id = "rust:surf::connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/surf-connect"
+
+[[entry]]
+id = "rust:surf::delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/surf-delete"
+
+[[entry]]
+id = "rust:surf::get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/surf-get"
+
+[[entry]]
+id = "rust:surf::head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/surf-head"
+
+[[entry]]
+id = "rust:surf::options"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/surf-options"
+
+[[entry]]
+id = "rust:surf::patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/surf-patch"
+
+[[entry]]
+id = "rust:surf::post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/surf-post"
+
+[[entry]]
+id = "rust:surf::put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/surf-put"
+
+[[entry]]
+id = "rust:surf::trace"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/surf-trace"
+
+[[entry]]
+id = "rust:tokio::net"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/tokio-net"
+
+[[entry]]
+id = "rust:tokio::net::TcpStream::connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "rust/ordinary/tokio-tcp-connect"
+
+[[entry]]
+id = "rust:tokio::process"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/tokio-process"
+
+[[entry]]
+id = "rust:tokio::process::Command::new"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, form = "program" }
+constructor = true
+fixture = "rust/primitives/tokio-process-command-new"
+
+[[entry]]
+id = "rust:ureq::Agent::delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/ureq-agent-delete"
+
+[[entry]]
+id = "rust:ureq::Agent::get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/ureq-agent-get"
+
+[[entry]]
+id = "rust:ureq::Agent::head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/ureq-agent-head"
+
+[[entry]]
+id = "rust:ureq::Agent::new"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/ureq-agent-new"
+
+[[entry]]
+id = "rust:ureq::Agent::patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/ureq-agent-patch"
+
+[[entry]]
+id = "rust:ureq::Agent::post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/ureq-agent-post"
+
+[[entry]]
+id = "rust:ureq::Agent::put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/ureq-agent-put"
+
+[[entry]]
+id = "rust:ureq::Agent::request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "rust/primitives/ureq-agent-request"
+
+[[entry]]
+id = "rust:ureq::AgentBuilder::build"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/ureq-agentbuilder-build"
+
+[[entry]]
+id = "rust:ureq::agent"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/ureq-agent"
+
+[[entry]]
+id = "rust:ureq::delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/ureq-delete"
+
+[[entry]]
+id = "rust:ureq::get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/ordinary/ureq-get"
+
+[[entry]]
+id = "rust:ureq::head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/ureq-head"
+
+[[entry]]
+id = "rust:ureq::patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/ureq-patch"
+
+[[entry]]
+id = "rust:ureq::post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/ureq-post"
+
+[[entry]]
+id = "rust:ureq::put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "rust/primitives/ureq-put"
+
+[[entry]]
+id = "rust:ureq::request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "rust/primitives/ureq-request"
+
+[[entry]]
+id = "rust:ureq::request_url"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "rust/primitives/ureq-request_url"
+
+[[inert]]
+module = "attohttpc"
+members = [
+    "RequestBuilder",
+    "PreparedRequest",
+    "Response",
+    "Error",
+    "header",
+    "Method",
+    "StatusCode",
+    "Session",
+]
+justification = "Value, error, and builder types; the calls that send are classified separately."
+fixture = "rust/primitives/must-not-attohttpc-requestbuilder-type"
+
+[[inert]]
+module = "hyper"
+members = [
+    "body",
+    "header",
+    "Request",
+    "Response",
+    "StatusCode",
+    "Method",
+    "Uri",
+    "Version",
+    "Error",
+    "service",
+    "rt",
+    "Body",
+    "Client",
+    "Server",
+]
+justification = "HTTP value types, service adapters, and executor traits; naming them opens nothing."
+fixture = "rust/primitives/must-not-hyper-body"
+
+[[inert]]
+module = "isahc"
+members = [
+    "Request",
+    "Response",
+    "Error",
+    "Body",
+    "AsyncBody",
+    "config",
+    "prelude",
+    "HttpClient",
+    "HttpClientBuilder",
+]
+justification = "Value, body, configuration, and builder types; the calls that send are classified separately."
+fixture = "rust/primitives/must-not-isahc-request-type"
+
+[[inert]]
+module = "libc"
+members = [
+    "c_*",
+    "size_t",
+    "ssize_t",
+    "pid_t",
+    "uid_t",
+    "gid_t",
+    "off_t",
+    "mode_t",
+    "socklen_t",
+    "sockaddr",
+    "sockaddr_in",
+    "sockaddr_in6",
+    "sockaddr_un",
+    "AF_*",
+    "SOCK_*",
+    "IPPROTO_*",
+    "O_*",
+    "SIG*",
+    "E*",
+]
+justification = "C type aliases, structs, and constants; plain data with no call."
+fixture = "rust/primitives/must-not-libc-c_star"
+
+[[inert]]
+module = "reqwest"
+members = [
+    "header",
+    "Url",
+    "StatusCode",
+    "Method",
+    "Error",
+    "Response",
+    "RequestBuilder",
+    "Body",
+    "Proxy",
+    "Certificate",
+    "Identity",
+    "redirect",
+    "multipart",
+    "Version",
+    "Client",
+    "ClientBuilder",
+    "blocking::Client",
+    "blocking::ClientBuilder",
+    "blocking::Response",
+    "blocking::RequestBuilder",
+    "blocking::Body",
+]
+justification = "Value, header, error, and builder types; naming them sends nothing, and the client calls that do are classified separately."
+fixture = "rust/primitives/must-not-reqwest-header"
+
+[[inert]]
+module = "surf"
+members = [
+    "Request",
+    "RequestBuilder",
+    "Response",
+    "Error",
+    "Url",
+    "Body",
+    "Config",
+    "http",
+    "Client",
+]
+justification = "Value, body, configuration, and builder types; the calls that send are classified separately."
+fixture = "rust/primitives/must-not-surf-request-type"
+
+[[inert]]
+module = "tokio"
+members = [
+    "fs",
+    "io",
+    "runtime",
+    "signal",
+    "spawn",
+    "join",
+    "select",
+    "try_join",
+    "pin",
+    "main",
+    "test",
+    "spawn_blocking",
+]
+justification = "Local file and stream I/O, the executor, local signal handling, and task and macro helpers over futures in hand."
+fixture = "rust/primitives/must-not-tokio-fs"
+
+[[inert]]
+module = "tokio"
+members = [
+    "sync",
+]
+justification = "Async synchronization primitives and channels inside the process; no member opens a socket or spawns a program."
+fixture = "rust/primitives/must-not-tokio-sync"
+
+[[inert]]
+module = "tokio"
+members = [
+    "task",
+]
+justification = "Spawns futures and blocking closures already in hand inside the runtime; loads no code and starts no program."
+fixture = "rust/primitives/must-not-tokio-task"
+
+[[inert]]
+module = "tokio"
+members = [
+    "time",
+]
+justification = "Timers and intervals; no member opens a socket or spawns a program."
+fixture = "rust/primitives/must-not-tokio-time"
+
+[[inert]]
+module = "ureq"
+members = [
+    "Error",
+    "Response",
+    "Request",
+    "Agent",
+    "AgentBuilder",
+    "json",
+    "Proxy",
+]
+justification = "Value, error, and builder types; the calls that send are classified separately."
+fixture = "rust/primitives/must-not-ureq-error-type"

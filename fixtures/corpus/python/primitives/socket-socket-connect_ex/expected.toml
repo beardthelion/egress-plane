@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:socket.socket.connect_ex"
+destination = "api.example.test:443"
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:socket.socket"
+destination = "expr:socket.socket()"
