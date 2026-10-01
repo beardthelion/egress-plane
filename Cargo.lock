@@ -144,6 +144,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "egress-rust"
+version = "0.1.0"
+dependencies = [
+ "egress-core",
+ "proc-macro2",
+ "syn 3.0.6",
+]
+
+[[package]]
 name = "egress-scan"
 version = "0.1.0"
 dependencies = [
