@@ -9,6 +9,7 @@
 //! and the findings budget (KTD19), which applies after classification so it
 //! counts every finding.
 
+mod js;
 pub mod registry;
 
 use std::path::Path;
@@ -261,9 +262,18 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
     }
 
     let mut budget_exceeded = discovery.budget_exceeded.clone();
+    let repo_rules: Vec<_> = Language::ALL
+        .into_iter()
+        .filter_map(|lang| {
+            let r = options.registry.get(lang)?.repo_rules(&discovery)?;
+            Some((lang, r))
+        })
+        .collect();
     let mut program = Program::new(&discovery.index, &discovery.excluded_dirs);
     for lang in Language::ALL {
-        if let Some(rules) = options.registry.get(lang).and_then(|f| f.specifier_rules()) {
+        if let Some((_, r)) = repo_rules.iter().find(|(l, _)| *l == lang) {
+            program.set_rules(lang, r.as_ref());
+        } else if let Some(rules) = options.registry.get(lang).and_then(|f| f.specifier_rules()) {
             program.set_rules(lang, rules);
         }
     }

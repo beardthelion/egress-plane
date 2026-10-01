@@ -55,8 +55,26 @@ enum Open {
 
 const STICKY: &[&str] = &["if", "else", "for", "while", "do", "with"];
 const EXPR_KEYWORDS: &[&str] = &[
-    "return", "typeof", "void", "delete", "new", "await", "yield", "throw", "case", "extends",
-    "in", "instanceof", "of", "as", "satisfies", "else", "do", "keyof", "export", "default",
+    "return",
+    "typeof",
+    "void",
+    "delete",
+    "new",
+    "await",
+    "yield",
+    "throw",
+    "case",
+    "extends",
+    "in",
+    "instanceof",
+    "of",
+    "as",
+    "satisfies",
+    "else",
+    "do",
+    "keyof",
+    "export",
+    "default",
     "import",
 ];
 const OPERATOR_WORDS: &[&str] = &["in", "instanceof", "of", "as", "satisfies"];
@@ -72,7 +90,9 @@ struct Est {
 
 impl Est {
     fn top(&mut self) -> &mut Level {
-        self.levels.last_mut().expect("the outer level is never popped")
+        self.levels
+            .last_mut()
+            .expect("the outer level is never popped")
     }
 
     fn add_c(&mut self) {
@@ -376,7 +396,13 @@ mod tests {
 
     #[test]
     fn strings_comments_and_templates_hide_only_their_contents() {
-        let s = format!("x = \"{}\"; // {}\n/* {} */ y = `{}`;", "a?".repeat(LIMIT), "a?".repeat(LIMIT), "a?".repeat(LIMIT), "a?".repeat(LIMIT));
+        let s = format!(
+            "x = \"{}\"; // {}\n/* {} */ y = `{}`;",
+            "a?".repeat(LIMIT),
+            "a?".repeat(LIMIT),
+            "a?".repeat(LIMIT),
+            "a?".repeat(LIMIT)
+        );
         assert!(!too_deep(&s, false));
         let hole = format!("x = `${{{}y}}`;", "a ? b : ".repeat(LIMIT));
         assert!(too_deep(&hole, false));

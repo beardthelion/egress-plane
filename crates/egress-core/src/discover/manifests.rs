@@ -83,6 +83,14 @@ pub struct PackageJson {
     pub workspaces: Vec<Vec<u8>>,
     /// In-root `bin` targets.
     pub bin: Vec<Vec<u8>>,
+    /// The in-root `main` entry point, if any. Resolution facts only: an
+    /// out-of-root `main` or `imports` target is left out here and reported
+    /// by the importing reference.
+    pub main: Option<Vec<u8>>,
+    /// `imports` (`#internal`) patterns and their in-root path targets; a
+    /// conditional target takes its `node`, `import`, `require`, or
+    /// `default` branch, first present wins (KTD16).
+    pub imports: Vec<(String, Vec<u8>)>,
     /// npm lifecycle scripts present, in [`NPM_LIFECYCLE`] order.
     pub lifecycle: Vec<&'static str>,
 }
@@ -293,6 +301,28 @@ fn package_json(path: &[u8], text: &str, refs: &mut Refs<'_>) -> Result<PackageJ
             .collect(),
         _ => Vec::new(),
     };
+    let main = v
+        .get("main")
+        .and_then(Value::as_str)
+        .and_then(|m| fold(refs.base, m));
+    let mut imports = Vec::new();
+    if let Some(Value::Object(m)) = v.get("imports") {
+        for (pattern, target) in m {
+            let t = match target {
+                Value::String(s) => Some(s.as_str()),
+                Value::Object(o) => ["node", "import", "require", "default"]
+                    .iter()
+                    .find_map(|k| o.get(*k).and_then(Value::as_str)),
+                _ => None,
+            };
+            // Bare package targets name dependencies, not paths.
+            if let Some(t) = t.filter(|t| is_path_specifier(t))
+                && let Some(p) = fold(refs.base, t)
+            {
+                imports.push((pattern.clone(), p));
+            }
+        }
+    }
     let scripts = v.get("scripts").and_then(Value::as_object);
     let lifecycle = NPM_LIFECYCLE
         .iter()
@@ -304,6 +334,8 @@ fn package_json(path: &[u8], text: &str, refs: &mut Refs<'_>) -> Result<PackageJ
         name: v.get("name").and_then(Value::as_str).map(str::to_string),
         workspaces,
         bin,
+        main,
+        imports,
         lifecycle,
     })
 }

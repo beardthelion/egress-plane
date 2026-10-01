@@ -220,6 +220,7 @@ name = "egress-scan"
 version = "0.1.0"
 dependencies = [
  "egress-core",
+ "egress-js",
  "libc",
 ]
 

@@ -6,6 +6,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use egress_core::discover::Discovery;
 use egress_core::ir::FileIr;
 use egress_core::model::Language;
 use egress_core::resolve::SpecifierRules;
@@ -42,6 +43,13 @@ pub trait Frontend: Send + Sync {
     fn specifier_rules(&self) -> Option<&dyn SpecifierRules> {
         None
     }
+
+    /// Specifier rules built from this repository's manifests and file
+    /// index (KTD16). When present they take precedence over
+    /// [`Frontend::specifier_rules`].
+    fn repo_rules(&self, _discovery: &Discovery) -> Option<Box<dyn SpecifierRules>> {
+        None
+    }
 }
 
 /// Frontends by language.
@@ -59,7 +67,9 @@ impl Registry {
     /// The registry `scan` uses: every frontend built into the tool. U5, U6,
     /// and U7 add theirs here.
     pub fn builtin() -> Registry {
-        Registry::new()
+        let mut r = Registry::new();
+        r.register(crate::js::JsFrontend);
+        r
     }
 
     /// Registers `frontend` for its language, replacing any earlier one.

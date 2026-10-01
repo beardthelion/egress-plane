@@ -17,7 +17,12 @@ fn refs<'a>(ir: &'a FileIr, text: &str) -> Vec<&'a Reference> {
 
 fn one<'a>(ir: &'a FileIr, text: &str) -> &'a Reference {
     let v = refs(ir, text);
-    assert_eq!(v.len(), 1, "references with text {text:?}: {:#?}", ir.references);
+    assert_eq!(
+        v.len(),
+        1,
+        "references with text {text:?}: {:#?}",
+        ir.references
+    );
     v[0]
 }
 
@@ -112,10 +117,7 @@ const c = process.getBuiltinModule("net");
 
 #[test]
 fn inline_literal_require_roots_a_member_chain() {
-    let f = ir(
-        "a.cjs",
-        r#"require("child_process").exec("curl x");"#,
-    );
+    let f = ir("a.cjs", r#"require("child_process").exec("curl x");"#);
     let r = one(&f, r#"require("child_process").exec("curl x")"#);
     let Root::Import(local) = &r.root else {
         panic!("{r:?}")
@@ -153,16 +155,23 @@ export { get };
     );
     let r = import(&f, "r");
     assert!(r.re_export);
-    assert_eq!((r.specifier.as_str(), r.members.clone()), ("./net", s(&["request"])));
-    let star = f.imports.iter().find(|i| i.specifier == "./http.js").unwrap();
+    assert_eq!(
+        (r.specifier.as_str(), r.members.clone()),
+        ("./net", s(&["request"]))
+    );
+    let star = f
+        .imports
+        .iter()
+        .find(|i| i.specifier == "./http.js")
+        .unwrap();
     assert!(star.star && star.re_export && star.local.is_none());
     assert!(import(&f, "ns").re_export);
     let c = import(&f, "client");
     assert!(c.re_export && c.default);
     assert!(
-        f.imports
-            .iter()
-            .any(|i| i.local.as_deref() == Some("get") && i.re_export && i.specifier == "node:http")
+        f.imports.iter().any(|i| i.local.as_deref() == Some("get")
+            && i.re_export
+            && i.specifier == "node:http")
     );
 }
 
@@ -250,7 +259,10 @@ function f(o, k) { return o[k]; }
         Some(Provenance::UnscannedCallResult)
     );
     assert_eq!(one(&f, "o[k](u)").use_kind, UseKind::ComputedMember);
-    assert_eq!(one(&f, "p[k]").receiver, Some(Provenance::FirstPartyCallResult));
+    assert_eq!(
+        one(&f, "p[k]").receiver,
+        Some(Provenance::FirstPartyCallResult)
+    );
     let r = one(&f, "o[k]");
     assert_eq!(r.receiver, Some(Provenance::Parameter(1)));
     assert_eq!(r.root, Root::Param(1));
@@ -270,7 +282,10 @@ fn must_not_literal_receivers_record_literal_provenance() {
 fn literal_computed_keys_are_plain_members() {
     let f = ir("a.js", r#"globalThis["fetch"](u); process.env["API"];"#);
     let r = one(&f, r#"globalThis["fetch"](u)"#);
-    assert_eq!((r.root.clone(), r.members.clone()), (amb("globalThis"), s(&["fetch"])));
+    assert_eq!(
+        (r.root.clone(), r.members.clone()),
+        (amb("globalThis"), s(&["fetch"]))
+    );
     assert_eq!(r.use_kind, UseKind::Call);
 }
 
@@ -323,10 +338,7 @@ export class C {
 
 #[test]
 fn this_attribute_assignment_outside_the_constructor_is_an_assignment_target() {
-    let f = ir(
-        "a.js",
-        "class C { reset() { this.c = null; } }",
-    );
+    let f = ir("a.js", "class C { reset() { this.c = null; } }");
     let r = one(&f, "this.c");
     assert_eq!(r.use_kind, UseKind::AssignmentTarget);
     assert_eq!(r.root, Root::SelfValue);
@@ -394,7 +406,10 @@ fn must_not_this_in_methods_arrows_strict_functions_and_modules_is_not_ambient()
     for (path, src) in [
         ("a.cjs", "class A { m() { return this.fetch(u); } }"),
         ("a.cjs", "const g = () => this.fetch(u);"),
-        ("a.cjs", "function f() { \"use strict\"; return this.fetch(u); }"),
+        (
+            "a.cjs",
+            "function f() { \"use strict\"; return this.fetch(u); }",
+        ),
         ("a.mjs", "function f() { return this.fetch(u); }"),
     ] {
         let f = ir(path, src);
@@ -447,7 +462,11 @@ export function u(id: string) { return fetch(`${BASE}/v1/${id}?n=` + N); }
     assert!(c.exported);
     assert_eq!(c.value, Expr::Literal("https://api.example.com".into()));
     assert!(!f.constants.iter().find(|c| c.name == "N").unwrap().exported);
-    let r = f.references.iter().find(|r| r.root == amb("fetch")).unwrap();
+    let r = f
+        .references
+        .iter()
+        .find(|r| r.root == amb("fetch"))
+        .unwrap();
     assert_eq!(
         r.args,
         vec![Expr::Template(vec![
@@ -476,7 +495,10 @@ export function e() { return fetch(process.env.URL); }
     let Expr::Reference(r) = &e.args[0] else {
         panic!("{e:?}")
     };
-    assert_eq!((r.root.clone(), r.members.clone()), (amb("process"), s(&["env", "URL"])));
+    assert_eq!(
+        (r.root.clone(), r.members.clone()),
+        (amb("process"), s(&["env", "URL"]))
+    );
 }
 
 // ---- structural triggers (KTD15) -----------------------------------------------------
@@ -523,7 +545,10 @@ new Worker("./w.js");
 
 #[test]
 fn string_timers_are_triggers_and_function_timers_are_not() {
-    let f = ir("a.js", "setTimeout(\"code\", 10);\nsetTimeout(fn, 10);\nwindow.setInterval(`x`, 1);");
+    let f = ir(
+        "a.js",
+        "setTimeout(\"code\", 10);\nsetTimeout(fn, 10);\nwindow.setInterval(`x`, 1);",
+    );
     assert_eq!(
         kinds(&f),
         vec![ConstructKind::DynamicImport, ConstructKind::DynamicImport]
@@ -570,7 +595,11 @@ fn globalthis_aliases_and_reflection() {
     let rg = one(&f, "Reflect.get(globalThis, k)");
     assert_eq!(rg.receiver, Some(Provenance::AmbientModule));
     assert_eq!(one(&f, "window").use_kind, UseKind::ValueEscape);
-    let g = f.locals.iter().chain(std::iter::empty()).find(|l| l.name == "g");
+    let g = f
+        .locals
+        .iter()
+        .chain(std::iter::empty())
+        .find(|l| l.name == "g");
     let c = f.constants.iter().find(|c| c.name == "g");
     assert!(g.is_some() || c.is_some());
 }
@@ -599,7 +628,10 @@ Reflect.set(net, "connect", f);
     assert_eq!(kinds(&f), vec![ConstructKind::ImportSystemMutation]);
     let a = one(&f, "Module._resolveFilename");
     assert_eq!(a.use_kind, UseKind::AssignmentTarget);
-    assert_eq!(one(&f, "Module.prototype.require").members, s(&["prototype", "require"]));
+    assert_eq!(
+        one(&f, "Module.prototype.require").members,
+        s(&["prototype", "require"])
+    );
     let d = one(&f, "Object.defineProperty(http, \"request\", d)");
     assert_eq!(d.args[0], Expr::Name("http".into()));
     assert!(!refs(&f, "Object.assign(net, o)").is_empty());
@@ -612,27 +644,48 @@ Reflect.set(net, "connect", f);
 fn source_type_follows_the_extension_and_content() {
     // A CommonJS file accepts top-level `this`, `with`, and `return`.
     ir("a.cjs", "this.x = 1;\nwith (o) { f(); }\nreturn;");
-    ir("a.js", "const x = require(\"y\");\nwith (o) { f(); }\nreturn;");
+    ir(
+        "a.js",
+        "const x = require(\"y\");\nwith (o) { f(); }\nreturn;",
+    );
     assert_eq!(lower(b"a.mjs", "with (o) { f(); }"), Err(LowerError::Parse));
     assert_eq!(
         lower(b"a.js", "import x from \"y\";\nwith (o) { f(); }"),
         Err(LowerError::Parse)
     );
     // `.cts` accepts ESM syntax, which TypeScript compiles to CommonJS.
-    ir("d.cts", "export function d(): Promise<Response> { return fetch(\"x\"); }");
+    ir(
+        "d.cts",
+        "export function d(): Promise<Response> { return fetch(\"x\"); }",
+    );
     // JSX in a `.js` file.
-    ir("a.js", "export const B = () => <span>{fetch(\"x\")}</span>;");
+    ir(
+        "a.js",
+        "export const B = () => <span>{fetch(\"x\")}</span>;",
+    );
 }
 
 #[test]
 fn recovered_parse_errors_and_flow_are_parse_errors() {
-    assert_eq!(lower(b"a.js", "x = a ?? b || c;\nfetch(u);"), Err(LowerError::Parse));
-    assert_eq!(lower(b"a.js", "const a = 1;\nconst a = 2;"), Err(LowerError::Parse));
     assert_eq!(
-        lower(b"a.js", "// @flow\nfunction f(x: number): string { return x; }"),
+        lower(b"a.js", "x = a ?? b || c;\nfetch(u);"),
         Err(LowerError::Parse)
     );
-    assert_eq!(lower(b"a.js", "function f(x: ?number) {}"), Err(LowerError::Parse));
+    assert_eq!(
+        lower(b"a.js", "const a = 1;\nconst a = 2;"),
+        Err(LowerError::Parse)
+    );
+    assert_eq!(
+        lower(
+            b"a.js",
+            "// @flow\nfunction f(x: number): string { return x; }"
+        ),
+        Err(LowerError::Parse)
+    );
+    assert_eq!(
+        lower(b"a.js", "function f(x: ?number) {}"),
+        Err(LowerError::Parse)
+    );
 }
 
 #[test]
@@ -646,7 +699,10 @@ fn columns_count_unicode_scalar_values() {
 
 #[test]
 fn declaration_files_lower_to_nothing() {
-    let f = ir("types.d.ts", "export declare function ping(): void;\nimport x from \"y\";");
+    let f = ir(
+        "types.d.ts",
+        "export declare function ping(): void;\nimport x from \"y\";",
+    );
     assert!(f.references.is_empty() && f.imports.is_empty() && f.constructs.is_empty());
 }
 
@@ -657,9 +713,17 @@ fn deep_non_bracket_nesting_is_too_deeply_nested_not_an_abort() {
         format!("f = {}y;", "a => ".repeat(200_000)),
         format!("x = y{};", ".a".repeat(1_000_000)),
         format!("x = y{};", " + y".repeat(1_000_000)),
-        format!("let x: {}number{};", "A<".repeat(200_000), ">".repeat(200_000)),
+        format!(
+            "let x: {}number{};",
+            "A<".repeat(200_000),
+            ">".repeat(200_000)
+        ),
     ] {
-        let path = if src.starts_with("let") { b"a.ts" as &[u8] } else { b"a.js" };
+        let path = if src.starts_with("let") {
+            b"a.ts" as &[u8]
+        } else {
+            b"a.js"
+        };
         let run = move || lower(path, &src);
         let out = std::thread::Builder::new()
             .stack_size(64 * 1024 * 1024)
@@ -675,7 +739,9 @@ fn deep_non_bracket_nesting_is_too_deeply_nested_not_an_abort() {
 fn ordinary_long_code_is_not_too_deeply_nested() {
     let mut src = String::new();
     for i in 0..20_000 {
-        src.push_str(&format!("var a{i} = b{i} + c{i} * d({i}), e{i} = [1, 2, 3];\n"));
+        src.push_str(&format!(
+            "var a{i} = b{i} + c{i} * d({i}), e{i} = [1, 2, 3];\n"
+        ));
     }
     src.push_str("var a=[");
     for i in 0..5000 {

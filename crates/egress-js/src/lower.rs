@@ -315,7 +315,9 @@ impl<'s, 'a> Lowerer<'s, 'a> {
     }
 
     fn frame(&self) -> &Frame {
-        self.frames.last().expect("the module frame is never popped")
+        self.frames
+            .last()
+            .expect("the module frame is never popped")
     }
 
     fn owner(&self) -> &Frame {
@@ -342,7 +344,14 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         self.depth -= 1;
     }
 
-    fn push_frame(&mut self, path: String, owner: bool, this: This, ctor: bool, class: Option<String>) {
+    fn push_frame(
+        &mut self,
+        path: String,
+        owner: bool,
+        this: This,
+        ctor: bool,
+        class: Option<String>,
+    ) {
         let id = self.next_frame;
         self.next_frame += 1;
         self.frames.push(Frame {
@@ -521,17 +530,43 @@ impl<'s, 'a> Lowerer<'s, 'a> {
     /// Records the synthetic import for an unbound literal loader call and
     /// returns its local name.
     fn synthetic_import(&mut self, c: &CallExpression<'a>, spec: &str) -> String {
-        let local = self.src(c.span).split_whitespace().collect::<Vec<_>>().join(" ");
+        let local = self
+            .src(c.span)
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
         if self.synthetic.insert(c.span.start) {
-            self.import(Some(local.clone()), spec, Vec::new(), false, false, false, true, c.span);
+            self.import(
+                Some(local.clone()),
+                spec,
+                Vec::new(),
+                false,
+                false,
+                false,
+                true,
+                c.span,
+            );
         }
         local
     }
 
     fn import_expression_synthetic(&mut self, i: &ImportExpression<'a>, spec: &str) {
         if self.synthetic.insert(i.span.start) {
-            let local = self.src(i.span).split_whitespace().collect::<Vec<_>>().join(" ");
-            self.import(Some(local), spec, Vec::new(), false, false, false, false, i.span);
+            let local = self
+                .src(i.span)
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ");
+            self.import(
+                Some(local),
+                spec,
+                Vec::new(),
+                false,
+                false,
+                false,
+                false,
+                i.span,
+            );
         }
     }
 
@@ -656,7 +691,9 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             Expression::NewExpression(n) => self.call_init(&n.callee),
             other => match self.static_chain(other) {
                 Some((Root::Import(_), _)) => Init::Module,
-                Some((Root::Ambient(n), m)) if m.is_empty() && GLOBAL_NAMES.contains(&n.as_str()) => {
+                Some((Root::Ambient(n), m))
+                    if m.is_empty() && GLOBAL_NAMES.contains(&n.as_str()) =>
+                {
                     Init::Ambient
                 }
                 _ => Init::Unknown,
@@ -707,7 +744,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
 
     // ---- expressions as small trees (KTD4) ----------------------------------------------
 
-    fn to_expr(&mut self, e: &Expression<'a>) -> Expr {
+    fn lower_expr(&mut self, e: &Expression<'a>) -> Expr {
         let e = e.get_inner_expression();
         match e {
             Expression::StringLiteral(s) => Expr::Literal(s.value.as_str().to_string()),
@@ -722,18 +759,19 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                         parts.push(Expr::Literal(c.as_str().to_string()));
                     }
                     if let Some(x) = t.expressions.get(i) {
-                        let v = self.to_expr(x);
+                        let v = self.lower_expr(x);
                         parts.push(v);
                     }
                 }
                 Expr::Template(parts)
             }
             Expression::BinaryExpression(b)
-                if b.operator == BinaryOperator::Addition && (stringish(&b.left) || stringish(&b.right)) =>
+                if b.operator == BinaryOperator::Addition
+                    && (stringish(&b.left) || stringish(&b.right)) =>
             {
                 let mut parts = Vec::new();
                 for side in [&b.left, &b.right] {
-                    match self.to_expr(side) {
+                    match self.lower_expr(side) {
                         Expr::Template(p) => parts.extend(p),
                         other => parts.push(other),
                     }
@@ -748,7 +786,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                 let mut items = Vec::new();
                 for el in &a.elements {
                     items.push(match el.as_expression() {
-                        Some(x) => self.to_expr(x),
+                        Some(x) => self.lower_expr(x),
                         None => Expr::Opaque(self.src(el.span()).to_string()),
                     });
                 }
@@ -766,12 +804,12 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                     let Some(k) = key_name(&p.key) else {
                         return Expr::Opaque(self.src(o.span).to_string());
                     };
-                    let v = self.to_expr(&p.value);
+                    let v = self.lower_expr(&p.value);
                     fields.push((k, v));
                 }
                 Expr::Object(fields)
             }
-            Expression::AwaitExpression(a) => self.to_expr(&a.argument),
+            Expression::AwaitExpression(a) => self.lower_expr(&a.argument),
             Expression::CallExpression(c) => match self.call_reference(c) {
                 Some(r) => Expr::Reference(Box::new(r)),
                 None => Expr::Opaque(self.src(c.span).to_string()),
@@ -784,19 +822,32 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                 }
                 None => Expr::Opaque(self.src(n.span).to_string()),
             },
-            Expression::ComputedMemberExpression(m) if lit_str(&m.expression).is_none()
-                && !matches!(m.expression.get_inner_expression(), Expression::NumericLiteral(_)) =>
+            Expression::ComputedMemberExpression(m)
+                if lit_str(&m.expression).is_none()
+                    && !matches!(
+                        m.expression.get_inner_expression(),
+                        Expression::NumericLiteral(_)
+                    ) =>
             {
-                let base = self.to_expr(&m.object);
-                let key = self.to_expr(&m.expression);
+                let base = self.lower_expr(&m.object);
+                let key = self.lower_expr(&m.expression);
                 Expr::Subscript {
                     base: Box::new(base),
                     key: Box::new(key),
                 }
             }
             other => match self.static_chain(other) {
-                Some((root, members)) if !members.is_empty() || !matches!(root, Root::Expression) => {
-                    let r = self.reference(root, members, UseKind::ValueEscape, Vec::new(), None, other.span());
+                Some((root, members))
+                    if !members.is_empty() || !matches!(root, Root::Expression) =>
+                {
+                    let r = self.reference(
+                        root,
+                        members,
+                        UseKind::ValueEscape,
+                        Vec::new(),
+                        None,
+                        other.span(),
+                    );
                     Expr::Reference(Box::new(r))
                 }
                 _ => Expr::Opaque(self.src(other.span()).to_string()),
@@ -808,7 +859,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         let mut out = Vec::new();
         for a in args {
             out.push(match a.as_expression() {
-                Some(x) => self.to_expr(x),
+                Some(x) => self.lower_expr(x),
                 None => Expr::Opaque(self.src(a.span()).to_string()),
             });
         }
@@ -822,7 +873,10 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         let receiver = match (&root, members.as_slice()) {
             (Root::Ambient(r), [m])
                 if r == "Reflect"
-                    && matches!(m.as_str(), "get" | "set" | "defineProperty" | "deleteProperty") =>
+                    && matches!(
+                        m.as_str(),
+                        "get" | "set" | "defineProperty" | "deleteProperty"
+                    ) =>
             {
                 c.arguments
                     .first()
@@ -850,10 +904,13 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                             ImportDeclarationSpecifier::ImportNamespaceSpecifier(x) => &x.local,
                         };
                         if let Some(sym) = local.symbol_id.get() {
-                            self.import_syms.insert(sym, local.name.as_str().to_string());
+                            self.import_syms
+                                .insert(sym, local.name.as_str().to_string());
                         }
-                        self.import_spec
-                            .insert(local.name.as_str().to_string(), d.source.value.as_str().to_string());
+                        self.import_spec.insert(
+                            local.name.as_str().to_string(),
+                            d.source.value.as_str().to_string(),
+                        );
                     }
                 }
                 Statement::TSImportEqualsDeclaration(d) => {
@@ -1034,10 +1091,19 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                 let type_only = d.export_kind == ImportOrExportKind::Type;
                 let spec = d.source.value.as_str();
                 match &d.exported {
-                    None => self.import(None, spec, Vec::new(), type_only, true, true, false, d.span),
-                    Some(n) => {
-                        self.import(Some(n.name().to_string()), spec, Vec::new(), type_only, false, true, false, d.span)
+                    None => {
+                        self.import(None, spec, Vec::new(), type_only, true, true, false, d.span)
                     }
+                    Some(n) => self.import(
+                        Some(n.name().to_string()),
+                        spec,
+                        Vec::new(),
+                        type_only,
+                        false,
+                        true,
+                        false,
+                        d.span,
+                    ),
                 }
             }
             Statement::ExportFromDeclaration(d) => {
@@ -1048,7 +1114,16 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                     let local = x.local.name().to_string();
                     let exported = x.exported.name().to_string();
                     let default = local == "default";
-                    self.import(Some(exported), spec, vec![local], type_only, false, true, default, x.span);
+                    self.import(
+                        Some(exported),
+                        spec,
+                        vec![local],
+                        type_only,
+                        false,
+                        true,
+                        default,
+                        x.span,
+                    );
                 }
             }
             Statement::ExportNamedDeclaration(d) => {
@@ -1065,7 +1140,9 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                         .ir
                         .imports
                         .iter()
-                        .find(|i| !i.re_export && !i.star && i.local.as_deref() == Some(local.as_str()))
+                        .find(|i| {
+                            !i.re_export && !i.star && i.local.as_deref() == Some(local.as_str())
+                        })
                         .cloned()
                     {
                         self.ir.imports.push(ir::Import {
@@ -1104,7 +1181,9 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                 ExportDefaultDeclarationKind::FunctionDeclaration(f) => {
                     self.function_decl(f, Some("default".into()))
                 }
-                ExportDefaultDeclarationKind::ClassDeclaration(c) => self.class(c, Some("default".into())),
+                ExportDefaultDeclarationKind::ClassDeclaration(c) => {
+                    self.class(c, Some("default".into()))
+                }
                 ExportDefaultDeclarationKind::TSInterfaceDeclaration(_) => {}
                 other => {
                     if let Some(e) = other.as_expression() {
@@ -1123,7 +1202,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                                 ..imp
                             });
                         } else if !is_function_like(e) {
-                            let v = self.to_expr(e);
+                            let v = self.lower_expr(e);
                             self.ir.constants.push(ir::ModuleConstant {
                                 name: "default".into(),
                                 value: v,
@@ -1151,11 +1230,29 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         let spec = d.source.value.as_str();
         let decl_type = d.import_kind == ImportOrExportKind::Type;
         let Some(specs) = &d.specifiers else {
-            self.import(None, spec, Vec::new(), decl_type, false, false, false, d.span);
+            self.import(
+                None,
+                spec,
+                Vec::new(),
+                decl_type,
+                false,
+                false,
+                false,
+                d.span,
+            );
             return;
         };
         if specs.is_empty() {
-            self.import(None, spec, Vec::new(), decl_type, false, false, false, d.span);
+            self.import(
+                None,
+                spec,
+                Vec::new(),
+                decl_type,
+                false,
+                false,
+                false,
+                d.span,
+            );
         }
         for s in specs {
             match s {
@@ -1202,9 +1299,27 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         if let TSModuleReference::ExternalModuleReference(r) = &d.module_reference {
             let type_only = d.import_kind == ImportOrExportKind::Type;
             let name = d.id.name.as_str().to_string();
-            self.import(Some(name.clone()), r.expression.value.as_str(), Vec::new(), type_only, false, false, true, d.span);
+            self.import(
+                Some(name.clone()),
+                r.expression.value.as_str(),
+                Vec::new(),
+                type_only,
+                false,
+                false,
+                true,
+                d.span,
+            );
             if exported {
-                self.import(Some(name), r.expression.value.as_str(), Vec::new(), type_only, false, true, true, d.span);
+                self.import(
+                    Some(name),
+                    r.expression.value.as_str(),
+                    Vec::new(),
+                    type_only,
+                    false,
+                    true,
+                    true,
+                    d.span,
+                );
             }
         }
     }
@@ -1234,7 +1349,16 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                         if let Some(s) = sym {
                             self.import_syms.insert(s, name.clone());
                         }
-                        self.import(Some(name), &spec, members, false, false, false, default, decl.span);
+                        self.import(
+                            Some(name),
+                            &spec,
+                            members,
+                            false,
+                            false,
+                            false,
+                            default,
+                            decl.span,
+                        );
                         continue;
                     }
                     if let Some(s) = sym {
@@ -1248,7 +1372,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                     let single = d.kind == VariableDeclarationKind::Const
                         || sym.is_some_and(|s| !self.scoping.symbol_is_mutated(s));
                     if single {
-                        let value = self.to_expr(init);
+                        let value = self.lower_expr(init);
                         if self.owner().path == "<module>" {
                             self.ir.constants.push(ir::ModuleConstant {
                                 name,
@@ -1280,12 +1404,30 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                             if let Some(s) = id.symbol_id.get() {
                                 self.import_syms.insert(s, id.name.as_str().to_string());
                             }
-                            self.import(Some(id.name.as_str().to_string()), &spec, m, false, false, false, false, prop.span);
+                            self.import(
+                                Some(id.name.as_str().to_string()),
+                                &spec,
+                                m,
+                                false,
+                                false,
+                                false,
+                                false,
+                                prop.span,
+                            );
                         }
                         if let Some(rest) = &p.rest
                             && let BindingPattern::BindingIdentifier(id) = &rest.argument
                         {
-                            self.import(Some(id.name.as_str().to_string()), &spec, members, false, false, false, true, rest.span);
+                            self.import(
+                                Some(id.name.as_str().to_string()),
+                                &spec,
+                                members,
+                                false,
+                                false,
+                                false,
+                                true,
+                                rest.span,
+                            );
                         }
                         continue;
                     }
@@ -1300,7 +1442,14 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                             };
                             let mut m = members.clone();
                             m.push(key);
-                            let r = self.reference(root.clone(), m, UseKind::ValueEscape, Vec::new(), None, prop.span);
+                            let r = self.reference(
+                                root.clone(),
+                                m,
+                                UseKind::ValueEscape,
+                                Vec::new(),
+                                None,
+                                prop.span,
+                            );
                             let value = Expr::Reference(Box::new(r));
                             let name = id.name.as_str().to_string();
                             if self.owner().path == "<module>" {
@@ -1374,7 +1523,9 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         }
         if let Some(r) = &params.rest {
             match &r.rest.argument {
-                BindingPattern::BindingIdentifier(id) => names.push(format!("...{}", id.name.as_str())),
+                BindingPattern::BindingIdentifier(id) => {
+                    names.push(format!("...{}", id.name.as_str()))
+                }
                 _ => names.push("...<pattern>".into()),
             }
         }
@@ -1410,7 +1561,11 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         let (this, ctor, class) = match method {
             Some(m) => m,
             None => (
-                if !strict && self.script { This::Ambient } else { This::Opaque },
+                if !strict && self.script {
+                    This::Ambient
+                } else {
+                    This::Opaque
+                },
                 false,
                 None,
             ),
@@ -1430,12 +1585,11 @@ impl<'s, 'a> Lowerer<'s, 'a> {
     }
 
     fn function_decl(&mut self, f: &Function<'a>, fallback: Option<String>) {
-        let name = f
-            .id
-            .as_ref()
-            .map(|i| i.name.as_str().to_string())
-            .or(fallback)
-            .unwrap_or_else(|| "<anonymous>".into());
+        let name =
+            f.id.as_ref()
+                .map(|i| i.name.as_str().to_string())
+                .or(fallback)
+                .unwrap_or_else(|| "<anonymous>".into());
         let path = join(&self.owner().path, &name);
         let kind = if self.owner().path == "<module>" {
             ir::SymbolKind::Function
@@ -1451,7 +1605,13 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         match &name {
             Some(n) => {
                 let path = join(&self.owner().path, n);
-                self.push_frame(path.clone(), true, parent.this, parent.ctor, parent.class.clone());
+                self.push_frame(
+                    path.clone(),
+                    true,
+                    parent.this,
+                    parent.ctor,
+                    parent.class.clone(),
+                );
                 let id = self.frame().id;
                 let names = self.params(&a.params, id, true);
                 self.ir.symbols.push(ir::SymbolSpan {
@@ -1463,7 +1623,13 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                 });
             }
             None => {
-                self.push_frame(parent.path.clone(), false, parent.this, parent.ctor, parent.class.clone());
+                self.push_frame(
+                    parent.path.clone(),
+                    false,
+                    parent.this,
+                    parent.ctor,
+                    parent.class.clone(),
+                );
                 let id = self.frame().id;
                 self.params(&a.params, id, false);
             }
@@ -1483,12 +1649,11 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         if c.declare {
             return;
         }
-        let name = c
-            .id
-            .as_ref()
-            .map(|i| i.name.as_str().to_string())
-            .or(fallback)
-            .unwrap_or_else(|| "<anonymous>".into());
+        let name =
+            c.id.as_ref()
+                .map(|i| i.name.as_str().to_string())
+                .or(fallback)
+                .unwrap_or_else(|| "<anonymous>".into());
         let path = join(&self.owner().path, &name);
         self.ir.symbols.push(ir::SymbolSpan {
             path: path.clone(),
@@ -1504,7 +1669,14 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             let sup = &h.expression;
             match self.static_chain(sup) {
                 Some((root, members)) if !matches!(root, Root::Expression) => {
-                    let mut r = self.reference(root, members, UseKind::BaseClass, Vec::new(), None, sup.span());
+                    let mut r = self.reference(
+                        root,
+                        members,
+                        UseKind::BaseClass,
+                        Vec::new(),
+                        None,
+                        sup.span(),
+                    );
                     r.symbol = path.clone();
                     self.emit(r);
                 }
@@ -1554,13 +1726,20 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         }
     }
 
-    fn field(&mut self, class: &str, key: &str, v: &Expression<'a>, is_static: bool, span: oxc_span::Span) {
+    fn field(
+        &mut self,
+        class: &str,
+        key: &str,
+        v: &Expression<'a>,
+        is_static: bool,
+        span: oxc_span::Span,
+    ) {
         let fpath = format!("{class}.{key}");
         let this = if is_static { This::Opaque } else { This::Class };
         if !is_static {
             // An instance field is an attribute assignment at construction.
             self.push_frame(fpath.clone(), true, this, true, Some(class.to_string()));
-            let value = self.to_expr(v);
+            let value = self.lower_expr(v);
             self.frames.pop();
             self.ir.self_attributes.push(ir::SelfAttribute {
                 class: class.to_string(),
@@ -1571,12 +1750,23 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         }
         match v.get_inner_expression() {
             Expression::ArrowFunctionExpression(a) => {
-                self.push_frame(class.to_string(), false, this, false, Some(class.to_string()));
+                self.push_frame(
+                    class.to_string(),
+                    false,
+                    this,
+                    false,
+                    Some(class.to_string()),
+                );
                 self.arrow(a, Some(key.to_string()));
                 self.frames.pop();
             }
             Expression::FunctionExpression(f) => {
-                self.function(f, fpath, Some((this, false, Some(class.to_string()))), ir::SymbolKind::Method);
+                self.function(
+                    f,
+                    fpath,
+                    Some((this, false, Some(class.to_string()))),
+                    ir::SymbolKind::Method,
+                );
             }
             _ => {
                 self.push_frame(fpath, true, this, !is_static, Some(class.to_string()));
@@ -1625,7 +1815,8 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             Expression::TaggedTemplateExpression(t) => {
                 match self.static_chain(&t.tag) {
                     Some((root, members)) if !matches!(root, Root::Expression) => {
-                        let r = self.reference(root, members, UseKind::Call, Vec::new(), None, t.span);
+                        let r =
+                            self.reference(root, members, UseKind::Call, Vec::new(), None, t.span);
                         self.emit(r);
                     }
                     _ => self.expr(&t.tag, false),
@@ -1655,12 +1846,11 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             Expression::ObjectExpression(o) => self.object(o, name),
             Expression::ArrowFunctionExpression(a) => self.arrow(a, name),
             Expression::FunctionExpression(f) => {
-                let n = f
-                    .id
-                    .as_ref()
-                    .map(|i| i.name.as_str().to_string())
-                    .or(name)
-                    .unwrap_or_else(|| "<anonymous>".into());
+                let n =
+                    f.id.as_ref()
+                        .map(|i| i.name.as_str().to_string())
+                        .or(name)
+                        .unwrap_or_else(|| "<anonymous>".into());
                 let path = join(&self.owner().path, &n);
                 self.function(f, path, None, ir::SymbolKind::Binding);
             }
@@ -1745,10 +1935,17 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                         None => key.clone(),
                     };
                     match &p.value {
-                        Expression::FunctionExpression(f) if p.method || p.kind != PropertyKind::Init || f.id.is_none() => {
+                        Expression::FunctionExpression(f)
+                            if p.method || p.kind != PropertyKind::Init || f.id.is_none() =>
+                        {
                             let path = join(&self.owner().path, &full);
                             // Object-literal methods: `this` is the object.
-                            self.function(f, path, Some((This::Opaque, false, None)), ir::SymbolKind::Binding);
+                            self.function(
+                                f,
+                                path,
+                                Some((This::Opaque, false, None)),
+                                ir::SymbolKind::Binding,
+                            );
                         }
                         v => self.expr_named(v, true, Some(full)),
                     }
@@ -1807,13 +2004,22 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         }
         let root = self.ident_root(id);
         if matches!(root, Root::Import(_) | Root::Ambient(_) | Root::Local(_)) {
-            let r = self.reference(root, Vec::new(), UseKind::ValueEscape, Vec::new(), None, id.span);
+            let r = self.reference(
+                root,
+                Vec::new(),
+                UseKind::ValueEscape,
+                Vec::new(),
+                None,
+                id.span,
+            );
             self.emit(r);
         }
     }
 
     /// The object and key of a computed member with a non-literal key.
-    fn computed_parts<'e>(e: &'e Expression<'a>) -> Option<(&'e Expression<'a>, &'e Expression<'a>)> {
+    fn computed_parts<'e>(
+        e: &'e Expression<'a>,
+    ) -> Option<(&'e Expression<'a>, &'e Expression<'a>)> {
         let m = match e.get_inner_expression() {
             Expression::ComputedMemberExpression(m) => m,
             Expression::ChainExpression(c) => match &c.expression {
@@ -1823,14 +2029,19 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             _ => return None,
         };
         let literal = lit_str(&m.expression).is_some()
-            || matches!(m.expression.get_inner_expression(), Expression::NumericLiteral(_));
+            || matches!(
+                m.expression.get_inner_expression(),
+                Expression::NumericLiteral(_)
+            );
         (!literal).then_some((&m.object, &m.expression))
     }
 
     /// The object of a member expression.
     fn member_object<'e>(e: &'e Expression<'a>) -> Option<&'e Expression<'a>> {
         match e.get_inner_expression() {
-            Expression::ChainExpression(c) => c.expression.as_member_expression().map(|m| m.object()),
+            Expression::ChainExpression(c) => {
+                c.expression.as_member_expression().map(|m| m.object())
+            }
             other => other.get_member_expr().map(|m| m.object()),
         }
     }
@@ -1841,7 +2052,14 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             let receiver = self.provenance(obj);
             match self.static_chain(obj) {
                 Some((root, members)) => {
-                    let r = self.reference(root, members, UseKind::ComputedMember, Vec::new(), Some(receiver), text);
+                    let r = self.reference(
+                        root,
+                        members,
+                        UseKind::ComputedMember,
+                        Vec::new(),
+                        Some(receiver),
+                        text,
+                    );
                     self.emit(r);
                 }
                 None => {
@@ -1863,7 +2081,8 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         match self.static_chain(e) {
             Some((root, members)) => {
                 if flow && !matches!(root, Root::Param(_) | Root::Expression) {
-                    let r = self.reference(root, members, UseKind::ValueEscape, Vec::new(), None, text);
+                    let r =
+                        self.reference(root, members, UseKind::ValueEscape, Vec::new(), None, text);
                     self.emit(r);
                 }
             }
@@ -2040,12 +2259,20 @@ impl<'s, 'a> Lowerer<'s, 'a> {
 
     /// A write to a member: `this.attr` facts (KTD8), import-system writes
     /// (KTD15), and assignment-target references.
-    fn member_write(&mut self, m: &MemberExpression<'a>, span: oxc_span::Span, value: Option<&Expression<'a>>) {
+    fn member_write(
+        &mut self,
+        m: &MemberExpression<'a>,
+        span: oxc_span::Span,
+        value: Option<&Expression<'a>>,
+    ) {
         let obj = m.object();
         let computed_key = match m {
             MemberExpression::ComputedMemberExpression(c)
                 if lit_str(&c.expression).is_none()
-                    && !matches!(c.expression.get_inner_expression(), Expression::NumericLiteral(_)) =>
+                    && !matches!(
+                        c.expression.get_inner_expression(),
+                        Expression::NumericLiteral(_)
+                    ) =>
             {
                 Some(&c.expression)
             }
@@ -2056,12 +2283,18 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             None => {
                 let mut members = Vec::new();
                 let tail = match m {
-                    MemberExpression::StaticMemberExpression(s) => Some(s.property.name.as_str().to_string()),
-                    MemberExpression::ComputedMemberExpression(c) => match c.expression.get_inner_expression() {
-                        Expression::NumericLiteral(n) => Some(self.src(n.span).to_string()),
-                        k => lit_str(k),
-                    },
-                    MemberExpression::PrivateFieldExpression(p) => Some(format!("#{}", p.field.name.as_str())),
+                    MemberExpression::StaticMemberExpression(s) => {
+                        Some(s.property.name.as_str().to_string())
+                    }
+                    MemberExpression::ComputedMemberExpression(c) => {
+                        match c.expression.get_inner_expression() {
+                            Expression::NumericLiteral(n) => Some(self.src(n.span).to_string()),
+                            k => lit_str(k),
+                        }
+                    }
+                    MemberExpression::PrivateFieldExpression(p) => {
+                        Some(format!("#{}", p.field.name.as_str()))
+                    }
                 };
                 self.static_chain(obj).and_then(|(root, mut ms)| {
                     ms.push(tail?);
@@ -2095,7 +2328,14 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         }
         if computed_key.is_some() {
             let receiver = self.provenance(obj);
-            let r = self.reference(root, members, UseKind::ComputedMember, Vec::new(), Some(receiver), span);
+            let r = self.reference(
+                root,
+                members,
+                UseKind::ComputedMember,
+                Vec::new(),
+                Some(receiver),
+                span,
+            );
             self.emit(r);
             return;
         }
@@ -2106,7 +2346,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             && frame.this == This::Class
             && let (Some(class), Some(v)) = (frame.class.clone(), value)
         {
-            let value = self.to_expr(v);
+            let value = self.lower_expr(v);
             self.ir.self_attributes.push(ir::SelfAttribute {
                 class,
                 attribute: members[0].clone(),
@@ -2118,7 +2358,14 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         if matches!(root, Root::Expression | Root::Param(_)) && root != Root::SelfValue {
             return;
         }
-        let r = self.reference(root, members, UseKind::AssignmentTarget, Vec::new(), None, span);
+        let r = self.reference(
+            root,
+            members,
+            UseKind::AssignmentTarget,
+            Vec::new(),
+            None,
+            span,
+        );
         self.emit(r);
     }
 }
