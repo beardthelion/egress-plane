@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:boto3.Session.client"
+destination = "expr:s.client()"
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:boto3.Session"
+destination = "expr:boto3.Session()"

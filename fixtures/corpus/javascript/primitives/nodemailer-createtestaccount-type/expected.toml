@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.mjs"
+symbol = "probe"
+mechanism = "javascript:nodemailer.createTestAccount"
+destination = "expr:nodemailer.createTestAccount()"

@@ -1,0 +1,1018 @@
+# JavaScript egress catalog (KTD6). A member matching neither an egress nor an
+# inert pattern lists its package as an unscanned dependency (KTD5). A package
+# name ending in /* covers every package in that npm scope.
+
+language = "javascript"
+
+[[package]]
+name = "@aws-sdk/*"
+
+[[package]]
+name = "axios"
+
+[[package]]
+name = "got"
+
+[[package]]
+name = "ioredis"
+
+[[package]]
+name = "ky"
+
+[[package]]
+name = "mongodb"
+
+[[package]]
+name = "mysql2"
+modules = ["mysql2/promise"]
+
+[[package]]
+name = "node-fetch"
+
+[[package]]
+name = "nodemailer"
+
+[[package]]
+name = "pg"
+
+[[package]]
+name = "redis"
+
+[[package]]
+name = "socket.io-client"
+
+[[package]]
+name = "superagent"
+
+[[package]]
+name = "undici"
+
+[[package]]
+name = "ws"
+
+[[entry]]
+id = "javascript:@aws-sdk/*"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/aws-sdk-star"
+
+[[entry]]
+id = "javascript:@aws-sdk/*.*Client"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/aws-sdk-star-starclient-type"
+
+[[entry]]
+id = "javascript:axios"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/axios"
+
+[[entry]]
+id = "javascript:axios.create"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "baseURL", form = "url" }
+constructor = true
+fixture = "javascript/tricky/attribute-held-client-this"
+
+[[entry]]
+id = "javascript:axios.create.delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/primitives/axios-create-delete"
+
+[[entry]]
+id = "javascript:axios.create.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/tricky/attribute-held-client-this"
+
+[[entry]]
+id = "javascript:axios.create.head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/primitives/axios-create-head"
+
+[[entry]]
+id = "javascript:axios.create.options"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/primitives/axios-create-options"
+
+[[entry]]
+id = "javascript:axios.create.patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/primitives/axios-create-patch"
+
+[[entry]]
+id = "javascript:axios.create.post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/primitives/axios-create-post"
+
+[[entry]]
+id = "javascript:axios.create.put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/primitives/axios-create-put"
+
+[[entry]]
+id = "javascript:axios.create.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/axios-create-request"
+
+[[entry]]
+id = "javascript:axios.delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/primitives/axios-delete"
+
+[[entry]]
+id = "javascript:axios.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/tricky/reexport-default-as"
+
+[[entry]]
+id = "javascript:axios.head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/primitives/axios-head"
+
+[[entry]]
+id = "javascript:axios.options"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/primitives/axios-options"
+
+[[entry]]
+id = "javascript:axios.patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/primitives/axios-patch"
+
+[[entry]]
+id = "javascript:axios.post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/tricky/wrapper-class-method-param"
+
+[[entry]]
+id = "javascript:axios.put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "javascript/primitives/axios-put"
+
+[[entry]]
+id = "javascript:axios.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/axios-request"
+
+[[entry]]
+id = "javascript:got"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/got"
+
+[[entry]]
+id = "javascript:got.delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/got-delete"
+
+[[entry]]
+id = "javascript:got.extend"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "prefixUrl", form = "url" }
+constructor = true
+fixture = "javascript/primitives/got-extend"
+
+[[entry]]
+id = "javascript:got.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/got-get"
+
+[[entry]]
+id = "javascript:got.head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/got-head"
+
+[[entry]]
+id = "javascript:got.paginate"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/got-paginate"
+
+[[entry]]
+id = "javascript:got.patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/got-patch"
+
+[[entry]]
+id = "javascript:got.post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/got-post"
+
+[[entry]]
+id = "javascript:got.put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/got-put"
+
+[[entry]]
+id = "javascript:got.stream"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/got-stream"
+
+[[entry]]
+id = "javascript:ioredis"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "path", form = "url" }
+constructor = true
+fixture = "javascript/primitives/ioredis"
+
+[[entry]]
+id = "javascript:ioredis.Cluster"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/ioredis-cluster-type"
+
+[[entry]]
+id = "javascript:ioredis.Redis"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "path", form = "url" }
+constructor = true
+fixture = "javascript/primitives/ioredis-redis-type"
+
+[[entry]]
+id = "javascript:ky"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "input", form = "url" }
+fixture = "javascript/primitives/ky"
+
+[[entry]]
+id = "javascript:ky.create"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "prefixUrl", form = "url" }
+constructor = true
+fixture = "javascript/primitives/ky-create"
+
+[[entry]]
+id = "javascript:ky.delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "input", form = "url" }
+fixture = "javascript/primitives/ky-delete"
+
+[[entry]]
+id = "javascript:ky.extend"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "prefixUrl", form = "url" }
+constructor = true
+fixture = "javascript/primitives/ky-extend"
+
+[[entry]]
+id = "javascript:ky.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "input", form = "url" }
+fixture = "javascript/primitives/ky-get"
+
+[[entry]]
+id = "javascript:ky.head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "input", form = "url" }
+fixture = "javascript/primitives/ky-head"
+
+[[entry]]
+id = "javascript:ky.patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "input", form = "url" }
+fixture = "javascript/primitives/ky-patch"
+
+[[entry]]
+id = "javascript:ky.post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "input", form = "url" }
+fixture = "javascript/primitives/ky-post"
+
+[[entry]]
+id = "javascript:ky.put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "input", form = "url" }
+fixture = "javascript/primitives/ky-put"
+
+[[entry]]
+id = "javascript:mongodb.MongoClient"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/primitives/mongodb-mongoclient-type"
+
+[[entry]]
+id = "javascript:mongodb.MongoClient.connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/primitives/mongodb-mongoclient-connect"
+
+[[entry]]
+id = "javascript:mysql2.connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "uri", form = "url" }
+constructor = true
+fixture = "javascript/primitives/mysql2-connect"
+
+[[entry]]
+id = "javascript:mysql2.createConnection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "uri", form = "url" }
+constructor = true
+fixture = "javascript/primitives/mysql2-createconnection-type"
+
+[[entry]]
+id = "javascript:mysql2.createPool"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "uri", form = "url" }
+constructor = true
+fixture = "javascript/primitives/mysql2-createpool-type"
+
+[[entry]]
+id = "javascript:mysql2.createPoolCluster"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/mysql2-createpoolcluster-type"
+
+[[entry]]
+id = "javascript:mysql2/promise.connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "uri", form = "url" }
+constructor = true
+fixture = "javascript/primitives/mysql2-promise-connect"
+
+[[entry]]
+id = "javascript:mysql2/promise.createConnection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "uri", form = "url" }
+constructor = true
+fixture = "javascript/primitives/mysql2-promise-createconnection-type"
+
+[[entry]]
+id = "javascript:mysql2/promise.createPool"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "uri", form = "url" }
+constructor = true
+fixture = "javascript/primitives/mysql2-promise-createpool-type"
+
+[[entry]]
+id = "javascript:mysql2/promise.createPoolCluster"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/mysql2-promise-createpoolcluster-type"
+
+[[entry]]
+id = "javascript:node-fetch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/node-fetch"
+
+[[entry]]
+id = "javascript:nodemailer.createTestAccount"
+kind = "egress"
+mechanism = "network"
+fixture = "javascript/primitives/nodemailer-createtestaccount-type"
+
+[[entry]]
+id = "javascript:nodemailer.createTransport"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "options", form = "url" }
+constructor = true
+fixture = "javascript/primitives/nodemailer-createtransport-type"
+
+[[entry]]
+id = "javascript:nodemailer.createTransport.sendMail"
+kind = "egress"
+mechanism = "network"
+fixture = "javascript/primitives/nodemailer-createtransport-sendmail-type"
+
+[[entry]]
+id = "javascript:pg.Client"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "connectionString", form = "url" }
+constructor = true
+fixture = "javascript/primitives/pg-client-type"
+
+[[entry]]
+id = "javascript:pg.Pool"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "connectionString", form = "url" }
+constructor = true
+fixture = "javascript/primitives/pg-pool-type"
+
+[[entry]]
+id = "javascript:pg.native"
+kind = "egress"
+mechanism = "native"
+fixture = "javascript/primitives/pg-native"
+
+[[entry]]
+id = "javascript:redis.createClient"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/primitives/redis-createclient-type"
+
+[[entry]]
+id = "javascript:redis.createCluster"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/redis-createcluster-type"
+
+[[entry]]
+id = "javascript:redis.createSentinel"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/redis-createsentinel-type"
+
+[[entry]]
+id = "javascript:socket.io-client"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "uri", form = "url" }
+constructor = true
+fixture = "javascript/primitives/socket-io-client"
+
+[[entry]]
+id = "javascript:socket.io-client.Manager"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "uri", form = "url" }
+constructor = true
+fixture = "javascript/primitives/socket-io-client-manager-type"
+
+[[entry]]
+id = "javascript:socket.io-client.connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "uri", form = "url" }
+constructor = true
+fixture = "javascript/primitives/socket-io-client-connect"
+
+[[entry]]
+id = "javascript:socket.io-client.io"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "uri", form = "url" }
+constructor = true
+fixture = "javascript/primitives/socket-io-client-io"
+
+[[entry]]
+id = "javascript:superagent"
+kind = "egress"
+mechanism = "network"
+fixture = "javascript/primitives/superagent"
+
+[[entry]]
+id = "javascript:superagent.agent"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/superagent-agent"
+
+[[entry]]
+id = "javascript:superagent.del"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/superagent-del"
+
+[[entry]]
+id = "javascript:superagent.delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/superagent-delete"
+
+[[entry]]
+id = "javascript:superagent.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/superagent-get"
+
+[[entry]]
+id = "javascript:superagent.head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/superagent-head"
+
+[[entry]]
+id = "javascript:superagent.options"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/superagent-options"
+
+[[entry]]
+id = "javascript:superagent.patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/superagent-patch"
+
+[[entry]]
+id = "javascript:superagent.post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/superagent-post"
+
+[[entry]]
+id = "javascript:superagent.put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/superagent-put"
+
+[[entry]]
+id = "javascript:undici.Agent"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/undici-agent-type"
+
+[[entry]]
+id = "javascript:undici.BalancedPool"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/undici-balancedpool-type"
+
+[[entry]]
+id = "javascript:undici.Client"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/primitives/undici-client-type"
+
+[[entry]]
+id = "javascript:undici.EnvHttpProxyAgent"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/undici-envhttpproxyagent-type"
+
+[[entry]]
+id = "javascript:undici.EventSource"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/primitives/undici-eventsource-type"
+
+[[entry]]
+id = "javascript:undici.Pool"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/primitives/undici-pool-type"
+
+[[entry]]
+id = "javascript:undici.ProxyAgent"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/primitives/undici-proxyagent-type"
+
+[[entry]]
+id = "javascript:undici.RetryAgent"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/undici-retryagent-type"
+
+[[entry]]
+id = "javascript:undici.WebSocket"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "javascript/primitives/undici-websocket-type"
+
+[[entry]]
+id = "javascript:undici.buildConnector"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/undici-buildconnector-type"
+
+[[entry]]
+id = "javascript:undici.connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/undici-connect"
+
+[[entry]]
+id = "javascript:undici.fetch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/undici-fetch"
+
+[[entry]]
+id = "javascript:undici.getGlobalDispatcher"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/undici-getglobaldispatcher-type"
+
+[[entry]]
+id = "javascript:undici.pipeline"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/undici-pipeline"
+
+[[entry]]
+id = "javascript:undici.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/ordinary/undici-named-import"
+
+[[entry]]
+id = "javascript:undici.stream"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/undici-stream"
+
+[[entry]]
+id = "javascript:undici.upgrade"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "javascript/primitives/undici-upgrade"
+
+[[entry]]
+id = "javascript:ws"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "address", form = "url" }
+constructor = true
+fixture = "javascript/primitives/ws"
+
+[[entry]]
+id = "javascript:ws.Server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/ws-server-type"
+
+[[entry]]
+id = "javascript:ws.WebSocket"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "address", form = "url" }
+constructor = true
+fixture = "javascript/primitives/ws-websocket-type"
+
+[[entry]]
+id = "javascript:ws.WebSocketServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "javascript/primitives/ws-websocketserver-type"
+
+[[inert]]
+module = "@aws-sdk/*"
+members = [
+    "*Command",
+]
+justification = "Command objects describe an operation; the client's send is the egress."
+fixture = "javascript/primitives/must-not-aws-sdk-star-starcommand-type"
+
+[[inert]]
+module = "axios"
+members = [
+    "AxiosError",
+    "CanceledError",
+    "Cancel",
+    "isAxiosError",
+    "isCancel",
+]
+justification = "Error classes; constructing or throwing one performs no egress."
+fixture = "javascript/primitives/must-not-axios-axioserror-type"
+
+[[inert]]
+module = "axios"
+members = [
+    "CancelToken",
+    "AxiosHeaders",
+    "toFormData",
+    "formToJSON",
+    "getAdapter",
+    "mergeConfig",
+    "VERSION",
+    "HttpStatusCode",
+    "all",
+    "spread",
+    "defaults",
+    "interceptors",
+]
+justification = "Configuration, header, cancellation, and form helpers; send no request."
+fixture = "javascript/primitives/must-not-axios-canceltoken-type"
+
+[[inert]]
+module = "got"
+members = [
+    "HTTPError",
+    "RequestError",
+    "TimeoutError",
+    "CancelError",
+    "ParseError",
+    "MaxRedirectsError",
+    "ReadError",
+    "UploadError",
+    "CacheError",
+    "RetryError",
+]
+justification = "Error classes; constructing or throwing one performs no egress."
+fixture = "javascript/primitives/must-not-got-httperror-type"
+
+[[inert]]
+module = "ioredis"
+members = [
+    "Command",
+]
+justification = "Command objects sent through a client created elsewhere."
+fixture = "javascript/primitives/must-not-ioredis-command-type"
+
+[[inert]]
+module = "ioredis"
+members = [
+    "ReplyError",
+]
+justification = "Error classes; constructing or throwing one performs no egress."
+fixture = "javascript/primitives/must-not-ioredis-replyerror-type"
+
+[[inert]]
+module = "ky"
+members = [
+    "HTTPError",
+    "TimeoutError",
+]
+justification = "Error classes; constructing or throwing one performs no egress."
+fixture = "javascript/primitives/must-not-ky-httperror-type"
+
+[[inert]]
+module = "ky"
+members = [
+    "stop",
+]
+justification = "A sentinel value for retry hooks."
+fixture = "javascript/primitives/must-not-ky-stop"
+
+[[inert]]
+module = "mongodb"
+members = [
+    "MongoError",
+    "MongoServerError",
+    "MongoNetworkError",
+]
+justification = "Error classes; constructing or throwing one performs no egress."
+fixture = "javascript/primitives/must-not-mongodb-mongoerror-type"
+
+[[inert]]
+module = "mongodb"
+members = [
+    "ObjectId",
+    "Long",
+    "Decimal128",
+    "Binary",
+    "BSON",
+    "Timestamp",
+    "ReadPreference",
+    "WriteConcern",
+    "ReturnDocument",
+]
+justification = "BSON value types and read and write settings applied through a client created elsewhere."
+fixture = "javascript/primitives/must-not-mongodb-objectid-type"
+
+[[inert]]
+module = "mysql2"
+members = [
+    "escape",
+    "escapeId",
+    "format",
+    "raw",
+    "Types",
+    "Charsets",
+]
+justification = "SQL escaping and formatting helpers and type tables."
+fixture = "javascript/primitives/must-not-mysql2-escape"
+
+[[inert]]
+module = "mysql2/promise"
+members = [
+    "escape",
+    "escapeId",
+    "format",
+    "raw",
+    "Types",
+    "Charsets",
+]
+justification = "SQL escaping and formatting helpers and type tables."
+fixture = "javascript/primitives/must-not-mysql2-promise-escape"
+
+[[inert]]
+module = "node-fetch"
+members = [
+    "FetchError",
+    "AbortError",
+]
+justification = "Error classes; constructing or throwing one performs no egress."
+fixture = "javascript/primitives/must-not-node-fetch-fetcherror-type"
+
+[[inert]]
+module = "node-fetch"
+members = [
+    "Headers",
+    "Request",
+    "Response",
+    "FormData",
+    "Blob",
+    "File",
+    "isRedirect",
+    "fileFrom",
+    "fileFromSync",
+    "blobFrom",
+    "blobFromSync",
+]
+justification = "Request, response, header, and body classes; send nothing until passed to fetch."
+fixture = "javascript/primitives/must-not-node-fetch-headers-type"
+
+[[inert]]
+module = "nodemailer"
+members = [
+    "getTestMessageUrl",
+]
+justification = "Builds a preview URL string from a sent message's info."
+fixture = "javascript/primitives/must-not-nodemailer-gettestmessageurl-type"
+
+[[inert]]
+module = "pg"
+members = [
+    "DatabaseError",
+]
+justification = "Error classes; constructing or throwing one performs no egress."
+fixture = "javascript/primitives/must-not-pg-databaseerror-type"
+
+[[inert]]
+module = "pg"
+members = [
+    "types",
+    "escapeIdentifier",
+    "escapeLiteral",
+    "defaults",
+    "Query",
+]
+justification = "Type parsers, escaping helpers, defaults, and query objects run through a client created elsewhere."
+fixture = "javascript/primitives/must-not-pg-types"
+
+[[inert]]
+module = "redis"
+members = [
+    "ErrorReply",
+    "WatchError",
+    "ConnectionTimeoutError",
+    "ClientClosedError",
+]
+justification = "Error classes; constructing or throwing one performs no egress."
+fixture = "javascript/primitives/must-not-redis-errorreply-type"
+
+[[inert]]
+module = "redis"
+members = [
+    "commandOptions",
+    "defineScript",
+    "RedisFlushModes",
+    "SchemaFieldTypes",
+]
+justification = "Command option builders, script definitions, and enumerations used through a client created elsewhere."
+fixture = "javascript/primitives/must-not-redis-commandoptions-type"
+
+[[inert]]
+module = "socket.io-client"
+members = [
+    "Socket",
+    "protocol",
+]
+justification = "Socket class bound to a manager created elsewhere, and the protocol version."
+fixture = "javascript/primitives/must-not-socket-io-client-socket-type"
+
+[[inert]]
+module = "undici"
+members = [
+    "errors",
+]
+justification = "Error classes; constructing or throwing one performs no egress."
+fixture = "javascript/primitives/must-not-undici-errors"
+
+[[inert]]
+module = "undici"
+members = [
+    "setGlobalDispatcher",
+    "Headers",
+    "FormData",
+    "Request",
+    "Response",
+    "File",
+    "MockAgent",
+    "MockClient",
+    "MockPool",
+    "Dispatcher",
+    "interceptors",
+]
+justification = "Dispatcher configuration, mock dispatchers that never connect, and request, response, and header classes."
+fixture = "javascript/primitives/must-not-undici-setglobaldispatcher-type"
+
+[[inert]]
+module = "ws"
+members = [
+    "createWebSocketStream",
+    "Receiver",
+    "Sender",
+]
+justification = "Stream and frame helpers over sockets opened elsewhere."
+fixture = "javascript/primitives/must-not-ws-createwebsocketstream-type"

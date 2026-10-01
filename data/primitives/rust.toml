@@ -1,0 +1,1145 @@
+# Rust primitive list (KTD6): closure sections (KTD15), the classification of
+# every std top-level module of the pinned toolchain plus the core and alloc
+# crate roots (KTD20), and member entries, including the egress traits and
+# types whose naming in any position is a reference.
+
+language = "rust"
+runtime_range = "1.97.1"
+
+[closure]
+require_equivalents = [
+]
+introspection_roots = [
+]
+introspection_prefixes = [
+]
+egress_traits = [
+    "rust:std::net::ToSocketAddrs",
+    "rust:std::os::unix::process::CommandExt",
+    "rust:std::os::unix::prelude::CommandExt",
+    "rust:std::os::windows::process::CommandExt",
+    "rust:std::net::TcpStream::from_raw_fd",
+    "rust:std::net::TcpListener::from_raw_fd",
+    "rust:std::net::UdpSocket::from_raw_fd",
+    "rust:std::os::unix::net::UnixStream::from_raw_fd",
+    "rust:std::os::unix::net::UnixListener::from_raw_fd",
+    "rust:std::os::unix::net::UnixDatagram::from_raw_fd",
+    "rust:std::net::TcpStream::from_raw_socket",
+    "rust:std::net::TcpListener::from_raw_socket",
+    "rust:std::net::UdpSocket::from_raw_socket",
+]
+
+# Standard library and builtin module classification (KTD6).
+
+[[module]]
+name = "alloc"
+class = "inert"
+justification = "Heap allocation, boxes, collections, and strings; no egress."
+
+[[module]]
+name = "core"
+class = "egress"
+
+[[module]]
+name = "std::alloc"
+class = "inert"
+justification = "Memory allocation interfaces; no egress."
+
+[[module]]
+name = "std::any"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::arch"
+class = "egress"
+
+[[module]]
+name = "std::array"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::ascii"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::async_iter"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::autodiff"
+class = "inert"
+justification = "Automatic differentiation attribute macros; generate code from first-party functions only."
+
+[[module]]
+name = "std::backtrace"
+class = "inert"
+justification = "Captures and formats stack traces of the current thread."
+
+[[module]]
+name = "std::borrow"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::boxed"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::bstr"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::cell"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::char"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::clone"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::cmp"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::collections"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::convert"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::default"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::env"
+class = "inert"
+justification = "Environment variables, arguments, and paths; reading or setting them sends nothing (KTD7 makes env reads symbolic destinations)."
+
+[[module]]
+name = "std::error"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::f128"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::f16"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::f32"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::f64"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::ffi"
+class = "inert"
+justification = "C string and OS string types; loading foreign code takes extern blocks, which are structural blind spots (KTD15)."
+
+[[module]]
+name = "std::field"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::fmt"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::from"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::fs"
+class = "inert"
+justification = "Local file system operations; no socket, process, or code loading."
+
+[[module]]
+name = "std::future"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::hash"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::hint"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::i128"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::i16"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::i32"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::i64"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::i8"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::intrinsics"
+class = "egress"
+
+[[module]]
+name = "std::io"
+class = "inert"
+justification = "Read and write traits, buffers, and standard streams over handles in hand."
+
+[[module]]
+name = "std::isize"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::iter"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::marker"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::mem"
+class = "egress"
+
+[[module]]
+name = "std::net"
+class = "egress"
+
+[[module]]
+name = "std::num"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::ops"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::option"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::os"
+class = "egress"
+
+[[module]]
+name = "std::os::fd"
+class = "egress"
+
+[[module]]
+name = "std::os::unix"
+class = "egress"
+
+[[module]]
+name = "std::os::unix::net"
+class = "egress"
+
+[[module]]
+name = "std::os::unix::process"
+class = "egress"
+
+[[module]]
+name = "std::os::windows"
+class = "egress"
+
+[[module]]
+name = "std::os::windows::io"
+class = "egress"
+
+[[module]]
+name = "std::os::windows::process"
+class = "egress"
+
+[[module]]
+name = "std::panic"
+class = "inert"
+justification = "Panic hooks and unwinding over closures in hand."
+
+[[module]]
+name = "std::pat"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::path"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::pin"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::prelude"
+class = "inert"
+justification = "Re-exports of inert core items."
+
+[[module]]
+name = "std::primitive"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::process"
+class = "egress"
+
+[[module]]
+name = "std::ptr"
+class = "inert"
+justification = "Raw pointer operations; reaching foreign code takes extern blocks or a transmute to a function pointer, both classified elsewhere."
+
+[[module]]
+name = "std::random"
+class = "inert"
+justification = "Random number sources."
+
+[[module]]
+name = "std::range"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::rc"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::result"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::rt"
+class = "inert"
+justification = "Runtime entry glue that calls the first-party main."
+
+[[module]]
+name = "std::simd"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::slice"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::str"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::string"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::sync"
+class = "inert"
+justification = "In-process synchronization primitives and channels."
+
+[[module]]
+name = "std::task"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::thread"
+class = "inert"
+justification = "In-process threads running closures in hand."
+
+[[module]]
+name = "std::time"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::u128"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::u16"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::u32"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::u64"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::u8"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::unsafe_binder"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::usize"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+[[module]]
+name = "std::vec"
+class = "inert"
+justification = "Pure computation and data types; no member opens a socket, spawns a program, or loads code."
+
+# Member entries and inert patterns.
+
+[[entry]]
+id = "rust:core::arch"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "CPU intrinsics and the asm! macro run arbitrary machine code"
+fixture = "rust/primitives/core-arch"
+
+[[entry]]
+id = "rust:core::intrinsics"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "compiler intrinsics that bypass the type system"
+fixture = "rust/primitives/core-intrinsics"
+
+[[entry]]
+id = "rust:core::mem::TransmuteFrom"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reinterprets bits, including turning data into a function pointer"
+fixture = "rust/primitives/core-mem-transmutefrom-type"
+
+[[entry]]
+id = "rust:core::mem::transmute"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reinterprets bits, including turning data into a function pointer"
+fixture = "rust/primitives/core-mem-transmute"
+
+[[entry]]
+id = "rust:core::mem::transmute_copy"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reinterprets bits, including turning data into a function pointer"
+fixture = "rust/primitives/core-mem-transmute_copy"
+
+[[entry]]
+id = "rust:core::mem::transmute_neo"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reinterprets bits, including turning data into a function pointer"
+fixture = "rust/primitives/core-mem-transmute_neo"
+
+[[entry]]
+id = "rust:core::mem::transmute_prefix"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reinterprets bits, including turning data into a function pointer"
+fixture = "rust/primitives/core-mem-transmute_prefix"
+
+[[entry]]
+id = "rust:std::arch"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "CPU intrinsics and the asm! macro run arbitrary machine code"
+fixture = "rust/primitives/std-arch"
+
+[[entry]]
+id = "rust:std::intrinsics"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "compiler intrinsics that bypass the type system"
+fixture = "rust/primitives/std-intrinsics"
+
+[[entry]]
+id = "rust:std::mem::TransmuteFrom"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reinterprets bits, including turning data into a function pointer"
+fixture = "rust/primitives/std-mem-transmutefrom-type"
+
+[[entry]]
+id = "rust:std::mem::transmute"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reinterprets bits, including turning data into a function pointer"
+fixture = "rust/primitives/std-mem-transmute"
+
+[[entry]]
+id = "rust:std::mem::transmute_copy"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reinterprets bits, including turning data into a function pointer"
+fixture = "rust/primitives/std-mem-transmute_copy"
+
+[[entry]]
+id = "rust:std::mem::transmute_neo"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reinterprets bits, including turning data into a function pointer"
+fixture = "rust/primitives/std-mem-transmute_neo"
+
+[[entry]]
+id = "rust:std::mem::transmute_prefix"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reinterprets bits, including turning data into a function pointer"
+fixture = "rust/primitives/std-mem-transmute_prefix"
+
+[[entry]]
+id = "rust:std::net::TcpListener::bind"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "rust/primitives/std-net-tcplistener-bind"
+
+[[entry]]
+id = "rust:std::net::TcpListener::from"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/std-net-tcplistener-from"
+
+[[entry]]
+id = "rust:std::net::TcpListener::from_raw_fd"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/std-net-tcplistener-from_raw_fd"
+
+[[entry]]
+id = "rust:std::net::TcpListener::from_raw_socket"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/std-net-tcplistener-from_raw_socket"
+
+[[entry]]
+id = "rust:std::net::TcpStream::connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "rust/ordinary/tcpstream-connect"
+
+[[entry]]
+id = "rust:std::net::TcpStream::connect_timeout"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "rust/primitives/std-net-tcpstream-connect_timeout"
+
+[[entry]]
+id = "rust:std::net::TcpStream::from"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/std-net-tcpstream-from"
+
+[[entry]]
+id = "rust:std::net::TcpStream::from_raw_fd"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/std-net-tcpstream-from_raw_fd"
+
+[[entry]]
+id = "rust:std::net::TcpStream::from_raw_socket"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/std-net-tcpstream-from_raw_socket"
+
+[[entry]]
+id = "rust:std::net::ToSocketAddrs"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/std-net-tosocketaddrs-type"
+
+[[entry]]
+id = "rust:std::net::UdpSocket::bind"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "rust/primitives/std-net-udpsocket-bind"
+
+[[entry]]
+id = "rust:std::net::UdpSocket::connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+fixture = "rust/primitives/std-net-udpsocket-connect"
+
+[[entry]]
+id = "rust:std::net::UdpSocket::from"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/std-net-udpsocket-from"
+
+[[entry]]
+id = "rust:std::net::UdpSocket::from_raw_fd"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/std-net-udpsocket-from_raw_fd"
+
+[[entry]]
+id = "rust:std::net::UdpSocket::from_raw_socket"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "rust/primitives/std-net-udpsocket-from_raw_socket"
+
+[[entry]]
+id = "rust:std::net::UdpSocket::send_to"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+fixture = "rust/primitives/std-net-udpsocket-send_to"
+
+[[entry]]
+id = "rust:std::os::fortanix_sgx"
+kind = "egress"
+mechanism = "network"
+fixture = "rust/primitives/std-os-fortanix_sgx"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixDatagram::bind"
+kind = "egress"
+mechanism = "ipc"
+destination = { arg = 1, form = "address" }
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixdatagram-bind"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixDatagram::bind_addr"
+kind = "egress"
+mechanism = "ipc"
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixdatagram-bind_addr"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixDatagram::connect"
+kind = "egress"
+mechanism = "ipc"
+destination = { arg = 1, form = "address" }
+fixture = "rust/primitives/std-os-unix-net-unixdatagram-connect"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixDatagram::from"
+kind = "egress"
+mechanism = "ipc"
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixdatagram-from"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixDatagram::from_raw_fd"
+kind = "egress"
+mechanism = "ipc"
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixdatagram-from_raw_fd"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixDatagram::send_to"
+kind = "egress"
+mechanism = "ipc"
+destination = { arg = 2, form = "address" }
+fixture = "rust/primitives/std-os-unix-net-unixdatagram-send_to"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixDatagram::unbound"
+kind = "egress"
+mechanism = "ipc"
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixdatagram-unbound"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixListener::bind"
+kind = "egress"
+mechanism = "ipc"
+destination = { arg = 1, form = "address" }
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixlistener-bind"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixListener::bind_addr"
+kind = "egress"
+mechanism = "ipc"
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixlistener-bind_addr"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixListener::from"
+kind = "egress"
+mechanism = "ipc"
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixlistener-from"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixListener::from_raw_fd"
+kind = "egress"
+mechanism = "ipc"
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixlistener-from_raw_fd"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixStream::connect"
+kind = "egress"
+mechanism = "ipc"
+destination = { arg = 1, form = "address" }
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixstream-connect"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixStream::connect_addr"
+kind = "egress"
+mechanism = "ipc"
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixstream-connect_addr"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixStream::from"
+kind = "egress"
+mechanism = "ipc"
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixstream-from"
+
+[[entry]]
+id = "rust:std::os::unix::net::UnixStream::from_raw_fd"
+kind = "egress"
+mechanism = "ipc"
+constructor = true
+fixture = "rust/primitives/std-os-unix-net-unixstream-from_raw_fd"
+
+[[entry]]
+id = "rust:std::os::unix::prelude::CommandExt"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/std-os-unix-prelude-commandext-type"
+
+[[entry]]
+id = "rust:std::os::unix::process::CommandExt"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/std-os-unix-process-commandext-type"
+
+[[entry]]
+id = "rust:std::os::windows::net"
+kind = "egress"
+mechanism = "ipc"
+fixture = "rust/primitives/std-os-windows-net"
+
+[[entry]]
+id = "rust:std::os::windows::process::CommandExt"
+kind = "egress"
+mechanism = "process"
+fixture = "rust/primitives/std-os-windows-process-commandext-type"
+
+[[entry]]
+id = "rust:std::os::xous"
+kind = "egress"
+mechanism = "ipc"
+fixture = "rust/primitives/std-os-xous"
+
+[[entry]]
+id = "rust:std::process::Command::new"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, form = "program" }
+constructor = true
+fixture = "rust/ordinary/command-curl"
+
+[[inert]]
+module = "core"
+members = [
+    "alloc",
+    "any",
+    "array",
+    "ascii",
+    "asserting",
+    "async_iter",
+    "autodiff",
+    "borrow",
+    "bstr",
+    "cell",
+    "char",
+    "clone",
+    "cmp",
+    "contracts",
+    "convert",
+    "default",
+    "error",
+    "f128",
+    "f16",
+    "f32",
+    "f64",
+    "ffi",
+    "field",
+    "fmt",
+    "from",
+    "future",
+    "hash",
+    "hint",
+    "index",
+    "io",
+    "iter",
+    "marker",
+    "net",
+    "num",
+    "ops",
+    "option",
+    "os",
+    "panic",
+    "panicking",
+    "pat",
+    "pin",
+    "prelude",
+    "primitive",
+    "process",
+    "profiling",
+    "ptr",
+    "random",
+    "range",
+    "result",
+    "simd",
+    "slice",
+    "str",
+    "sync",
+    "task",
+    "time",
+    "ub_checks",
+    "unicode",
+    "unsafe_binder",
+    "wtf8",
+]
+justification = "Core language modules mirrored by std's inert modules; no member opens a socket, spawns a program, or loads code."
+fixture = "rust/primitives/must-not-core-alloc"
+
+[[inert]]
+module = "core"
+members = [
+    "mem",
+]
+justification = "Size, alignment, swapping, and drop helpers; transmute is classified separately."
+fixture = "rust/primitives/must-not-core-mem"
+
+[[inert]]
+module = "std::mem"
+members = [
+    "Alignment",
+    "Assume",
+    "Discriminant",
+    "DropGuard",
+    "ManuallyDrop",
+    "MaybeDangling",
+    "MaybeUninit",
+    "SizedTypeProperties",
+    "align_of",
+    "align_of_val",
+    "align_of_val_raw",
+    "conjure_zst",
+    "copy",
+    "discriminant",
+    "drop",
+    "forget",
+    "forget_unsized",
+    "min_align_of",
+    "min_align_of_val",
+    "needs_drop",
+    "offset_of",
+    "replace",
+    "size_of",
+    "size_of_val",
+    "size_of_val_raw",
+    "swap",
+    "take",
+    "type_info",
+    "uninitialized",
+    "variant_count",
+    "zeroed",
+]
+justification = "Size, alignment, swapping, and drop helpers over values in hand."
+fixture = "rust/primitives/must-not-std-mem-alignment-type"
+
+[[inert]]
+module = "std::net"
+members = [
+    "AddrParseError",
+    "Incoming",
+    "IntoIncoming",
+    "IpAddr",
+    "Ipv4Addr",
+    "Ipv6Addr",
+    "Ipv6MulticastScope",
+    "Shutdown",
+    "SocketAddr",
+    "SocketAddrV4",
+    "SocketAddrV6",
+    "hostname",
+]
+justification = "Address, shutdown, and iterator types and the local host name; none opens a socket."
+fixture = "rust/primitives/must-not-std-net-addrparseerror-type"
+
+[[inert]]
+module = "std::net"
+members = [
+    "TcpStream",
+    "TcpListener",
+    "UdpSocket",
+]
+justification = "Naming the socket type opens nothing; its constructors and conversions are classified separately."
+fixture = "rust/primitives/must-not-std-net-tcpstream-type"
+
+[[inert]]
+module = "std::os"
+members = [
+    "aix",
+    "android",
+    "cygwin",
+    "darwin",
+    "dragonfly",
+    "emscripten",
+    "espidf",
+    "freebsd",
+    "fuchsia",
+    "haiku",
+    "hermit",
+    "horizon",
+    "hurd",
+    "illumos",
+    "ios",
+    "l4re",
+    "linux",
+    "macos",
+    "motor",
+    "netbsd",
+    "nto",
+    "nuttx",
+    "openbsd",
+    "raw",
+    "redox",
+    "rtems",
+    "solaris",
+    "solid",
+    "trusty",
+    "uefi",
+    "vita",
+    "vxworks",
+    "wasi",
+    "wasip2",
+]
+justification = "Platform-specific raw types, file system metadata, and socket-address or socket-option extensions over sockets created by reported sites."
+fixture = "rust/primitives/must-not-std-os-aix"
+
+[[inert]]
+module = "std::os::fd"
+members = [
+    "AsFd",
+    "AsRawFd",
+    "BorrowedFd",
+    "FromRawFd",
+    "IntoRawFd",
+    "OwnedFd",
+    "RawFd",
+    "STDERR",
+    "STDIN",
+    "STDOUT",
+]
+justification = "Descriptor ownership traits and types; the socket types' from_raw_fd conversions are classified separately."
+fixture = "rust/primitives/must-not-std-os-fd-asfd-type"
+
+[[inert]]
+module = "std::os::unix"
+members = [
+    "ffi",
+    "fs",
+    "io",
+    "raw",
+    "thread",
+    "prelude",
+]
+justification = "OS string, file system, descriptor, raw type, and thread extensions; prelude re-exports them and CommandExt, which is classified separately."
+fixture = "rust/primitives/must-not-std-os-unix-ffi"
+
+[[inert]]
+module = "std::os::unix::net"
+members = [
+    "AncillaryData",
+    "AncillaryError",
+    "Incoming",
+    "Messages",
+    "ScmCredentials",
+    "ScmRights",
+    "SocketAddr",
+    "SocketAncillary",
+    "SocketCred",
+    "UCred",
+]
+justification = "Socket addresses, credentials, ancillary data, and iterators; none opens a socket. UnixStream::pair creates a connected pair inside the process."
+fixture = "rust/primitives/must-not-std-os-unix-net-ancillarydata-type"
+
+[[inert]]
+module = "std::os::unix::net"
+members = [
+    "UnixStream",
+    "UnixListener",
+    "UnixDatagram",
+]
+justification = "Naming the socket type opens nothing; its constructors and conversions are classified separately."
+fixture = "rust/primitives/must-not-std-os-unix-net-unixstream-type"
+
+[[inert]]
+module = "std::os::unix::process"
+members = [
+    "ChildExt",
+    "ExitStatusExt",
+    "parent_id",
+]
+justification = "Child, exit status, and parent process id extensions; none starts a program."
+fixture = "rust/primitives/must-not-std-os-unix-process-childext-type"
+
+[[inert]]
+module = "std::os::windows"
+members = [
+    "ffi",
+    "fs",
+    "raw",
+    "thread",
+    "prelude",
+]
+justification = "OS string, file system, raw type, and thread extensions; prelude re-exports them."
+fixture = "rust/primitives/must-not-std-os-windows-ffi"
+
+[[inert]]
+module = "std::os::windows::io"
+members = [
+    "AsHandle",
+    "AsRawHandle",
+    "AsRawSocket",
+    "AsSocket",
+    "BorrowedHandle",
+    "BorrowedSocket",
+    "FromRawHandle",
+    "FromRawSocket",
+    "HandleOrInvalid",
+    "HandleOrNull",
+    "IntoRawHandle",
+    "IntoRawSocket",
+    "InvalidHandleError",
+    "NullHandleError",
+    "OwnedHandle",
+    "OwnedSocket",
+    "RawHandle",
+    "RawSocket",
+]
+justification = "Handle and socket ownership traits and types; the socket types' from_raw_socket conversions are classified separately."
+fixture = "rust/primitives/must-not-std-os-windows-io-ashandle-type"
+
+[[inert]]
+module = "std::os::windows::process"
+members = [
+    "ChildExt",
+    "ExitCodeExt",
+    "ExitStatusExt",
+    "ProcThreadAttributeList",
+    "ProcThreadAttributeListBuilder",
+]
+justification = "Child, exit status, and exit code extensions; none starts a program."
+fixture = "rust/primitives/must-not-std-os-windows-process-childext-type"
+
+[[inert]]
+module = "std::process"
+members = [
+    "Child",
+    "ChildStderr",
+    "ChildStdin",
+    "ChildStdout",
+    "CommandArgs",
+    "CommandEnvs",
+    "CommandResolvedEnvs",
+    "ExitCode",
+    "ExitStatus",
+    "ExitStatusError",
+    "Output",
+    "Stdio",
+    "Termination",
+    "abort",
+    "abort_immediate",
+    "exit",
+    "id",
+]
+justification = "Child handles, pipes, exit status types, and process exit; none starts a program."
+fixture = "rust/primitives/must-not-std-process-child-type"
+
+[[inert]]
+module = "std::process"
+members = [
+    "Command",
+]
+justification = "Naming the type spawns nothing; Command::new is the site."
+fixture = "rust/primitives/must-not-std-process-command-type"

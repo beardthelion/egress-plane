@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "probe"
+mechanism = "rust:std::net::TcpStream::from_raw_fd"
+destination = "expr:std::net::TcpStream::from_raw_fd(3)"

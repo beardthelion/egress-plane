@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.mjs"
+symbol = "probe"
+mechanism = "javascript:mysql2/promise.connect"
+destination = "param:1:probe"

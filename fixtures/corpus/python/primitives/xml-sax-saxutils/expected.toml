@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:xml.sax.saxutils"
+destination = "expr:xml.sax.saxutils"

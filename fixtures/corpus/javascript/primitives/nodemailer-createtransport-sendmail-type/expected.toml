@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.mjs"
+symbol = "probe"
+mechanism = "javascript:nodemailer.createTransport.sendMail"
+destination = "expr:s.sendMail()"
+
+[[sites]]
+file = "app.mjs"
+symbol = "probe"
+mechanism = "javascript:nodemailer.createTransport"
+destination = "expr:nodemailer.createTransport()"

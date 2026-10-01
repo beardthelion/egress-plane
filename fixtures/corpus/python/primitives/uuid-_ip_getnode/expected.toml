@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "probe"
+mechanism = "python:uuid._ip_getnode"
+destination = "expr:uuid._ip_getnode()"

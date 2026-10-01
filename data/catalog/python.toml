@@ -1,0 +1,1492 @@
+# Python egress catalog (KTD6). A member matching neither an egress nor an
+# inert pattern lists its package as an unscanned dependency (KTD5).
+
+language = "python"
+
+[[package]]
+name = "aiohttp"
+
+[[package]]
+name = "boto3"
+
+[[package]]
+name = "botocore"
+
+[[package]]
+name = "cffi"
+
+[[package]]
+name = "grpc"
+
+[[package]]
+name = "httpx"
+
+[[package]]
+name = "paramiko"
+
+[[package]]
+name = "psycopg2"
+
+[[package]]
+name = "pycurl"
+
+[[package]]
+name = "pymongo"
+
+[[package]]
+name = "redis"
+
+[[package]]
+name = "requests"
+
+[[package]]
+name = "urllib3"
+
+[[package]]
+name = "websocket"
+
+[[package]]
+name = "websockets"
+
+[[entry]]
+id = "python:aiohttp.ClientSession"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "base_url", form = "url" }
+constructor = true
+fixture = "python/tricky/aiohttp-session-local"
+
+[[entry]]
+id = "python:aiohttp.ClientSession.delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/aiohttp-clientsession-delete"
+
+[[entry]]
+id = "python:aiohttp.ClientSession.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/tricky/aiohttp-session-local"
+
+[[entry]]
+id = "python:aiohttp.ClientSession.head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/aiohttp-clientsession-head"
+
+[[entry]]
+id = "python:aiohttp.ClientSession.options"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/aiohttp-clientsession-options"
+
+[[entry]]
+id = "python:aiohttp.ClientSession.patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/aiohttp-clientsession-patch"
+
+[[entry]]
+id = "python:aiohttp.ClientSession.post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/aiohttp-clientsession-post"
+
+[[entry]]
+id = "python:aiohttp.ClientSession.put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/aiohttp-clientsession-put"
+
+[[entry]]
+id = "python:aiohttp.ClientSession.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/primitives/aiohttp-clientsession-request"
+
+[[entry]]
+id = "python:aiohttp.ClientSession.ws_connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/aiohttp-clientsession-ws_connect"
+
+[[entry]]
+id = "python:aiohttp.TCPConnector"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/aiohttp-tcpconnector-type"
+
+[[entry]]
+id = "python:aiohttp.UnixConnector"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "path", form = "address" }
+constructor = true
+fixture = "python/primitives/aiohttp-unixconnector-type"
+
+[[entry]]
+id = "python:aiohttp.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/primitives/aiohttp-request"
+
+[[entry]]
+id = "python:aiohttp.web.TCPSite"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 3, port_keyword = "port", form = "host-port" }
+constructor = true
+fixture = "python/primitives/aiohttp-web-tcpsite-type"
+
+[[entry]]
+id = "python:aiohttp.web.UnixSite"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "path", form = "address" }
+constructor = true
+fixture = "python/primitives/aiohttp-web-unixsite-type"
+
+[[entry]]
+id = "python:aiohttp.web.run_app"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/aiohttp-web-run_app"
+
+[[entry]]
+id = "python:boto3.Session"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/boto3-session-type"
+
+[[entry]]
+id = "python:boto3.Session.client"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/boto3-session-client"
+
+[[entry]]
+id = "python:boto3.Session.resource"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/boto3-session-resource"
+
+[[entry]]
+id = "python:boto3.client"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/boto3-client"
+
+[[entry]]
+id = "python:boto3.resource"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/boto3-resource"
+
+[[entry]]
+id = "python:boto3.session"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/boto3-session"
+
+[[entry]]
+id = "python:botocore.client"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/botocore-client"
+
+[[entry]]
+id = "python:botocore.endpoint"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/botocore-endpoint"
+
+[[entry]]
+id = "python:botocore.httpsession"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/botocore-httpsession"
+
+[[entry]]
+id = "python:botocore.session"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/botocore-session"
+
+[[entry]]
+id = "python:cffi.FFI"
+kind = "egress"
+mechanism = "native"
+constructor = true
+fixture = "python/primitives/cffi-ffi-type"
+
+[[entry]]
+id = "python:cffi.FFI.cast"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reinterprets raw memory or addresses"
+fixture = "python/primitives/cffi-ffi-cast"
+
+[[entry]]
+id = "python:cffi.FFI.compile"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "compiles C source into an extension module"
+fixture = "python/primitives/cffi-ffi-compile"
+
+[[entry]]
+id = "python:cffi.FFI.dlopen"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, keyword = "name", form = "library" }
+fixture = "python/primitives/cffi-ffi-dlopen"
+
+[[entry]]
+id = "python:cffi.FFI.from_buffer"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "exposes raw memory as C data"
+fixture = "python/primitives/cffi-ffi-from_buffer"
+
+[[entry]]
+id = "python:cffi.FFI.memmove"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "writes raw memory"
+fixture = "python/primitives/cffi-ffi-memmove"
+
+[[entry]]
+id = "python:cffi.FFI.verify"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "compiles and loads C source"
+fixture = "python/primitives/cffi-ffi-verify"
+
+[[entry]]
+id = "python:grpc.aio.insecure_channel"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "target", form = "url" }
+constructor = true
+fixture = "python/primitives/grpc-aio-insecure_channel"
+
+[[entry]]
+id = "python:grpc.aio.secure_channel"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "target", form = "url" }
+constructor = true
+fixture = "python/primitives/grpc-aio-secure_channel"
+
+[[entry]]
+id = "python:grpc.aio.server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/grpc-aio-server"
+
+[[entry]]
+id = "python:grpc.insecure_channel"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "target", form = "url" }
+constructor = true
+fixture = "python/primitives/grpc-insecure_channel"
+
+[[entry]]
+id = "python:grpc.secure_channel"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "target", form = "url" }
+constructor = true
+fixture = "python/primitives/grpc-secure_channel"
+
+[[entry]]
+id = "python:grpc.server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/grpc-server"
+
+[[entry]]
+id = "python:httpx.AsyncClient"
+kind = "egress"
+mechanism = "network"
+destination = { keyword = "base_url", form = "url" }
+constructor = true
+fixture = "python/tricky/httpx-async-client-local"
+
+[[entry]]
+id = "python:httpx.AsyncClient.delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-asyncclient-delete"
+
+[[entry]]
+id = "python:httpx.AsyncClient.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/tricky/httpx-async-client-local"
+
+[[entry]]
+id = "python:httpx.AsyncClient.head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-asyncclient-head"
+
+[[entry]]
+id = "python:httpx.AsyncClient.options"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-asyncclient-options"
+
+[[entry]]
+id = "python:httpx.AsyncClient.patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-asyncclient-patch"
+
+[[entry]]
+id = "python:httpx.AsyncClient.post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-asyncclient-post"
+
+[[entry]]
+id = "python:httpx.AsyncClient.put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-asyncclient-put"
+
+[[entry]]
+id = "python:httpx.AsyncClient.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-asyncclient-request"
+
+[[entry]]
+id = "python:httpx.AsyncClient.send"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/httpx-asyncclient-send"
+
+[[entry]]
+id = "python:httpx.AsyncClient.stream"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-asyncclient-stream"
+
+[[entry]]
+id = "python:httpx.AsyncHTTPTransport"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/httpx-asynchttptransport-type"
+
+[[entry]]
+id = "python:httpx.Client"
+kind = "egress"
+mechanism = "network"
+destination = { keyword = "base_url", form = "url" }
+constructor = true
+fixture = "python/tricky/attribute-held-client"
+
+[[entry]]
+id = "python:httpx.Client.delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-client-delete"
+
+[[entry]]
+id = "python:httpx.Client.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/tricky/attribute-held-client"
+
+[[entry]]
+id = "python:httpx.Client.head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-client-head"
+
+[[entry]]
+id = "python:httpx.Client.options"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-client-options"
+
+[[entry]]
+id = "python:httpx.Client.patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-client-patch"
+
+[[entry]]
+id = "python:httpx.Client.post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-client-post"
+
+[[entry]]
+id = "python:httpx.Client.put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-client-put"
+
+[[entry]]
+id = "python:httpx.Client.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-client-request"
+
+[[entry]]
+id = "python:httpx.Client.send"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/httpx-client-send"
+
+[[entry]]
+id = "python:httpx.Client.stream"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-client-stream"
+
+[[entry]]
+id = "python:httpx.HTTPTransport"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/httpx-httptransport-type"
+
+[[entry]]
+id = "python:httpx.delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-delete"
+
+[[entry]]
+id = "python:httpx.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/ordinary/httpx-get"
+
+[[entry]]
+id = "python:httpx.head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-head"
+
+[[entry]]
+id = "python:httpx.options"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-options"
+
+[[entry]]
+id = "python:httpx.patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-patch"
+
+[[entry]]
+id = "python:httpx.post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-post"
+
+[[entry]]
+id = "python:httpx.put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-put"
+
+[[entry]]
+id = "python:httpx.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-request"
+
+[[entry]]
+id = "python:httpx.stream"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/primitives/httpx-stream"
+
+[[entry]]
+id = "python:paramiko.ProxyCommand"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, keyword = "command_line", form = "program" }
+constructor = true
+fixture = "python/primitives/paramiko-proxycommand-type"
+
+[[entry]]
+id = "python:paramiko.SSHClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/paramiko-sshclient-type"
+
+[[entry]]
+id = "python:paramiko.SSHClient.connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "hostname", form = "url" }
+fixture = "python/primitives/paramiko-sshclient-connect"
+
+[[entry]]
+id = "python:paramiko.Transport"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "sock", form = "host-port" }
+constructor = true
+fixture = "python/primitives/paramiko-transport-type"
+
+[[entry]]
+id = "python:paramiko.client"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/paramiko-client"
+
+[[entry]]
+id = "python:paramiko.proxy"
+kind = "egress"
+mechanism = "process"
+fixture = "python/primitives/paramiko-proxy"
+
+[[entry]]
+id = "python:psycopg2.connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "dsn", form = "url" }
+constructor = true
+fixture = "python/primitives/psycopg2-connect"
+
+[[entry]]
+id = "python:psycopg2.extensions.connection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "dsn", form = "url" }
+constructor = true
+fixture = "python/primitives/psycopg2-extensions-connection"
+
+[[entry]]
+id = "python:psycopg2.pool"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/psycopg2-pool"
+
+[[entry]]
+id = "python:pycurl.Curl"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/pycurl-curl-type"
+
+[[entry]]
+id = "python:pycurl.CurlMulti"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/pycurl-curlmulti-type"
+
+[[entry]]
+id = "python:pymongo.AsyncMongoClient"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "host", form = "url" }
+constructor = true
+fixture = "python/primitives/pymongo-asyncmongoclient-type"
+
+[[entry]]
+id = "python:pymongo.MongoClient"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "host", form = "url" }
+constructor = true
+fixture = "python/primitives/pymongo-mongoclient-type"
+
+[[entry]]
+id = "python:pymongo.mongo_client"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/pymongo-mongo_client"
+
+[[entry]]
+id = "python:redis.Connection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "host", form = "url" }
+constructor = true
+fixture = "python/primitives/redis-connection-type"
+
+[[entry]]
+id = "python:redis.ConnectionPool"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/redis-connectionpool-type"
+
+[[entry]]
+id = "python:redis.ConnectionPool.from_url"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "python/primitives/redis-connectionpool-from_url"
+
+[[entry]]
+id = "python:redis.Redis"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "host", form = "url" }
+constructor = true
+fixture = "python/primitives/redis-redis-type"
+
+[[entry]]
+id = "python:redis.Redis.from_url"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "python/primitives/redis-redis-from_url"
+
+[[entry]]
+id = "python:redis.RedisCluster"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "host", form = "url" }
+constructor = true
+fixture = "python/primitives/redis-rediscluster-type"
+
+[[entry]]
+id = "python:redis.SSLConnection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "host", form = "url" }
+constructor = true
+fixture = "python/primitives/redis-sslconnection-type"
+
+[[entry]]
+id = "python:redis.Sentinel"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/redis-sentinel-type"
+
+[[entry]]
+id = "python:redis.StrictRedis"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "host", form = "url" }
+constructor = true
+fixture = "python/primitives/redis-strictredis-type"
+
+[[entry]]
+id = "python:redis.StrictRedis.from_url"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "python/primitives/redis-strictredis-from_url"
+
+[[entry]]
+id = "python:redis.UnixDomainSocketConnection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "path", form = "address" }
+constructor = true
+fixture = "python/primitives/redis-unixdomainsocketconnection-type"
+
+[[entry]]
+id = "python:redis.asyncio"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/redis-asyncio"
+
+[[entry]]
+id = "python:redis.client"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/redis-client"
+
+[[entry]]
+id = "python:redis.cluster"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/redis-cluster"
+
+[[entry]]
+id = "python:redis.connection"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/redis-connection"
+
+[[entry]]
+id = "python:redis.from_url"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "python/primitives/redis-from_url"
+
+[[entry]]
+id = "python:redis.sentinel"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/redis-sentinel"
+
+[[entry]]
+id = "python:requests.Session"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/tricky/session-client-local"
+
+[[entry]]
+id = "python:requests.Session.delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/requests-session-delete"
+
+[[entry]]
+id = "python:requests.Session.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/tricky/session-client-local"
+
+[[entry]]
+id = "python:requests.Session.head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/requests-session-head"
+
+[[entry]]
+id = "python:requests.Session.options"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/requests-session-options"
+
+[[entry]]
+id = "python:requests.Session.patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/requests-session-patch"
+
+[[entry]]
+id = "python:requests.Session.post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/tricky/session-client-local"
+
+[[entry]]
+id = "python:requests.Session.put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/requests-session-put"
+
+[[entry]]
+id = "python:requests.Session.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/primitives/requests-session-request"
+
+[[entry]]
+id = "python:requests.Session.send"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/requests-session-send"
+
+[[entry]]
+id = "python:requests.adapters"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/requests-adapters"
+
+[[entry]]
+id = "python:requests.api"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/requests-api"
+
+[[entry]]
+id = "python:requests.delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/requests-delete"
+
+[[entry]]
+id = "python:requests.get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/ordinary/requests-get-literal"
+
+[[entry]]
+id = "python:requests.head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/ordinary/crlf-line-endings"
+
+[[entry]]
+id = "python:requests.options"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/requests-options"
+
+[[entry]]
+id = "python:requests.patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/requests-patch"
+
+[[entry]]
+id = "python:requests.post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/ordinary/ae1-requests-post-env"
+
+[[entry]]
+id = "python:requests.put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/requests-put"
+
+[[entry]]
+id = "python:requests.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/tricky/wrapper-second-param"
+
+[[entry]]
+id = "python:requests.session"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/requests-session"
+
+[[entry]]
+id = "python:requests.sessions"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/requests-sessions"
+
+[[entry]]
+id = "python:urllib3.HTTPConnectionPool"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "host", form = "url" }
+constructor = true
+fixture = "python/primitives/urllib3-httpconnectionpool-type"
+
+[[entry]]
+id = "python:urllib3.HTTPSConnectionPool"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "host", form = "url" }
+constructor = true
+fixture = "python/primitives/urllib3-httpsconnectionpool-type"
+
+[[entry]]
+id = "python:urllib3.PoolManager"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/urllib3-poolmanager-type"
+
+[[entry]]
+id = "python:urllib3.PoolManager.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/primitives/urllib3-poolmanager-request"
+
+[[entry]]
+id = "python:urllib3.PoolManager.urlopen"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/primitives/urllib3-poolmanager-urlopen"
+
+[[entry]]
+id = "python:urllib3.ProxyManager"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "proxy_url", form = "url" }
+constructor = true
+fixture = "python/primitives/urllib3-proxymanager-type"
+
+[[entry]]
+id = "python:urllib3.connection_from_url"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/urllib3-connection_from_url"
+
+[[entry]]
+id = "python:urllib3.proxy_from_url"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/urllib3-proxy_from_url"
+
+[[entry]]
+id = "python:urllib3.request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "url", form = "url" }
+fixture = "python/primitives/urllib3-request"
+
+[[entry]]
+id = "python:websocket.WebSocket"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "python/primitives/websocket-websocket-type"
+
+[[entry]]
+id = "python:websocket.WebSocket.connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+fixture = "python/primitives/websocket-websocket-connect"
+
+[[entry]]
+id = "python:websocket.WebSocketApp"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "python/primitives/websocket-websocketapp-type"
+
+[[entry]]
+id = "python:websocket.create_connection"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "url", form = "url" }
+constructor = true
+fixture = "python/primitives/websocket-create_connection"
+
+[[entry]]
+id = "python:websockets.asyncio"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/websockets-asyncio"
+
+[[entry]]
+id = "python:websockets.client"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/websockets-client"
+
+[[entry]]
+id = "python:websockets.connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "uri", form = "url" }
+constructor = true
+fixture = "python/primitives/websockets-connect"
+
+[[entry]]
+id = "python:websockets.legacy"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/websockets-legacy"
+
+[[entry]]
+id = "python:websockets.serve"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "host", port = 3, port_keyword = "port", form = "host-port" }
+constructor = true
+fixture = "python/primitives/websockets-serve"
+
+[[entry]]
+id = "python:websockets.server"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/websockets-server"
+
+[[entry]]
+id = "python:websockets.sync"
+kind = "egress"
+mechanism = "network"
+fixture = "python/primitives/websockets-sync"
+
+[[entry]]
+id = "python:websockets.unix_connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, keyword = "path", form = "address" }
+constructor = true
+fixture = "python/primitives/websockets-unix_connect"
+
+[[entry]]
+id = "python:websockets.unix_serve"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, keyword = "path", form = "address" }
+constructor = true
+fixture = "python/primitives/websockets-unix_serve"
+
+[[inert]]
+module = "aiohttp"
+members = [
+    "ClientError",
+    "ClientResponseError",
+    "ClientConnectionError",
+    "ClientConnectorError",
+    "ContentTypeError",
+    "ServerTimeoutError",
+    "ClientPayloadError",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-aiohttp-clienterror-type"
+
+[[inert]]
+module = "aiohttp"
+members = [
+    "ClientTimeout",
+    "BasicAuth",
+    "FormData",
+    "ClientResponse",
+    "CookieJar",
+    "TraceConfig",
+    "web.Application",
+    "web.Response",
+    "web.json_response",
+    "web.Request",
+    "web.RouteTableDef",
+    "web.HTTPException",
+]
+justification = "Value, header, auth, and configuration types that hold data and open no connection."
+fixture = "python/primitives/must-not-aiohttp-clienttimeout-type"
+
+[[inert]]
+module = "boto3"
+members = [
+    "exceptions",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-boto3-exceptions"
+
+[[inert]]
+module = "boto3"
+members = [
+    "set_stream_logger",
+    "NullHandler",
+    "__version__",
+]
+justification = "Value, header, auth, and configuration types that hold data and open no connection."
+fixture = "python/primitives/must-not-boto3-set_stream_logger"
+
+[[inert]]
+module = "botocore"
+members = [
+    "config",
+]
+justification = "Value, header, auth, and configuration types that hold data and open no connection."
+fixture = "python/primitives/must-not-botocore-config"
+
+[[inert]]
+module = "botocore"
+members = [
+    "exceptions",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-botocore-exceptions"
+
+[[inert]]
+module = "cffi"
+members = [
+    "CDefError",
+    "FFIError",
+    "VerificationError",
+    "VerificationMissing",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-cffi-cdeferror-type"
+
+[[inert]]
+module = "cffi"
+members = [
+    "__version__",
+]
+justification = "Version string."
+fixture = "python/primitives/must-not-cffi-__version__"
+
+[[inert]]
+module = "grpc"
+members = [
+    "RpcError",
+    "FutureTimeoutError",
+    "FutureCancelledError",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-grpc-rpcerror-type"
+
+[[inert]]
+module = "grpc"
+members = [
+    "StatusCode",
+    "ChannelConnectivity",
+    "Compression",
+    "ssl_channel_credentials",
+    "ssl_server_credentials",
+    "access_token_call_credentials",
+    "composite_channel_credentials",
+    "metadata_call_credentials",
+    "local_channel_credentials",
+    "intercept_channel",
+]
+justification = "Status enumerations, credential objects, and channel interceptor wrappers over channels created elsewhere; open no connection."
+fixture = "python/primitives/must-not-grpc-statuscode-type"
+
+[[inert]]
+module = "httpx"
+members = [
+    "HTTPError",
+    "RequestError",
+    "HTTPStatusError",
+    "TransportError",
+    "TimeoutException",
+    "ConnectError",
+    "ConnectTimeout",
+    "ReadTimeout",
+    "InvalidURL",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-httpx-httperror-type"
+
+[[inert]]
+module = "httpx"
+members = [
+    "URL",
+    "Headers",
+    "QueryParams",
+    "Cookies",
+    "Timeout",
+    "Limits",
+    "Request",
+    "Response",
+    "codes",
+    "BasicAuth",
+    "DigestAuth",
+    "Auth",
+    "MockTransport",
+    "__version__",
+]
+justification = "Value, header, auth, and configuration types that hold data and open no connection."
+fixture = "python/primitives/must-not-httpx-url-type"
+
+[[inert]]
+module = "paramiko"
+members = [
+    "AutoAddPolicy",
+    "RejectPolicy",
+    "WarningPolicy",
+    "MissingHostKeyPolicy",
+    "RSAKey",
+    "Ed25519Key",
+    "ECDSAKey",
+    "DSSKey",
+    "PKey",
+    "HostKeys",
+    "Agent",
+]
+justification = "Host key policies and key objects; hold key material and open no connection."
+fixture = "python/primitives/must-not-paramiko-autoaddpolicy-type"
+
+[[inert]]
+module = "paramiko"
+members = [
+    "SSHException",
+    "AuthenticationException",
+    "BadHostKeyException",
+    "PasswordRequiredException",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-paramiko-sshexception-type"
+
+[[inert]]
+module = "psycopg2"
+members = [
+    "Error",
+    "Warning",
+    "DatabaseError",
+    "OperationalError",
+    "IntegrityError",
+    "InterfaceError",
+    "DataError",
+    "ProgrammingError",
+    "InternalError",
+    "NotSupportedError",
+    "errors",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-psycopg2-error-type"
+
+[[inert]]
+module = "psycopg2"
+members = [
+    "sql",
+    "Binary",
+    "Date",
+    "Time",
+    "Timestamp",
+    "DateFromTicks",
+    "TimeFromTicks",
+    "TimestampFromTicks",
+    "STRING",
+    "BINARY",
+    "NUMBER",
+    "DATETIME",
+    "ROWID",
+    "apilevel",
+    "paramstyle",
+    "threadsafety",
+    "__version__",
+]
+justification = "SQL composition, DB-API type constructors, and module constants; open no connection."
+fixture = "python/primitives/must-not-psycopg2-sql"
+
+[[inert]]
+module = "pycurl"
+members = [
+    "error",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-pycurl-error"
+
+[[inert]]
+module = "pycurl"
+members = [
+    "version",
+    "version_info",
+    "global_init",
+    "global_cleanup",
+    "CurlShare",
+]
+justification = "Library version queries, global initialization, and share handles that perform no transfer."
+fixture = "python/primitives/must-not-pycurl-version"
+
+[[inert]]
+module = "pymongo"
+members = [
+    "ASCENDING",
+    "DESCENDING",
+    "GEOSPHERE",
+    "HASHED",
+    "TEXT",
+    "ReturnDocument",
+    "InsertOne",
+    "UpdateOne",
+    "UpdateMany",
+    "DeleteOne",
+    "DeleteMany",
+    "ReplaceOne",
+    "IndexModel",
+    "WriteConcern",
+    "ReadPreference",
+    "version",
+]
+justification = "Index direction constants, bulk operation records, and concern settings applied through a client created elsewhere."
+fixture = "python/primitives/must-not-pymongo-ascending-type"
+
+[[inert]]
+module = "pymongo"
+members = [
+    "errors",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-pymongo-errors"
+
+[[inert]]
+module = "redis"
+members = [
+    "Retry",
+    "backoff",
+    "__version__",
+]
+justification = "Value, header, auth, and configuration types that hold data and open no connection."
+fixture = "python/primitives/must-not-redis-retry-type"
+
+[[inert]]
+module = "redis"
+members = [
+    "exceptions",
+    "RedisError",
+    "ConnectionError",
+    "TimeoutError",
+    "ResponseError",
+    "AuthenticationError",
+    "DataError",
+    "WatchError",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-redis-exceptions"
+
+[[inert]]
+module = "requests"
+members = [
+    "codes",
+    "status_codes",
+    "structures",
+    "auth",
+    "cookies",
+    "models",
+    "hooks",
+    "Request",
+    "PreparedRequest",
+    "Response",
+    "__version__",
+]
+justification = "Value, header, auth, and configuration types that hold data and open no connection."
+fixture = "python/primitives/must-not-requests-codes"
+
+[[inert]]
+module = "requests"
+members = [
+    "exceptions",
+    "RequestException",
+    "HTTPError",
+    "ConnectionError",
+    "Timeout",
+    "ConnectTimeout",
+    "ReadTimeout",
+    "TooManyRedirects",
+    "URLRequired",
+    "JSONDecodeError",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-requests-exceptions"
+
+[[inert]]
+module = "urllib3"
+members = [
+    "Timeout",
+    "Retry",
+    "fields",
+    "filepost",
+    "HTTPHeaderDict",
+    "disable_warnings",
+    "add_stderr_logger",
+    "make_headers",
+    "util",
+    "__version__",
+]
+justification = "Value, header, auth, and configuration types that hold data and open no connection."
+fixture = "python/primitives/must-not-urllib3-timeout-type"
+
+[[inert]]
+module = "urllib3"
+members = [
+    "exceptions",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-urllib3-exceptions"
+
+[[inert]]
+module = "websocket"
+members = [
+    "ABNF",
+    "enableTrace",
+    "setdefaulttimeout",
+    "getdefaulttimeout",
+]
+justification = "Value, header, auth, and configuration types that hold data and open no connection."
+fixture = "python/primitives/must-not-websocket-abnf-type"
+
+[[inert]]
+module = "websocket"
+members = [
+    "WebSocketException",
+    "WebSocketConnectionClosedException",
+    "WebSocketTimeoutException",
+    "WebSocketBadStatusException",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-websocket-websocketexception-type"
+
+[[inert]]
+module = "websockets"
+members = [
+    "Headers",
+    "frames",
+    "http11",
+    "datastructures",
+    "typing",
+]
+justification = "Value, header, auth, and configuration types that hold data and open no connection."
+fixture = "python/primitives/must-not-websockets-headers-type"
+
+[[inert]]
+module = "websockets"
+members = [
+    "exceptions",
+    "ConnectionClosed",
+    "ConnectionClosedOK",
+    "ConnectionClosedError",
+    "InvalidURI",
+    "InvalidHandshake",
+    "WebSocketException",
+]
+justification = "Exception classes; constructing or raising one performs no egress."
+fixture = "python/primitives/must-not-websockets-exceptions"

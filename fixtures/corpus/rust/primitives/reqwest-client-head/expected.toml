@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "probe"
+mechanism = "rust:reqwest::Client::head"
+destination = "param:1:probe"
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "probe"
+mechanism = "rust:reqwest::Client::new"
+destination = "expr:reqwest::Client::new()"

@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.mjs"
+symbol = "probe"
+mechanism = "javascript:dns/promises.resolveTlsa"
+destination = "param:1:probe"
