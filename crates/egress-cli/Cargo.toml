@@ -1,0 +1,18 @@
+[package]
+name = "egress-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "egress-plane"
+path = "src/main.rs"
+
+[dependencies]
+egress-core.workspace = true
+egress-scan.workspace = true
+
+[dev-dependencies]
+libc = "=0.2.189"
+serde_json.workspace = true
