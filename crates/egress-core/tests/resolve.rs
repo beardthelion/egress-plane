@@ -11,7 +11,7 @@ use egress_core::ir::UseKind::*;
 use egress_core::model::Language;
 use egress_core::resolve::{
     Binding, GenericRules, PER_REFERENCE_STEPS, Program, Resolver, SpecifierKind, SpecifierRules,
-    package_name,
+    Target, package_name,
 };
 
 #[test]
@@ -555,4 +555,200 @@ fn resolver_binding_api_follows_a_chain_and_memoizes() {
     r.begin_reference();
     r.export(b"b.js", "connect").unwrap();
     assert_eq!(r.steps(), first + 1, "a memoized lookup costs one step");
+}
+
+/// `a` star-imports `b` then `c`, `b` star-imports `a`, and `c` binds `x` to
+/// an egress module. `first` imports `x` from `a`, `m2` imports it from `b`.
+/// The lookup through `a` cuts the `b -> a` cycle; that cut must not be
+/// remembered as `b` having no `x`.
+fn star_cycle_py(first: &str) -> Fx {
+    fx().file("a.py", py().import(star("b")).import(star("c")))
+        .file("b.py", py().import(star("a")))
+        .file("c.py", py().import(import(Some("x"), "requests", &[])))
+        .file(
+            first,
+            py().import(import(Some("x"), "a", &["x"])).r(r(
+                imp("x"),
+                &["get"],
+                Call,
+                "x.get(\"http://1\")",
+            )
+            .arg(lit("http://1"))),
+        )
+        .file(
+            "m2.py",
+            py().import(import(Some("y"), "b", &["x"])).r(r(
+                imp("y"),
+                &["get"],
+                Call,
+                "y.get(\"http://2\")",
+            )
+            .arg(lit("http://2"))),
+        )
+}
+
+#[test]
+fn star_import_cycle_keeps_every_importer_regardless_of_file_order() {
+    for first in ["m1.py", "z1.py"] {
+        let c = star_cycle_py(first).run();
+        assert_eq!(
+            mechs(&c),
+            vec![
+                pair("python:requests.get", "http://1"),
+                pair("python:requests.get", "http://2"),
+            ],
+            "first importer {first}"
+        );
+        assert!(c.blind_spots.is_empty(), "{:?}", c.blind_spots);
+    }
+}
+
+fn star_cycle_js(first: &str) -> Fx {
+    fx().file(
+        "a.js",
+        js().import(re_export(star("./b")))
+            .import(re_export(star("./c"))),
+    )
+    .file("b.js", js().import(re_export(star("./a"))))
+    .file(
+        "c.js",
+        js().import(re_export(import(Some("x"), "net", &["connect"]))),
+    )
+    .file(
+        first,
+        js().import(import(Some("x"), "./a", &["x"]))
+            .r(r(imp("x"), &[], Call, "x(80, \"one\")")
+                .arg(lit("80"))
+                .arg(lit("one"))),
+    )
+    .file(
+        "m2.js",
+        js().import(import(Some("y"), "./b", &["x"]))
+            .r(r(imp("y"), &[], Call, "y(80, \"two\")")
+                .arg(lit("80"))
+                .arg(lit("two"))),
+    )
+}
+
+#[test]
+fn export_star_cycle_keeps_every_importer_regardless_of_file_order() {
+    for first in ["m1.js", "z1.js"] {
+        let c = star_cycle_js(first).run();
+        assert_eq!(
+            mechs(&c),
+            vec![
+                pair("javascript:net.connect", "one:80"),
+                pair("javascript:net.connect", "two:80"),
+            ],
+            "first importer {first}"
+        );
+        assert!(c.blind_spots.is_empty(), "{:?}", c.blind_spots);
+    }
+}
+
+/// A resolver over `index` with `excluded` directories and generic rules.
+fn target_of(excluded: &[&str], specifier: &str) -> Target {
+    let index = BTreeMap::new();
+    let excluded: BTreeSet<Vec<u8>> = excluded.iter().map(|d| d.as_bytes().to_vec()).collect();
+    let rules = GenericRules::exact();
+    let mut program = Program::new(&index, &excluded);
+    program.set_rules(Language::Javascript, &rules);
+    let mut r = Resolver::new(&program, data(), u64::MAX);
+    r.target(b"app.js", Language::Javascript, specifier)
+}
+
+#[test]
+fn unresolved_path_into_an_excluded_directory_matches_whole_components() {
+    let ex = ["node_modules", "pkg/vendor"];
+    assert_eq!(target_of(&ex, "./node_modules"), Target::IntoExcluded);
+    assert_eq!(
+        target_of(&ex, "./node_modules/a/b.js"),
+        Target::IntoExcluded
+    );
+    assert_eq!(target_of(&ex, "./pkg/vendor"), Target::IntoExcluded);
+    assert_eq!(target_of(&ex, "./pkg/vendor/x.js"), Target::IntoExcluded);
+    // A sibling sharing a name prefix, or a parent of an excluded directory,
+    // is not inside it.
+    assert_eq!(target_of(&ex, "./node_modules2/a.js"), Target::Unresolved);
+    assert_eq!(target_of(&ex, "./node_modules2"), Target::Unresolved);
+    assert_eq!(target_of(&ex, "./pkg/vendored.js"), Target::Unresolved);
+    assert_eq!(target_of(&ex, "./pkg"), Target::Unresolved);
+    assert_eq!(target_of(&[], "./node_modules/a.js"), Target::Unresolved);
+}
+
+#[test]
+fn unresolved_imports_against_many_excluded_directories_stay_cheap() {
+    // Each unresolved probe used to scan every excluded directory, so a repo
+    // with many tagged directories and many unresolved imports cost their
+    // product. Lookups by ancestor keep it proportional to the path depth.
+    let n = 20_000;
+    let index = BTreeMap::new();
+    let excluded: BTreeSet<Vec<u8>> = (0..n).map(|i| format!("cache/d{i}").into_bytes()).collect();
+    let rules = GenericRules {
+        extensions: vec![".js".into(), ".ts".into()],
+        index_names: vec!["index".into()],
+    };
+    let mut program = Program::new(&index, &excluded);
+    program.set_rules(Language::Javascript, &rules);
+    let mut r = Resolver::new(&program, data(), u64::MAX);
+    let start = std::time::Instant::now();
+    for i in 0..n {
+        assert_eq!(
+            r.target(b"app.js", Language::Javascript, &format!("./src/m{i}")),
+            Target::Unresolved
+        );
+    }
+    assert_eq!(
+        r.target(b"app.js", Language::Javascript, "./cache/d7/x"),
+        Target::IntoExcluded
+    );
+    let took = start.elapsed();
+    assert!(took.as_secs() < 10, "took {took:?}");
+}
+
+#[test]
+fn python_bare_import_into_an_excluded_directory_is_a_gap() {
+    // A `pyvenv.cfg` dropped into a first-party package excludes it; an
+    // absolute import of a module inside it must not read as an external
+    // dependency.
+    let c = fx()
+        .excluded("app")
+        .file(
+            "main.py",
+            py().import(import(Some("go"), "app.net", &["go"]))
+                .r(r(imp("go"), &[], Call, "go()")),
+        )
+        .run();
+    assert_eq!(spots(&c), vec![pair("main.py", "reference-into-excluded")]);
+    assert!(deps(&c).is_empty(), "{:?}", deps(&c));
+}
+
+#[test]
+fn python_bare_import_beside_an_excluded_directory_stays_external() {
+    let c = fx()
+        .excluded("app")
+        .file(
+            "main.py",
+            py().import(import(Some("go"), "apps.net", &["go"]))
+                .r(r(imp("go"), &[], Call, "go()")),
+        )
+        .run();
+    assert!(c.blind_spots.is_empty(), "{:?}", c.blind_spots);
+    assert_eq!(deps(&c), vec![s("apps")]);
+}
+
+#[test]
+fn js_bare_import_whose_probe_is_excluded_stays_external() {
+    // JS bare probes are workspace package entry points; a package whose
+    // entry sits in an excluded directory stays an unscanned dependency.
+    let c = fx()
+        .excluded("lib")
+        .file(
+            "app.js",
+            js().import(import(Some("x"), "lib", &["x"]))
+                .r(r(imp("x"), &[], Call, "x()")),
+        )
+        .run();
+    assert!(c.blind_spots.is_empty(), "{:?}", c.blind_spots);
+    assert_eq!(deps(&c), vec![s("lib")]);
 }

@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "m1.py"
+symbol = "first"
+mechanism = "python:requests.get"
+destination = "https://one.example.com"
+
+[[sites]]
+file = "m2.py"
+symbol = "second"
+mechanism = "python:requests.get"
+destination = "https://two.example.com"

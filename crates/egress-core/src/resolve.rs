@@ -11,7 +11,7 @@
 //! per-reference budget and the global resolver budget; running out of either
 //! is a `resolution-limit`, never inert.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::data::{Data, EntryKind, ModuleClass};
 use crate::discover::FileKind;
@@ -209,11 +209,15 @@ impl<'a> Program<'a> {
         self.rules.get(&language).copied().unwrap_or(&EXACT)
     }
 
+    /// Whether `path` is an excluded directory or lies inside one. Each
+    /// ancestor is looked up in the set, so the cost follows the path's
+    /// depth, not the number of excluded directories.
     fn under_excluded(&self, path: &[u8]) -> bool {
-        self.excluded_dirs.iter().any(|d| {
-            path == d.as_slice()
-                || (path.len() > d.len() && path.starts_with(d) && path[d.len()] == b'/')
-        })
+        self.excluded_dirs.contains(path)
+            || path
+                .iter()
+                .enumerate()
+                .any(|(i, &b)| b == b'/' && self.excluded_dirs.contains(&path[..i]))
     }
 }
 
@@ -256,7 +260,11 @@ pub struct Resolver<'p, 'a> {
     data: &'p Data,
     targets: HashMap<(Vec<u8>, String), Target>,
     exports: HashMap<(Vec<u8>, String), Option<Binding>>,
-    in_progress: HashSet<(Vec<u8>, String)>,
+    /// Lookups under way, with their depth on the lookup stack.
+    in_progress: HashMap<(Vec<u8>, String), usize>,
+    /// The shallowest in-progress depth a cycle cut reached below the
+    /// current lookup, or `usize::MAX` when none did.
+    cut_depth: usize,
     budget: u64,
     steps: u64,
     reference_steps: u64,
@@ -270,7 +278,8 @@ impl<'p, 'a> Resolver<'p, 'a> {
             data,
             targets: HashMap::new(),
             exports: HashMap::new(),
-            in_progress: HashSet::new(),
+            in_progress: HashMap::new(),
+            cut_depth: usize::MAX,
             budget,
             steps: 0,
             reference_steps: 0,
@@ -379,6 +388,18 @@ impl<'p, 'a> Resolver<'p, 'a> {
                         } else {
                             Target::Unlowered(p)
                         }
+                    }
+                    // A Python absolute import whose candidate lies in an
+                    // excluded directory (a first-party package marked by a
+                    // `pyvenv.cfg`) reaches code the scan skipped. A real
+                    // environment keeps packages under `site-packages`, so a
+                    // module probe directly inside one is never an
+                    // installed dependency. JS and Rust bare probes are
+                    // workspace package entry points and stay external.
+                    None if language == Language::Python
+                        && probes.iter().any(|p| self.program.under_excluded(p)) =>
+                    {
+                        Target::IntoExcluded
                     }
                     None => Target::External(module),
                 }
@@ -529,14 +550,27 @@ impl<'p, 'a> Resolver<'p, 'a> {
         if let Some(b) = self.exports.get(&key) {
             return Ok(b.clone());
         }
-        if !self.in_progress.insert(key.clone()) {
+        if let Some(&depth) = self.in_progress.get(&key) {
             // A cycle: this module is already being searched for `name`.
+            // The answer here is partial, so no lookup between the cut and
+            // that outer search may be memoized.
+            self.cut_depth = self.cut_depth.min(depth);
             return Ok(None);
         }
+        let depth = self.in_progress.len();
+        self.in_progress.insert(key.clone(), depth);
+        let outer_cut = std::mem::replace(&mut self.cut_depth, usize::MAX);
         let result = self.compute_export(path, name);
         self.in_progress.remove(&key);
+        let cut = self.cut_depth;
+        self.cut_depth = outer_cut.min(cut);
         let result = result?;
-        self.exports.insert(key, result.clone());
+        // A cut back to this lookup itself loses nothing: every path that
+        // returns here was searched from here. A cut to a shallower lookup
+        // leaves this answer incomplete for any later caller.
+        if cut >= depth {
+            self.exports.insert(key, result.clone());
+        }
         Ok(result)
     }
 

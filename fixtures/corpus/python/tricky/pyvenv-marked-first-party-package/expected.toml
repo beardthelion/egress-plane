@@ -1,0 +1,11 @@
+state = "incomplete"
+exit_code = 2
+
+[[excluded]]
+path = "app"
+reason = "install-output"
+
+[[blind_spots]]
+file = "main.py"
+symbol = "<module>"
+kind = "reference-into-excluded"

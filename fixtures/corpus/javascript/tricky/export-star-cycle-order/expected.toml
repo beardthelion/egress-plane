@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "m1.js"
+symbol = "first"
+mechanism = "javascript:https.request"
+destination = "https://one.example.com"
+
+[[sites]]
+file = "m2.js"
+symbol = "second"
+mechanism = "javascript:https.request"
+destination = "https://two.example.com"
