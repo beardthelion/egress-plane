@@ -957,3 +957,163 @@ fn rust_tracked_client_methods_sit_on_the_type_beside_the_constructor() {
         ]
     );
 }
+
+#[test]
+fn an_import_in_the_same_symbol_wins_then_module_level_then_the_earliest() {
+    let in_sym = |sym: &str, local: &str, spec: &str| egress_core::ir::Import {
+        symbol: sym.into(),
+        ..import(Some(local), spec, &[])
+    };
+    // `k` has no module-level import: the earliest span wins even when it
+    // comes second in IR order.
+    let k_early = in_sym("x", "k", "os");
+    let k_late = in_sym("y", "k", "requests");
+    let c = fx()
+        .file(
+            "a.py",
+            py().import(import(Some("h"), "requests", &[]))
+                .import(in_sym("f", "h", "os"))
+                .import(k_late)
+                .import(k_early)
+                .r(r(imp("h"), &["system"], Call, "h.system(c)")
+                    .sym("f")
+                    .arg(lit("ls")))
+                .r(r(imp("h"), &["post"], Call, "h.post(u)")
+                    .sym("g")
+                    .arg(lit("https://h.example")))
+                .r(r(imp("k"), &["system"], Call, "k.system(c)")
+                    .sym("g")
+                    .arg(lit("id"))),
+        )
+        .run();
+    assert_eq!(
+        sites(&c),
+        vec![
+            (s("a.py"), s("f"), s("python:os.system"), s("exec:ls")),
+            (s("a.py"), s("g"), s("python:os.system"), s("exec:id")),
+            (
+                s("a.py"),
+                s("g"),
+                s("python:requests.post"),
+                s("https://h.example")
+            ),
+        ]
+    );
+}
+
+#[test]
+fn a_nested_class_attribute_reassigned_in_its_own_method_is_not_tracked() {
+    let ctor =
+        r(imp("requests"), &["Session"], Call, "requests.Session()").sym("Outer.Api.__init__");
+    let use_ = r(
+        egress_core::ir::Root::SelfValue,
+        &["s", "get"],
+        Call,
+        "self.s.get(u)",
+    )
+    .sym("Outer.Api.users")
+    .arg(lit("https://api.example.com/users"));
+    let assign_in = |sym: &str| {
+        r(
+            egress_core::ir::Root::SelfValue,
+            &["s"],
+            AssignmentTarget,
+            "self.s",
+        )
+        .sym(sym)
+    };
+    let run = |extra: Option<R>| {
+        let mut ir = py()
+            .import(import_module("requests"))
+            .r(ctor.clone())
+            .self_attr(self_attr("Outer.Api", "s", ctor.expr()))
+            .r(assign_in("Outer.Api.__init__"));
+        if let Some(x) = extra {
+            ir = ir.r(x);
+        }
+        mechs(&fx().file("a.py", ir.r(use_.clone())).run())
+    };
+    let session = pair("python:requests.Session", "expr:requests.Session()");
+    let get = pair(
+        "python:requests.Session.get",
+        "https://api.example.com/users",
+    );
+    // Assigned only in its own initializer, or in a method of the outer
+    // class or of another class: tracked.
+    assert_eq!(run(None), vec![session.clone(), get.clone()]);
+    assert_eq!(
+        run(Some(assign_in("Outer.helper"))),
+        vec![session.clone(), get.clone()]
+    );
+    assert_eq!(
+        run(Some(assign_in("Other.Api.reset"))),
+        vec![session.clone(), get.clone()]
+    );
+    // Reassigned in another method of the same class, or of a class nested
+    // inside it: not tracked.
+    assert_eq!(
+        run(Some(assign_in("Outer.Api.reset"))),
+        vec![session.clone()]
+    );
+    assert_eq!(
+        run(Some(assign_in("Outer.Api.Inner.__init__"))),
+        vec![session]
+    );
+}
+
+/// A file with `n` of each declaration kind and `n` references that look
+/// each one up: imports, module locals, constants, and self attributes.
+fn many_declarations(n: usize) -> Fx {
+    let mut ir = py().import(import_module("requests")).sym(class("Api"));
+    for i in 0..n {
+        let m = format!("m{i}");
+        let ctor = r(imp("requests"), &["Session"], Call, "requests.Session()").sym("Api.__init__");
+        ir = ir
+            .import(import_module(&m))
+            .constant(constant(&format!("C{i}"), lit("https://c.example")))
+            .local(local_binding(
+                "<module>",
+                &format!("a{i}"),
+                r(imp(&m), &["g"], ValueEscape, "m.g").expr(),
+            ))
+            .self_attr(self_attr("Api", &format!("s{i}"), ctor.expr()))
+            .r(r(imp(&m), &["f"], Call, "m.f()"))
+            .r(r(local(&format!("a{i}")), &["h"], Call, "a.h()"))
+            .r(r(imp("requests"), &["post"], Call, "requests.post(C)").arg(name(&format!("C{i}"))))
+            .r(r(
+                egress_core::ir::Root::SelfValue,
+                &[&format!("s{i}"), "get"],
+                Call,
+                "self.s.get(u)",
+            )
+            .sym("Api.users")
+            .arg(lit("https://api.example.com/users")));
+    }
+    fx().file("a.py", ir)
+}
+
+#[test]
+fn classification_time_grows_near_linearly_with_declarations_and_references() {
+    let time = |n: usize| {
+        let f = many_declarations(n);
+        (0..3)
+            .map(|_| {
+                let t = std::time::Instant::now();
+                let c = f.run();
+                let d = t.elapsed();
+                assert_eq!(c.sites.len(), 2 * n, "every post and get is a site");
+                d
+            })
+            .min()
+            .unwrap()
+    };
+    let small = time(2_000);
+    let large = time(8_000);
+    // Four times the input: linear work is about 4x, a per-reference scan
+    // of the declarations about 16x.
+    let ratio = large.as_secs_f64() / small.as_secs_f64();
+    assert!(
+        ratio < 10.0,
+        "4x input took {ratio:.1}x the time ({small:?} vs {large:?})"
+    );
+}

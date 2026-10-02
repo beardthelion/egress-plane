@@ -1,0 +1,13 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/near.rs"
+symbol = "near"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "near.example.com:443"
+
+[[blind_spots]]
+file = "src/far.rs"
+symbol = "<module>"
+kind = "resolution-limit"

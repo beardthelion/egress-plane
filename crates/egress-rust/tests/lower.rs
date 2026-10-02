@@ -927,3 +927,50 @@ fn long_prefix_operator_chains_do_not_overflow_the_stack() {
         assert_eq!(r, Some(LowerError::TooDeeplyNested), "{chain}");
     }
 }
+
+/// `use std::net::TcpStream as A0; use A0 as A1; ... use A{n-1} as A{n};`
+/// with a call through the last alias.
+fn alias_chain(n: usize) -> String {
+    let mut s = String::from("use std::net::TcpStream as A0;\n");
+    for i in 1..=n {
+        s.push_str(&format!("use A{} as A{i};\n", i - 1));
+    }
+    s.push_str(&format!(
+        "pub fn main() {{\n    let _ = A{n}::connect(\"h.example.com:1\");\n}}\n"
+    ));
+    s
+}
+
+#[test]
+fn alias_chain_at_the_hop_cap_resolves() {
+    let c = scan(&[("Cargo.toml", CARGO), ("src/lib.rs", &alias_chain(8))]);
+    assert!(
+        has_site(
+            &c,
+            "src/lib.rs",
+            "main",
+            "rust:std::net::TcpStream::connect",
+            "h.example.com:1"
+        ),
+        "{}",
+        dump(&c)
+    );
+    assert_eq!(
+        blind(&c, "src/lib.rs", BlindSpotKind::ResolutionLimit),
+        0,
+        "{}",
+        dump(&c)
+    );
+}
+
+#[test]
+fn alias_chain_past_the_hop_cap_is_a_resolution_limit() {
+    for n in [9, 12] {
+        let c = scan(&[("Cargo.toml", CARGO), ("src/lib.rs", &alias_chain(n))]);
+        assert!(
+            blind(&c, "src/lib.rs", BlindSpotKind::ResolutionLimit) >= 1,
+            "{n}: {}",
+            dump(&c)
+        );
+    }
+}

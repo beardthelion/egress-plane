@@ -19,7 +19,7 @@
 //! - A computed or reflective access with a non-literal name carries its
 //!   receiver's [`Provenance`].
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use crate::data::{
     Classification, Data, DestinationForm, DestinationSpec, Entry, EntryKind, ModuleClass, Origin,
@@ -28,7 +28,10 @@ use crate::data::{
 use crate::destination::{self, TemplatePart};
 use crate::discover::labels::path_labels;
 use crate::identity::encode_path_bytes;
-use crate::ir::{ConstructKind, Expr, Import, Provenance, Reference, Root, UseKind};
+use crate::ir::{
+    ConstructKind, Expr, FileIr, Import, LocalBinding, ModuleConstant, Provenance, Reference, Root,
+    SelfAttribute, UseKind,
+};
 use crate::model::{
     BlindSpot, BlindSpotKind, Bucket, Destination, Language, Location, Site, UnscannedDependency,
 };
@@ -95,9 +98,15 @@ pub fn special_entry_ids() -> Vec<&'static str> {
 /// Classifies every lowered file in `program`, charging resolver steps
 /// against `resolver_steps` (KTD19).
 pub fn classify(data: &Data, program: &Program<'_>, resolver_steps: u64) -> Classified {
+    let indexes: BTreeMap<&[u8], FileIndex<'_>> = program
+        .files
+        .iter()
+        .map(|(path, pf)| (path.as_slice(), FileIndex::new(pf.ir)))
+        .collect();
     let mut st = State {
         data,
         program,
+        indexes: &indexes,
         r: Resolver::new(program, data, resolver_steps),
         out: Classified::default(),
         deps: BTreeMap::new(),
@@ -107,6 +116,7 @@ pub fn classify(data: &Data, program: &Program<'_>, resolver_steps: u64) -> Clas
         st.file(Ctx {
             path,
             pf,
+            ix: &indexes[path.as_slice()],
             rt: data.runtime(pf.language),
         });
     }
@@ -117,7 +127,132 @@ pub fn classify(data: &Data, program: &Program<'_>, resolver_steps: u64) -> Clas
 struct Ctx<'p, 'a> {
     path: &'p [u8],
     pf: &'p ProgramFile<'a>,
+    ix: &'p FileIndex<'a>,
     rt: &'p RuntimeData,
+}
+
+/// Per-file lookup tables over a file's IR, built once so each reference
+/// resolves in constant time rather than rescanning the declarations. Every
+/// table keeps the declaration a linear scan would have picked.
+struct FileIndex<'a> {
+    /// Non-star imports by local name: the first in IR order, and the one
+    /// with the earliest span start (the first such on a tie).
+    imports: HashMap<&'a str, (&'a Import, &'a Import)>,
+    /// Non-star imports by (enclosing symbol, local name), earliest span
+    /// start first.
+    imports_in: HashMap<(&'a str, &'a str), &'a Import>,
+    /// Star imports that are not type-only, in IR order.
+    stars: Vec<&'a Import>,
+    /// The first local binding per (symbol, name).
+    locals: HashMap<(&'a str, &'a str), &'a LocalBinding>,
+    local_names: HashSet<&'a str>,
+    /// The first module constant per name.
+    constants: HashMap<&'a str, &'a ModuleConstant>,
+    symbols: HashSet<&'a str>,
+    /// Self attributes per (class, attribute): the first, and whether
+    /// there is more than one.
+    self_attributes: HashMap<(&'a str, &'a str), (&'a SelfAttribute, bool)>,
+    /// (class, attribute) pairs a method of `class` other than its
+    /// initializer assigns as `self.attribute`, for every class whose
+    /// dotted path prefixes the method's symbol.
+    self_assigned_elsewhere: HashSet<(&'a str, &'a str)>,
+}
+
+impl<'a> FileIndex<'a> {
+    fn new(ir: &'a FileIr) -> Self {
+        let mut ix = FileIndex {
+            imports: HashMap::new(),
+            imports_in: HashMap::new(),
+            stars: Vec::new(),
+            locals: HashMap::new(),
+            local_names: HashSet::new(),
+            constants: HashMap::new(),
+            symbols: ir.symbols.iter().map(|s| s.path.as_str()).collect(),
+            self_attributes: HashMap::new(),
+            self_assigned_elsewhere: HashSet::new(),
+        };
+        for i in &ir.imports {
+            if i.star {
+                if !i.type_only {
+                    ix.stars.push(i);
+                }
+                continue;
+            }
+            let Some(local) = i.local.as_deref() else {
+                continue;
+            };
+            ix.imports
+                .entry(local)
+                .and_modify(|(_, earliest)| {
+                    if i.span.start < earliest.span.start {
+                        *earliest = i;
+                    }
+                })
+                .or_insert((i, i));
+            ix.imports_in
+                .entry((i.symbol.as_str(), local))
+                .and_modify(|earliest| {
+                    if i.span.start < earliest.span.start {
+                        *earliest = i;
+                    }
+                })
+                .or_insert(i);
+        }
+        for l in &ir.locals {
+            ix.locals
+                .entry((l.symbol.as_str(), l.name.as_str()))
+                .or_insert(l);
+            ix.local_names.insert(l.name.as_str());
+        }
+        for c in &ir.constants {
+            ix.constants.entry(c.name.as_str()).or_insert(c);
+        }
+        for a in &ir.self_attributes {
+            ix.self_attributes
+                .entry((a.class.as_str(), a.attribute.as_str()))
+                .and_modify(|(_, many)| *many = true)
+                .or_insert((a, false));
+        }
+        for x in &ir.references {
+            let [attr] = x.members.as_slice() else {
+                continue;
+            };
+            if x.root != Root::SelfValue || x.use_kind != UseKind::AssignmentTarget {
+                continue;
+            }
+            for (dot, _) in x.symbol.match_indices('.') {
+                let class = &x.symbol[..dot];
+                let method = &x.symbol[dot + 1..];
+                if method != "__init__" && method != "constructor" {
+                    ix.self_assigned_elsewhere.insert((class, attr.as_str()));
+                }
+            }
+        }
+        ix
+    }
+
+    /// The non-star import binding `name` as seen from `symbol`: one in
+    /// the same symbol, then one at module level, then any, earliest
+    /// first within each group.
+    fn import_for(&self, name: &str, symbol: &str) -> Option<&'a Import> {
+        let &(_, earliest) = self.imports.get(name)?;
+        Some(
+            self.imports_in
+                .get(&(symbol, name))
+                .or_else(|| self.imports_in.get(&("<module>", name)))
+                .copied()
+                .unwrap_or(earliest),
+        )
+    }
+
+    /// The first non-star import binding `name`, in IR order.
+    fn first_import(&self, name: &str) -> Option<&'a Import> {
+        self.imports.get(name).map(|&(first, _)| first)
+    }
+
+    fn local(&self, symbol: &str, name: &str) -> Option<&'a LocalBinding> {
+        self.locals.get(&(symbol, name)).copied()
+    }
 }
 
 impl Ctx<'_, '_> {
@@ -167,6 +302,7 @@ enum Val {
 struct State<'p, 'a> {
     data: &'p Data,
     program: &'p Program<'a>,
+    indexes: &'p BTreeMap<&'p [u8], FileIndex<'a>>,
     r: Resolver<'p, 'a>,
     out: Classified,
     deps: BTreeMap<(Language, String), BTreeSet<String>>,
@@ -369,6 +505,7 @@ impl<'p, 'a> State<'p, 'a> {
                 ConstructKind::NativeCode => BlindSpotKind::NativeCode,
                 ConstructKind::MacroCode => BlindSpotKind::MacroCode,
                 ConstructKind::ConstructorChain => BlindSpotKind::Introspection,
+                ConstructKind::ResolutionLimit => BlindSpotKind::ResolutionLimit,
             };
             self.blind_at(cx, &c.symbol, c.location, kind, &c.text, false);
         }
@@ -512,14 +649,7 @@ impl<'p, 'a> State<'p, 'a> {
     /// A name a star import of this file provides, expanded from the starred
     /// module's source (KTD16) or from an external module's entries.
     fn star_lookup(&mut self, cx: Ctx<'p, 'a>, name: &str) -> Result<Option<Binding>, Limit> {
-        let stars: Vec<&Import> = cx
-            .pf
-            .ir
-            .imports
-            .iter()
-            .filter(|i| i.star && !i.type_only)
-            .collect();
-        for imp in stars {
+        for &imp in &cx.ix.stars {
             if let Some(b) = self.r.star_member(cx.path, cx.lang(), imp, name)? {
                 return Ok(Some(b));
             }
@@ -568,14 +698,9 @@ impl<'p, 'a> State<'p, 'a> {
         symbol: &str,
         hops: u32,
     ) -> Result<Head, Limit> {
-        let ir = cx.pf.ir;
         match root {
             Root::Import(name) => {
-                let imp = ir
-                    .imports
-                    .iter()
-                    .filter(|i| !i.star && i.local.as_deref() == Some(name.as_str()))
-                    .min_by_key(|i| (i.symbol != symbol, i.symbol != "<module>", i.span.start));
+                let imp = cx.ix.import_for(name, symbol);
                 let binding = match imp {
                     Some(i) => self.r.import(cx.path, cx.lang(), i)?,
                     None => match self.star_lookup(cx, name)? {
@@ -586,7 +711,7 @@ impl<'p, 'a> State<'p, 'a> {
                 Ok(Self::head_of(self.r.walk(binding, members)?))
             }
             Root::Ambient(name) => {
-                if ir.imports.iter().any(|i| i.star && !i.type_only)
+                if !cx.ix.stars.is_empty()
                     && let Some(b) = self.star_lookup(cx, name)?
                 {
                     return Ok(Self::head_of(self.r.walk(b, members)?));
@@ -599,22 +724,16 @@ impl<'p, 'a> State<'p, 'a> {
                 if hops >= MAX_ALIAS_HOPS {
                     return Ok(Head::Untracked);
                 }
-                let same = ir
-                    .locals
-                    .iter()
-                    .find(|l| l.symbol == symbol && l.name == *name)
-                    .map(|l| (&l.value, true));
+                let ix = cx.ix;
+                let same = ix.local(symbol, name).map(|l| (&l.value, true));
                 let value = same
                     .or_else(|| {
-                        ir.locals
-                            .iter()
-                            .find(|l| l.symbol == "<module>" && l.name == *name)
+                        ix.local("<module>", name)
                             .map(|l| (&l.value, symbol == "<module>"))
                     })
                     .or_else(|| {
-                        ir.constants
-                            .iter()
-                            .find(|c| c.name == *name)
+                        ix.constants
+                            .get(name.as_str())
                             .map(|c| (&c.value, symbol == "<module>"))
                     });
                 let Some((Expr::Reference(r), same_scope)) = value else {
@@ -638,25 +757,13 @@ impl<'p, 'a> State<'p, 'a> {
                 else {
                     return Ok(Head::Untracked);
                 };
-                let assigned: Vec<_> = ir
-                    .self_attributes
-                    .iter()
-                    .filter(|a| a.class == class && a.attribute == *attr)
-                    .collect();
-                let init = format!("{class}.__init__");
-                let ctor = format!("{class}.constructor");
-                let prefix = format!("{class}.");
-                let elsewhere = ir.references.iter().any(|x| {
-                    x.root == Root::SelfValue
-                        && x.use_kind == UseKind::AssignmentTarget
-                        && x.members.len() == 1
-                        && x.members[0] == *attr
-                        && x.symbol.starts_with(&prefix)
-                        && x.symbol != init
-                        && x.symbol != ctor
-                });
-                match assigned.as_slice() {
-                    [a] if !elsewhere => match &a.value {
+                let assigned = cx.ix.self_attributes.get(&(class, attr.as_str()));
+                let elsewhere = cx
+                    .ix
+                    .self_assigned_elsewhere
+                    .contains(&(class, attr.as_str()));
+                match assigned {
+                    Some(&(a, false)) if !elsewhere => match &a.value {
                         Expr::Reference(r) if is_call(r.use_kind) && hops < MAX_ALIAS_HOPS => {
                             let h =
                                 self.resolve_head(cx, &r.root, &r.members, &r.symbol, hops + 1)?;
@@ -889,16 +996,12 @@ impl<'p, 'a> State<'p, 'a> {
 
     /// The root a bare name argument binds to in this file.
     fn root_for_name(&self, cx: Ctx<'p, 'a>, name: &str) -> Root {
-        let ir = cx.pf.ir;
-        if ir
-            .imports
-            .iter()
-            .any(|i| !i.star && i.local.as_deref() == Some(name))
-        {
+        let ix = cx.ix;
+        if ix.imports.contains_key(name) {
             Root::Import(name.to_string())
-        } else if ir.locals.iter().any(|l| l.name == name)
-            || ir.constants.iter().any(|c| c.name == name)
-            || ir.symbols.iter().any(|s| s.path == name)
+        } else if ix.local_names.contains(name)
+            || ix.constants.contains_key(name)
+            || ix.symbols.contains(name)
         {
             Root::Local(name.to_string())
         } else {
@@ -1325,6 +1428,7 @@ impl<'p, 'a> State<'p, 'a> {
         Some(Ctx {
             path,
             pf,
+            ix: self.indexes.get(path.as_slice())?,
             rt: self.data.runtime(pf.language),
         })
     }
@@ -1337,28 +1441,17 @@ impl<'p, 'a> State<'p, 'a> {
         let Some(cx) = self.ctx(path) else {
             return unresolved();
         };
-        let ir = cx.pf.ir;
-        if let Some(l) = ir
-            .locals
-            .iter()
-            .find(|l| l.symbol == symbol && l.name == name)
-        {
+        let ix = cx.ix;
+        if let Some(l) = ix.local(symbol, name) {
             return self.eval(path, symbol, &l.value, depth + 1);
         }
-        if let Some(l) = ir
-            .locals
-            .iter()
-            .find(|l| l.symbol == "<module>" && l.name == name)
-        {
+        if let Some(l) = ix.local("<module>", name) {
             return self.eval(path, "<module>", &l.value, depth + 1);
         }
-        if let Some(c) = ir.constants.iter().find(|c| c.name == name) {
+        if let Some(c) = ix.constants.get(name) {
             return self.eval(path, "<module>", &c.value, depth + 1);
         }
-        if let Some(imp) = ir
-            .imports
-            .iter()
-            .find(|i| !i.star && i.local.as_deref() == Some(name))
+        if let Some(imp) = ix.first_import(name)
             && let Ok(Binding::FirstPartyDef { path: p, name: n }) =
                 self.r.import(path, cx.lang(), imp)
         {

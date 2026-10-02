@@ -300,7 +300,11 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
     drop(program);
     blind_spots.extend(classified.blind_spots);
     coverage.unsupported.skipped += classified.loaded_as_code;
-    if classified.resolver_budget_exceeded {
+    // Discovery charges symlink resolution against the same budget and may
+    // already have recorded it.
+    if classified.resolver_budget_exceeded
+        && !budget_exceeded.contains(&BudgetReason::ResolverSteps)
+    {
         budget_exceeded.push(BudgetReason::ResolverSteps);
     }
 

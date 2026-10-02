@@ -46,6 +46,16 @@ enum Base {
     Super(u32),
 }
 
+/// Why [`Lowerer::abs`] did not resolve a path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Unresolved {
+    /// Not a path the lowering tracks (a block-local item, an empty path).
+    Untracked,
+    /// The `use` alias chain is longer than [`MAX_ALIAS_HOPS`]; the caller
+    /// reports a resolution limit rather than dropping the name.
+    HopCap,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Abs {
     base: Base,
@@ -535,10 +545,16 @@ impl<'a> Lowerer<'a> {
     }
 
     /// Resolves a path as written in `scope` to its base and segments.
-    fn abs(&self, scope: usize, segs: &[String], leading: bool, hops: u32) -> Option<Abs> {
-        let (first, rest) = segs.split_first()?;
+    fn abs(
+        &self,
+        scope: usize,
+        segs: &[String],
+        leading: bool,
+        hops: u32,
+    ) -> Result<Abs, Unresolved> {
+        let (first, rest) = segs.split_first().ok_or(Unresolved::Untracked)?;
         if leading {
-            return Some(Abs {
+            return Ok(Abs {
                 base: Base::Extern(first.clone()),
                 segs: rest.to_vec(),
             });
@@ -546,7 +562,7 @@ impl<'a> Lowerer<'a> {
         let prefix = self.prefix_at(scope);
         match first.as_str() {
             "crate" | "$crate" => {
-                return Some(Abs {
+                return Ok(Abs {
                     base: Base::Crate,
                     segs: rest.to_vec(),
                 });
@@ -554,7 +570,7 @@ impl<'a> Lowerer<'a> {
             "self" => {
                 let mut s = prefix;
                 s.extend(rest.iter().cloned());
-                return Some(Abs {
+                return Ok(Abs {
                     base: Base::SelfFile,
                     segs: s,
                 });
@@ -563,7 +579,7 @@ impl<'a> Lowerer<'a> {
                 let n = segs.iter().take_while(|s| *s == "super").count();
                 let rest = &segs[n..];
                 let d = prefix.len();
-                return Some(if n <= d {
+                return Ok(if n <= d {
                     let mut s = prefix[..d - n].to_vec();
                     s.extend(rest.iter().cloned());
                     Abs {
@@ -590,33 +606,33 @@ impl<'a> Lowerer<'a> {
                 _,
             )) => {
                 if hops >= MAX_ALIAS_HOPS {
-                    return None;
+                    return Err(Unresolved::HopCap);
                 }
                 let mut a = self.abs(s, &path, leading, hops + 1)?;
                 a.segs.extend(rest.iter().cloned());
-                Some(a)
+                Ok(a)
             }
             Some((Name::ExternCrate(_), i)) => {
                 // `extern crate c as n;` binds `n` to the crate `c`.
                 let c = self
                     .extern_crate_target(i, first)
                     .unwrap_or_else(|| first.clone());
-                Some(Abs {
+                Ok(Abs {
                     base: Base::Extern(c),
                     segs: rest.to_vec(),
                 })
             }
-            Some((_, i)) if self.scopes[i].block => None,
+            Some((_, i)) if self.scopes[i].block => Err(Unresolved::Untracked),
             Some(_) => {
                 let mut s = prefix;
                 s.push(first.clone());
                 s.extend(rest.iter().cloned());
-                Some(Abs {
+                Ok(Abs {
                     base: Base::SelfFile,
                     segs: s,
                 })
             }
-            None => Some(Abs {
+            None => Ok(Abs {
                 base: Base::Extern(first.clone()),
                 segs: rest.to_vec(),
             }),
@@ -737,7 +753,8 @@ impl<'a> Lowerer<'a> {
             return self.path_root(&s, lead, false, span);
         }
         if matches!(first.as_str(), "crate" | "$crate" | "self" | "super") {
-            let abs = self.abs(self.scopes.len() - 1, segs, false, 0)?;
+            // A `crate`, `self`, or `super` head never follows an alias.
+            let abs = self.abs(self.scopes.len() - 1, segs, false, 0).ok()?;
             return Some(self.synthetic_root(abs, span));
         }
         let scope = self.scopes.len().checked_sub(1)?;
@@ -749,7 +766,9 @@ impl<'a> Lowerer<'a> {
                 if self.scopes[i].block {
                     return None;
                 }
-                let abs = self.abs(scope, segs, false, 0)?;
+                // The head names an inline module, not an alias, so this
+                // never reaches the hop cap.
+                let abs = self.abs(scope, segs, false, 0).ok()?;
                 Some(self.synthetic_root(abs, span))
             }
             Some((Name::Item, _)) | Some((Name::Const(_), _)) => None,
@@ -1101,8 +1120,15 @@ impl<'a> Lowerer<'a> {
         for (path, leaf) in leaves {
             // The leaf binding itself is not visible while resolving its
             // own path (`use net::x` with `net` a sibling binding is fine).
-            let Some(abs) = self.abs_excluding(scope, &path, leading, &leaf) else {
-                continue;
+            let abs = match self.abs_excluding(scope, &path, leading, &leaf) {
+                Ok(abs) => abs,
+                Err(Unresolved::Untracked) => continue,
+                Err(Unresolved::HopCap) => {
+                    // Fail closed: the binding stays unresolved, so a call
+                    // through it would otherwise vanish without a trace.
+                    self.construct(ConstructKind::ResolutionLimit, u.span());
+                    continue;
+                }
             };
             let spec = abs.spec();
             match leaf {
@@ -1199,14 +1225,14 @@ impl<'a> Lowerer<'a> {
         path: &[String],
         leading: bool,
         leaf: &Leaf,
-    ) -> Option<Abs> {
+    ) -> Result<Abs, Unresolved> {
         if path.len() == 1
             && !leading
             && let Leaf::Name(n) = leaf
             && *n == path[0]
             && !matches!(path[0].as_str(), "crate" | "self" | "super")
         {
-            return Some(Abs {
+            return Ok(Abs {
                 base: Base::Extern(path[0].clone()),
                 segs: Vec::new(),
             });

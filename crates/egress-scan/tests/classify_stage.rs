@@ -216,6 +216,42 @@ fn exhausted_resolver_budget_is_listed_and_makes_the_account_incomplete() {
 }
 
 #[test]
+fn resolver_budget_exhausted_in_discovery_and_classification_is_listed_once() {
+    // Symlink resolution in discovery and alias resolution in classification
+    // charge the same budget; running out in both lists the reason once.
+    let t = Tree::new("classify-stage-resolver-twice");
+    t.file(
+        "app.py",
+        "import requests\ncall requests.post https://h.example/x\n",
+    );
+    t.file("a/b/c/real.py", "");
+    t.link("l.py", "a/b/c/real.py");
+    let budgets = Budgets {
+        resolver_steps: 0,
+        ..default_budgets()
+    };
+    let r = scan_with(&t.root, &options(budgets)).unwrap().report;
+    assert_eq!(
+        r.completeness.budget_exceeded,
+        vec![BudgetReason::ResolverSteps]
+    );
+    assert!(
+        r.blind_spots
+            .iter()
+            .any(|b| b.file == "l.py" && b.kind == BlindSpotKind::ResolutionLimit),
+        "{:?}",
+        r.blind_spots
+    );
+    assert!(
+        r.blind_spots
+            .iter()
+            .any(|b| b.file == "app.py" && b.kind == BlindSpotKind::ResolutionLimit),
+        "{:?}",
+        r.blind_spots
+    );
+}
+
+#[test]
 fn findings_budget_applies_after_classification() {
     let t = Tree::new("classify-stage-findings");
     t.file(
