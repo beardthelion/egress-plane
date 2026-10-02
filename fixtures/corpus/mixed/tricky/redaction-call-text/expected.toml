@@ -1,0 +1,33 @@
+state = "complete"
+exit_code = 0
+absent_text = ["PYPW1FAKE", "HUNTER3PWFAKE", "HUNTER2PWFAKE", "HUNTER6PWFAKE", "JSPW2FAKE"]
+
+[[sites]]
+file = "client.js"
+symbol = "call"
+mechanism = "javascript:https.request"
+destination = "expr:https.request({ hostname: h, headers: { Authorization: <redacted> } })"
+
+[[sites]]
+file = "db.py"
+symbol = "connect_first"
+mechanism = "python:psycopg2.connect"
+destination = "expr:psycopg2.connect(password=<redacted>, host=h)"
+
+[[sites]]
+file = "db.py"
+symbol = "connect_after_comma"
+mechanism = "python:psycopg2.connect"
+destination = "expr:psycopg2.connect(host=h,password=<redacted>)"
+
+[[sites]]
+file = "db.py"
+symbol = "post_tuple"
+mechanism = "python:requests.post"
+destination = "expr:requests.post(**kw, auth=<redacted>)"
+
+[[sites]]
+file = "db.py"
+symbol = "request_header"
+mechanism = "python:urllib.request.urlopen"
+destination = "expr:urllib.request.Request(u, headers={\"X-Api-Key\": <redacted>})"

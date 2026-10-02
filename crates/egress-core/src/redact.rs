@@ -84,7 +84,7 @@ pub fn rules() -> &'static Rules {
 struct Patterns {
     url: Regex,
     param: Regex,
-    dsn: Regex,
+    keyed: Regex,
 }
 
 fn patterns() -> &'static Patterns {
@@ -95,12 +95,14 @@ fn patterns() -> &'static Patterns {
         // A `key=value` pair after `?`, `&`, or `#`.
         param: Regex::new(r#"[?&#](?P<key>[^?&#=\s"'`]+)=(?P<value>[^?&#\s"'`]*)"#)
             .expect("param pattern"),
-        // A libpq keyword pair at the start of the text or after whitespace.
-        // An unterminated quote runs to the end of the text (fail closed).
-        dsn: Regex::new(
-            r#"(?:^|\s)(?P<key>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?P<value>'(?:[^'\\]|\\.)*'?|"(?:[^"\\]|\\.)*"?|\S+)"#,
+        // A keyed entry: a libpq or call keyword pair (`key=value`) or a
+        // dict or object entry (`key: value`, the key bare or quoted), at the
+        // start of the text or after whitespace, `(`, `[`, `{`, `,`, or `;`.
+        // The match ends where the value starts; see [`value_end`].
+        keyed: Regex::new(
+            r#"(?:^|[\s(\[{,;])["'`]?(?P<key>[A-Za-z_][A-Za-z0-9_-]*)["'`]?\s*(?P<sep>[=:])\s*"#,
         )
-        .expect("dsn pattern"),
+        .expect("keyed pattern"),
     })
 }
 
@@ -128,18 +130,99 @@ pub fn redact_with(rules: &Rules, text: &str) -> String {
             .collect();
         text = replace_spans(&text, spans);
     }
-    let spans = p
-        .dsn
-        .captures_iter(&text)
-        .filter(|c| key_matches(rules, &c["key"]))
-        .filter_map(|c| c.name("value").map(|m| (m.start(), m.end())))
-        .collect();
+    let spans = keyed_spans(&p.keyed, rules, &text);
     let text = replace_spans(&text, spans);
     let spans = token_spans(rules, &text);
     replace_spans(&text, spans)
 }
 
-/// Whether a parameter or DSN key is listed: ASCII case-insensitive, whole
+/// Value spans of keyed entries whose key is listed. A `==`, `=>`, or `::`
+/// after the key is a comparison, an arrow, or a path, not an entry.
+fn keyed_spans(keyed: &Regex, rules: &Rules, text: &str) -> Vec<(usize, usize)> {
+    let bytes = text.as_bytes();
+    let mut spans = Vec::new();
+    for c in keyed.captures_iter(text) {
+        let sep = c.name("sep").expect("sep group");
+        let follow = bytes.get(sep.end()).copied();
+        let not_entry = match sep.as_str() {
+            "=" => matches!(follow, Some(b'=' | b'>')),
+            _ => follow == Some(b':'),
+        };
+        if not_entry || !key_matches(rules, &c["key"]) {
+            continue;
+        }
+        let start = c.get(0).expect("whole match").end();
+        // An already redacted value stays as is, so redaction is idempotent.
+        if text[start..].starts_with(REDACTED) {
+            continue;
+        }
+        let end = value_end(bytes, start);
+        if end > start {
+            spans.push((start, end));
+        }
+    }
+    spans
+}
+
+/// The end of the value that starts at `start`. A quoted value runs through
+/// its closing quote, and a bracketed one (`(`, `[`, `{`) through its
+/// matching close, skipping quoted text inside; either one left open runs to
+/// the end of the text (fail closed). Any other value runs to the next
+/// whitespace.
+fn value_end(bytes: &[u8], start: usize) -> usize {
+    let Some(&first) = bytes.get(start) else {
+        return start;
+    };
+    match first {
+        b'\'' | b'"' | b'`' => quoted_end(bytes, start),
+        b'(' | b'[' | b'{' => {
+            let mut depth = 0usize;
+            let mut i = start;
+            while i < bytes.len() {
+                match bytes[i] {
+                    b'\'' | b'"' | b'`' => {
+                        i = quoted_end(bytes, i);
+                        continue;
+                    }
+                    b'(' | b'[' | b'{' => depth += 1,
+                    b')' | b']' | b'}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            return i + 1;
+                        }
+                    }
+                    _ => {}
+                }
+                i += 1;
+            }
+            bytes.len()
+        }
+        _ => {
+            let mut i = start;
+            while i < bytes.len() && !bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+            i
+        }
+    }
+}
+
+/// The end of the quoted run that starts at `start`, through its closing
+/// quote, or the end of the text when it is unterminated.
+fn quoted_end(bytes: &[u8], start: usize) -> usize {
+    let quote = bytes[start];
+    let mut i = start + 1;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\\' => i += 2,
+            b if b == quote => return i + 1,
+            _ => i += 1,
+        }
+    }
+    bytes.len()
+}
+
+/// Whether a parameter or keyed-entry key is listed: ASCII case-insensitive, whole
 /// or as a suffix, after percent-decoding.
 fn key_matches(rules: &Rules, key: &str) -> bool {
     let decoded = percent_decode(key).to_ascii_lowercase();
@@ -259,7 +342,12 @@ mod tests {
         let names: Vec<&str> = r.path_secrets.iter().map(|(n, _)| n.as_str()).collect();
         assert_eq!(
             names,
-            ["telegram-bot-token", "slack-webhook", "discord-webhook"]
+            [
+                "telegram-bot-token",
+                "slack-webhook",
+                "discord-webhook",
+                "authorization-scheme"
+            ]
         );
     }
 

@@ -17,16 +17,24 @@
 #   redacted (fail closed).
 # - Query and fragment parameters: the value of a `key=value` pair that
 #   follows `?`, `&`, or `#` is redacted when its key matches `keys`.
-# - Keyword DSNs (libpq style `host=db password=x`): the value of a
-#   `key=value` pair that starts the text or follows whitespace is redacted
-#   when its key matches `keys`. A quoted value is redacted through its
-#   closing quote; an unquoted one runs to the next whitespace.
+# - Keyed entries: the value of a `key=value` pair (libpq DSNs such as
+#   `host=db password=x`, call keywords such as `connect(password="x")`) or
+#   a `key: value` entry (dict and object entries, the key bare or quoted,
+#   such as `{"X-Api-Key": "x"}` or `{ Authorization: "Bearer x" }`) is
+#   redacted when its key matches `keys`. The key starts the text or follows
+#   whitespace, `(`, `[`, `{`, `,`, or `;`. A quoted value is redacted
+#   through its closing quote, a bracketed value (a tuple such as
+#   `auth=("user", "pw")`, a list, or an object) through its matching
+#   close; either one left open runs to the end of the text (fail closed).
+#   Any other value runs to the next whitespace. `==`, `=>`, and `::` after
+#   the key are a comparison, an arrow, and a path, not entries.
 # - Token runs: see `token_prefixes`.
 # - Provider path secrets: see `path_secrets`.
 
-# Keys whose values are redacted in query strings, fragments, and keyword
-# DSNs. Matching is ASCII case-insensitive, on the whole key or as a suffix
-# (`x_token` matches `token`). Percent-encoded keys are decoded first.
+# Keys whose values are redacted in query strings, fragments, and keyed
+# entries. Matching is ASCII case-insensitive, on the whole key or as a
+# suffix (`x_token` matches `token`, `X-Api-Key` matches `key`).
+# Percent-encoded keys are decoded first.
 keys = [
     "token",
     "key",
@@ -43,6 +51,7 @@ keys = [
     "client_secret",
     "credential",
     "session",
+    "authorization",
 ]
 
 # A token run starts at a token boundary (start of text, or a character that
@@ -65,7 +74,7 @@ token_prefixes = [
     "eyJ",
 ]
 
-# Provider path secrets. Each pattern is a Rust `regex` with one named group
+# Provider path secrets and other patterned secrets. Each pattern is a Rust `regex` with one named group
 # `secret`; the text that group matches becomes `<redacted>`. Secret
 # character classes exclude `{` and `}` so a symbolic template hole such as
 # `{env:SLACK_PATH}` stays readable, and exclude `<` and `>` so the rules are
@@ -88,3 +97,10 @@ pattern = '''(?i:hooks\.slack\.com)/services/(?P<secret>[^?#\s"'`{}<>]+)'''
 [[path_secrets]]
 name = "discord-webhook"
 pattern = '''/api/(?:v[0-9]+/)?webhooks/[0-9]+/(?P<secret>[^/?#\s"'`{}<>]+)'''
+
+# HTTP authorization schemes: the credential after `Bearer`, `bearer`, or
+# `Basic` (for example in a header string `"Authorization: Bearer x"`). The
+# scheme word is kept.
+[[path_secrets]]
+name = "authorization-scheme"
+pattern = '''(?:^|[^A-Za-z0-9_])(?:Bearer|bearer|Basic)\s+(?P<secret>[A-Za-z0-9._~+/=-]+)'''

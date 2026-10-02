@@ -329,3 +329,134 @@ fn redaction_is_idempotent() {
         assert_eq!(redact(&once), once, "{text}");
     }
 }
+
+#[test]
+fn keyword_after_call_punctuation_is_redacted() {
+    assert_eq!(
+        redact("psycopg2.connect(password=\"PYPW1\", host=h)"),
+        "psycopg2.connect(password=<redacted>, host=h)"
+    );
+    assert_eq!(
+        redact("psycopg2.connect(host=h,password=\"HUNTER3PW\")"),
+        "psycopg2.connect(host=h,password=<redacted>)"
+    );
+    assert_eq!(
+        redact("Server=db;Password=pw;Database=app"),
+        "Server=db;Password=<redacted>"
+    );
+    assert_eq!(redact("f({password='a b'})"), "f({password=<redacted>})");
+}
+
+#[test]
+fn bracketed_keyword_value_is_redacted_whole() {
+    assert_eq!(
+        redact("requests.post(**kw, auth=(\"admin\", \"HUNTER2PW\"))"),
+        "requests.post(**kw, auth=<redacted>)"
+    );
+    assert_eq!(
+        redact("f(auth=[get(\"u\"), \"PW)\"], page=2)"),
+        "f(auth=<redacted>, page=2)"
+    );
+    // An unterminated bracket runs to the end of the text (fail closed).
+    assert_eq!(redact("f(auth=(\"admin\", \"PW"), "f(auth=<redacted>");
+}
+
+#[test]
+fn colon_keyed_entry_is_redacted() {
+    assert_eq!(
+        redact("urllib.request.Request(u, headers={\"X-Api-Key\": \"HUNTER6PW\"})"),
+        "urllib.request.Request(u, headers={\"X-Api-Key\": <redacted>})"
+    );
+    assert_eq!(
+        redact("https.request({ hostname: h, headers: { Authorization: \"Bearer JSPW2\" } })"),
+        "https.request({ hostname: h, headers: { Authorization: <redacted> } })"
+    );
+    assert_eq!(
+        redact("f({'api-key': 'K1', 'x-apikey': `K2`})"),
+        "f({'api-key': <redacted>, 'x-apikey': <redacted>})"
+    );
+    assert_eq!(
+        redact("f({ secret: s, page: 2 })"),
+        "f({ secret: <redacted> page: 2 })"
+    );
+}
+
+#[test]
+fn authorization_scheme_token_is_redacted() {
+    assert_eq!(
+        redact("exec([\"curl\", \"-H\", \"Bearer abc.DEF-1\"])"),
+        "exec([\"curl\", \"-H\", \"Bearer <redacted>\"])"
+    );
+    assert_eq!(
+        redact("h.set(\"Basic dXNlcjpwYXNz\")"),
+        "h.set(\"Basic <redacted>\")"
+    );
+    assert_eq!(
+        redact("fetch(u, {headers: {Authorization: `bearer ${t}`}})"),
+        "fetch(u, {headers: {Authorization: <redacted>}})"
+    );
+}
+
+#[test]
+fn must_not_redact_unlisted_keys_or_non_assignments() {
+    for text in [
+        "psycopg2.connect(host=h, page=2, dbname=\"app\")",
+        "https.request({ hostname: h, path: \"/x\", port: 443 })",
+        "{\"host\": \"api.example.com\", \"page\": 2}",
+        "f(token == x)",
+        "f(a, token==x)",
+        "items.map((token) => fetch(u))",
+        "items.map(token => fetch(u))",
+        "reqwest::Client::new(auth::url())",
+        "f(Bearer {env:TOKEN})",
+        "\"Bearer \" + t",
+        "api.example.com:443",
+        "auth.example.com:443",
+        "https://h.example/x?page=2#frag",
+    ] {
+        assert_eq!(redact(text), text, "{text}");
+    }
+}
+
+#[test]
+fn expr_secrets_never_reach_output_or_identity() {
+    let sources = [
+        "psycopg2.connect(password=\"PYPW1\", host=h)",
+        "psycopg2.connect(host=h,password=\"HUNTER3PW\")",
+        "requests.post(**kw, auth=(\"admin\", \"HUNTER2PW\"))",
+        "urllib.request.Request(u, headers={\"X-Api-Key\": \"HUNTER6PW\"})",
+        "https.request({ hostname: h, headers: { Authorization: \"Bearer JSPW2\" } })",
+    ];
+    let secrets = ["PYPW1", "HUNTER3PW", "HUNTER2PW", "HUNTER6PW", "JSPW2"];
+    let sites = sources
+        .iter()
+        .enumerate()
+        .map(|(i, s)| common::site("a.py", "f", "python:requests.get", d::expr(s), i as u32 + 1))
+        .collect();
+    let mut r = common::report(sites, vec![]);
+    finalize(&mut r);
+    let json = to_json(&r);
+    for secret in secrets {
+        assert!(!json.contains(secret), "JSON holds {secret}");
+        for s in &r.sites {
+            assert!(
+                !contains(&site_key(s), secret),
+                "identity key holds {secret}"
+            );
+        }
+    }
+    common::validate(&json).unwrap();
+}
+
+#[test]
+fn call_text_redaction_is_idempotent() {
+    for text in [
+        "psycopg2.connect(password=\"PYPW1\", host=h)",
+        "requests.post(**kw, auth=(\"admin\", \"HUNTER2PW\"))",
+        "f({\"X-Api-Key\": \"K\", Authorization: \"Bearer T\"})",
+        "exec([\"curl\", \"-H\", \"Bearer abc\"])",
+    ] {
+        let once = redact(text);
+        assert_eq!(redact(&once), once, "{text}");
+    }
+}
