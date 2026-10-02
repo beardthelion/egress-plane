@@ -174,7 +174,7 @@ struct Scope {
     globals: HashSet<String>,
     nonlocals: HashSet<String>,
     /// Dotted `import a.b.c` names bound here, as full dotted strings.
-    dotted: Vec<String>,
+    dotted: HashSet<String>,
 }
 
 impl Scope {
@@ -188,7 +188,7 @@ impl Scope {
             bindings: HashMap::new(),
             globals: HashSet::new(),
             nonlocals: HashSet::new(),
-            dotted: Vec::new(),
+            dotted: HashSet::new(),
         }
     }
 }
@@ -245,6 +245,9 @@ struct Walker<'s> {
     /// Loader calls bound to a name by a plain assignment; they need no
     /// synthetic import binding.
     named_loaders: HashSet<u32>,
+    /// The loader call about to be visited as the base of a member chain;
+    /// the chain's own reference covers its module value.
+    chain_base: Option<(u32, u32)>,
 }
 
 fn key(r: TextRange) -> (u32, u32) {
@@ -329,6 +332,7 @@ impl<'s> Walker<'s> {
             future_annotations: false,
             in_annotation: 0,
             named_loaders: HashSet::new(),
+            chain_base: None,
         }
     }
 
@@ -620,16 +624,16 @@ impl<'s> Walker<'s> {
             if (s == self.cur || scope.kind != ScopeKind::Class)
                 && scope.bindings.contains_key(name)
             {
+                if scope.dotted.is_empty() {
+                    return None;
+                }
                 let mut best: Option<(String, usize)> = None;
-                for d in &scope.dotted {
-                    let parts: Vec<&str> = d.split('.').collect();
-                    let n = parts.len() - 1;
-                    if parts[0] == name
-                        && n <= members.len()
-                        && parts[1..].iter().zip(members).all(|(a, b)| *a == b)
-                        && best.as_ref().is_none_or(|(_, m)| n > *m)
-                    {
-                        best = Some((d.clone(), n));
+                let mut full = name.to_string();
+                for (i, m) in members.iter().enumerate() {
+                    full.push('.');
+                    full.push_str(m);
+                    if scope.dotted.contains(&full) {
+                        best = Some((full.clone(), i + 1));
                     }
                 }
                 return best;
@@ -774,7 +778,7 @@ impl<'s> Walker<'s> {
             return;
         }
         if let Base::Loader(c) = chain.base {
-            self.visit_call(c);
+            self.visit_chain_base(c);
         }
         let (root, members, _) = self.chain_root(chain);
         let bare_local =
@@ -1005,7 +1009,14 @@ impl<'s> Walker<'s> {
 
     // ---- calls ----------------------------------------------------------------------------
 
+    /// Visits a loader call that is the base of a member chain.
+    fn visit_chain_base(&mut self, c: &ExprCall) {
+        self.chain_base = Some(key(c.range()));
+        self.visit_call(c);
+    }
+
     fn visit_call(&mut self, c: &ExprCall) {
+        let chain_base = self.chain_base.take() == Some(key(c.range()));
         if !self.emit() {
             self.visit_expr(&c.func);
             for a in &c.arguments.args {
@@ -1020,7 +1031,7 @@ impl<'s> Walker<'s> {
         match self.chain_of(&c.func) {
             Some(chain) => {
                 if let Base::Loader(inner) = chain.base {
-                    self.visit_call(inner);
+                    self.visit_chain_base(inner);
                 }
                 let (root, members, base) = self.chain_root(&chain);
                 let mut r = self.reference(root, members, UseKind::Call, c.range());
@@ -1028,10 +1039,11 @@ impl<'s> Walker<'s> {
                 if self.reflective_builtin(&r.root, &r.members, base.as_ref()) {
                     // The target is the reflective access's receiver, not a
                     // value escape of its own.
-                    skip_target = matches!(
-                        c.arguments.args.first(),
-                        Some(Expr::Name(_) | Expr::Attribute(_))
-                    );
+                    skip_target = match c.arguments.args.first() {
+                        Some(Expr::Name(_) | Expr::Attribute(_)) => true,
+                        Some(Expr::Call(t)) => matches!(self.loader(t), Some(Loader::Import(_))),
+                        _ => false,
+                    };
                     let name = c.arguments.args.get(1);
                     match name.and_then(string_literal) {
                         Some(lit) => {
@@ -1080,6 +1092,24 @@ impl<'s> Walker<'s> {
                         location: self.lines.location(c.range().start().to_usize()),
                     };
                     self.ir.imports.push(imp);
+                    // The module value goes somewhere other than a name or
+                    // a member chain (a return, a lambda body, a tuple, a
+                    // ternary): a module used as a value, like a bare
+                    // imported name in `chain_value`.
+                    if !chain_base {
+                        let kind = if self.in_annotation > 0 {
+                            UseKind::TypePosition
+                        } else {
+                            UseKind::ValueEscape
+                        };
+                        let r = self.reference(
+                            Root::Import(self.text(c.range())),
+                            Vec::new(),
+                            kind,
+                            c.range(),
+                        );
+                        self.ir.references.push(r);
+                    }
                 }
             }
             Some(Loader::Dynamic) => self.ir.constructs.push(egress_core::ir::DynamicConstruct {
@@ -1096,9 +1126,15 @@ impl<'s> Walker<'s> {
                 if let Expr::Attribute(_) = arg
                     && let Some(chain) = self.chain_of(arg)
                 {
+                    if let Base::Loader(inner) = chain.base {
+                        self.visit_chain_base(inner);
+                    }
                     for a in &chain.attrs {
                         self.introspect(a);
                     }
+                }
+                if let Expr::Call(inner) = arg {
+                    self.visit_chain_base(inner);
                 }
                 continue;
             }
@@ -1155,7 +1191,7 @@ impl<'s> Walker<'s> {
                 match self.chain_of(target) {
                     Some(chain) => {
                         if let Base::Loader(c) = chain.base {
-                            self.visit_call(c);
+                            self.visit_chain_base(c);
                         }
                         let (root, members, _) = self.chain_root(&chain);
                         let sc = &self.scopes[self.cur];
@@ -1319,7 +1355,7 @@ impl<'s> Walker<'s> {
                 match self.chain_of(base) {
                     Some(chain) if self.emit() => {
                         if let Base::Loader(inner) = chain.base {
-                            self.visit_call(inner);
+                            self.visit_chain_base(inner);
                         }
                         let (root, members, _) = self.chain_root(&chain);
                         let r = self.reference(root, members, UseKind::BaseClass, base.range());
@@ -1442,8 +1478,8 @@ impl<'s> Walker<'s> {
                         let b = self.scopes[s].bindings.entry(local.clone()).or_default();
                         b.count += 1;
                         b.import = Some((spec.clone(), Vec::new()));
-                        if dotted && !self.scopes[s].dotted.contains(&full) {
-                            self.scopes[s].dotted.push(full.clone());
+                        if dotted {
+                            self.scopes[s].dotted.insert(full.clone());
                         }
                         continue;
                     }

@@ -667,3 +667,76 @@ fn ktd16_absolute_specifiers_probe_package_roots() {
     }
     assert_eq!(&p[..2], &[s("net/http.py"), s("net/http/__init__.py")]);
 }
+
+#[test]
+fn literal_loader_values_that_flow_elsewhere_escape() {
+    // A loader call whose module value is returned, called through a
+    // lambda, unpacked, iterated, or chosen by a ternary is a module used
+    // as a value, the same as `return socket` after `import socket`.
+    let cases = [
+        "import importlib\ndef f():\n    return importlib.import_module(\"subprocess\")\nf().run([\"x\"])\n",
+        "m = (lambda: __import__(\"socket\"))()\nm.create_connection((\"h\", 1))\n",
+        "m, n = __import__(\"subprocess\"), 1\nm.run([\"x\"])\n",
+        "for m in [__import__(\"subprocess\")]:\n    m.run([\"x\"])\n",
+        "m = __import__(\"socket\") if c else None\nm.create_connection((\"h\", 1))\n",
+    ];
+    for src in cases {
+        let report = scan(&[("a.py", src)]);
+        assert!(
+            !report.sites.is_empty() || !report.blind_spots.is_empty(),
+            "nothing reported for {src:?}: {report:?}"
+        );
+    }
+    let f = ir("def f():\n    return __import__(\"subprocess\")\n");
+    let r = one(&f, &imp("__import__(\"subprocess\")"), &[]);
+    assert_eq!(r.use_kind, UseKind::ValueEscape);
+    // A reflective access's target is its receiver, not an escape, for a
+    // loader call as for an imported name.
+    let report = scan(&[("a.py", "getattr(__import__(\"os\"), \"system\")(\"x\")\n")]);
+    assert_eq!(
+        sites(&report),
+        vec![pair(
+            "python:os.system",
+            "expr:getattr(__import__(\"os\"), \"system\")"
+        )]
+    );
+    assert!(report.blind_spots.is_empty(), "{:?}", report.blind_spots);
+    // A chain base and a named binding are not escapes of their own.
+    let g = ir("x = __import__(\"os\")\n__import__(\"os\").system(c)\n");
+    assert!(
+        refs(&g, &imp("__import__(\"os\")"), &[]).is_empty(),
+        "{:#?}",
+        g.references
+    );
+}
+
+#[test]
+fn many_dotted_imports_lower_in_near_linear_work() {
+    // Each `import a.bN` and each reference used to scan every dotted name
+    // bound in the scope. Doubling the input must not quadruple the time.
+    fn src(n: usize) -> String {
+        let mut s = String::new();
+        for i in 0..n {
+            s.push_str(&format!("import a.b{i}\n"));
+        }
+        for i in 0..n {
+            s.push_str(&format!("a.b{i}.f()\n"));
+        }
+        s
+    }
+    let time = |n: usize| {
+        let text = src(n);
+        let start = std::time::Instant::now();
+        let lowered = ir(&text);
+        let elapsed = start.elapsed();
+        assert_eq!(one(&lowered, &imp("a.b7"), &["f"]).use_kind, UseKind::Call);
+        elapsed
+    };
+    let small = time(2_000);
+    let large = time(8_000);
+    // Linear work gives a ratio near 4 and quadratic near 16.
+    assert!(
+        large < small * 10,
+        "2k dotted imports took {small:?}, 8k took {large:?}"
+    );
+}

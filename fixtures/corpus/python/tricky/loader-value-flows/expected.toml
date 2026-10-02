@@ -1,0 +1,17 @@
+state = "complete"
+exit_code = 0
+
+[[blind_spots]]
+file = "net.py"
+symbol = "<module>"
+kind = "module-escape"
+
+[[blind_spots]]
+file = "net.py"
+symbol = "pick"
+kind = "module-escape"
+
+[[blind_spots]]
+file = "plugins.py"
+symbol = "load"
+kind = "module-escape"
