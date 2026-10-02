@@ -402,3 +402,119 @@ fn must_not_cjs_exports_of_inert_or_first_party_modules() {
     assert!(r.sites.is_empty(), "{:?}", sites(&r));
     assert!(r.blind_spots.is_empty(), "{:?}", r.blind_spots);
 }
+
+#[test]
+fn literal_dynamic_imports_outside_an_await_declarator_are_not_silent() {
+    // A `.then` receiver and a returned import: the module value escapes.
+    for (path, src) in [
+        (
+            "a.mjs",
+            "import(\"child_process\").then(cp => cp.exec(\"x\"));\n",
+        ),
+        (
+            "a.js",
+            "export function f() { return import(\"child_process\"); }\n",
+        ),
+        (
+            "a.js",
+            "export async function f() { let cp; cp = await import(\"child_process\"); cp.exec(\"x\"); }\n",
+        ),
+    ] {
+        let r = scan(&[(path, src)]);
+        assert!(
+            sites(&r)
+                .iter()
+                .any(|(_, m, _)| m.starts_with("javascript:child_process")),
+            "{src}: {:?} {:?}",
+            sites(&r),
+            r.blind_spots
+        );
+    }
+    // A member call on an awaited import resolves to the member.
+    let r = scan(&[(
+        "a.js",
+        "export async function f() { return (await import(\"child_process\")).exec(\"x\"); }\n",
+    )]);
+    assert!(
+        sites(&r)
+            .iter()
+            .any(|(_, m, _)| m == "javascript:child_process.exec"),
+        "{:?} {:?}",
+        sites(&r),
+        r.blind_spots
+    );
+    // A member of an awaited import re-exported and called elsewhere.
+    let r = scan(&[
+        (
+            "lib.mjs",
+            "export const exec = (await import(\"child_process\")).exec;\n",
+        ),
+        (
+            "main.mjs",
+            "import { exec } from \"./lib.mjs\";\nexec(\"x\");\n",
+        ),
+    ]);
+    assert!(
+        sites(&r)
+            .iter()
+            .any(|(_, m, _)| m == "javascript:child_process.exec"),
+        "{:?} {:?}",
+        sites(&r),
+        r.blind_spots
+    );
+}
+
+#[test]
+fn must_not_discarded_or_inert_dynamic_imports() {
+    let r = scan(&[
+        (
+            "a.mjs",
+            "import(\"child_process\");\nawait import(\"./side.mjs\");\nimport(\"path\").then(p => p.join(\"a\", \"b\"));\n",
+        ),
+        ("side.mjs", "export const x = 1;\n"),
+    ]);
+    assert!(r.sites.is_empty(), "{:?}", sites(&r));
+    assert!(r.blind_spots.is_empty(), "{:?}", r.blind_spots);
+}
+
+#[test]
+fn require_through_wrapped_callees_is_a_loader() {
+    for src in [
+        "(0, require)(\"child_process\").exec(\"x\");\n",
+        "require.call(null, \"child_process\").exec(\"x\");\n",
+        "require.apply(null, [\"child_process\"]).exec(\"x\");\n",
+        "(true && require)(\"child_process\").exec(\"x\");\n",
+        "(c ? require : null)(\"child_process\").exec(\"x\");\n",
+        "const cp = (0, require)(\"child_process\");\ncp.exec(\"x\");\n",
+    ] {
+        let r = scan(&[("a.cjs", src)]);
+        assert_eq!(
+            sites(&r).into_iter().map(|(_, m, _)| m).collect::<Vec<_>>(),
+            vec!["javascript:child_process.exec".to_string()],
+            "{src}: {:?}",
+            r.blind_spots
+        );
+    }
+    // A non-literal or unreadable specifier through the same shapes, and a
+    // bound `require`, are dynamic-import blind spots.
+    for src in [
+        "(0, require)(m);\n",
+        "require.call(null, m);\n",
+        "require.apply(null, args);\n",
+        "require.bind(null)(\"child_process\");\n",
+        "(c || require)(m);\n",
+    ] {
+        let r = scan(&[("a.cjs", src)]);
+        assert_eq!(spots(&r), vec![p("a.cjs", "dynamic-import")], "{src}");
+    }
+}
+
+#[test]
+fn must_not_ordinary_require_member_reads() {
+    let r = scan(&[(
+        "a.cjs",
+        "if (typeof require !== \"undefined\" && require.main === module) {}\nconst p = require.resolve(\"./a.cjs\");\nconst c = require.cache;\n",
+    )]);
+    assert!(r.sites.is_empty(), "{:?}", sites(&r));
+    assert!(r.blind_spots.is_empty(), "{:?}", r.blind_spots);
+}

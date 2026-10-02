@@ -179,6 +179,15 @@ struct Loader {
     spec: Option<String>,
 }
 
+/// Where a loader call takes its specifier.
+enum SpecPos {
+    /// The argument at this index.
+    Arg(usize),
+    /// The first element of the array literal at this argument index
+    /// (`require.apply(this, [spec])`).
+    Array(usize),
+}
+
 struct Lowerer<'s, 'a> {
     text: &'a str,
     lines: LineIndex<'a>,
@@ -509,6 +518,15 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                     let spec = loader.spec?;
                     break Root::Import(self.synthetic_import(c, &spec));
                 }
+                // So does an awaited literal `import()`: its value is the
+                // module namespace.
+                Expression::AwaitExpression(a) => match a.argument.get_inner_expression() {
+                    Expression::ImportExpression(i) => {
+                        let spec = lit_str(&i.source)?;
+                        break Root::Import(self.import_expression_synthetic(i, &spec));
+                    }
+                    _ => return None,
+                },
                 _ => return None,
             }
         };
@@ -539,15 +557,17 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         local
     }
 
-    fn import_expression_synthetic(&mut self, i: &ImportExpression<'a>, spec: &str) {
+    /// Records the synthetic import for an unbound literal `import()` and
+    /// returns its local name.
+    fn import_expression_synthetic(&mut self, i: &ImportExpression<'a>, spec: &str) -> String {
+        let local = self
+            .src(i.span)
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
         if self.synthetic.insert(i.span.start) {
-            let local = self
-                .src(i.span)
-                .split_whitespace()
-                .collect::<Vec<_>>()
-                .join(" ");
             self.import(
-                Some(local),
+                Some(local.clone()),
                 spec,
                 Vec::new(),
                 false,
@@ -557,6 +577,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                 i.span,
             );
         }
+        local
     }
 
     /// Whether `e` names `createRequire` (imported, ambient, or a member).
@@ -569,12 +590,61 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         }
     }
 
-    /// Recognizes `require(...)` and its equivalents (KTD15).
+    /// Recognizes `require(...)` and its equivalents (KTD15), including a
+    /// loader reached through `(0, require)`, `c && require`,
+    /// `c ? require : x`, `require.call(this, spec)`, and
+    /// `require.apply(this, [spec])`.
     fn loader(&mut self, c: &CallExpression<'a>) -> Option<Loader> {
-        let callee = c.callee.get_inner_expression();
+        let pos = self.loader_callee(&c.callee, 0)?;
+        let arg = |i: usize| c.arguments.get(i).and_then(Argument::as_expression);
+        let spec = match pos {
+            SpecPos::Arg(i) => arg(i).and_then(lit_str),
+            SpecPos::Array(i) => match arg(i).map(Expression::get_inner_expression) {
+                Some(Expression::ArrayExpression(a)) => a
+                    .elements
+                    .first()
+                    .and_then(ArrayExpressionElement::as_expression)
+                    .and_then(lit_str),
+                _ => None,
+            },
+        };
+        Some(Loader { spec })
+    }
+
+    /// Where a loader callee takes its specifier, or `None` when `callee`
+    /// is not a loader. `shift` counts the `.call` layers already peeled.
+    fn loader_callee(&mut self, callee: &Expression<'a>, shift: usize) -> Option<SpecPos> {
+        let callee = callee.get_inner_expression();
         let is_loader = match callee {
             Expression::Identifier(id) => self.is_loader_ident(id),
+            // `require.bind(this, ...)(...)`: the bound arguments shift the
+            // specifier, so it is never read as a literal.
+            Expression::CallExpression(inner) if self.loader_method(&inner.callee, "bind") => {
+                return Some(SpecPos::Arg(usize::MAX));
+            }
             Expression::CallExpression(inner) => self.is_create_require(&inner.callee),
+            Expression::SequenceExpression(s) => {
+                return self.loader_callee(s.expressions.last()?, shift);
+            }
+            Expression::LogicalExpression(l) => {
+                return self
+                    .loader_callee(&l.right, shift)
+                    .or_else(|| self.loader_callee(&l.left, shift));
+            }
+            Expression::ConditionalExpression(x) => {
+                return self
+                    .loader_callee(&x.consequent, shift)
+                    .or_else(|| self.loader_callee(&x.alternate, shift));
+            }
+            Expression::StaticMemberExpression(m) if m.property.name.as_str() == "call" => {
+                return self.loader_callee(&m.object, shift + 1);
+            }
+            Expression::StaticMemberExpression(m) if m.property.name.as_str() == "apply" => {
+                return match self.loader_callee(&m.object, 0)? {
+                    SpecPos::Arg(0) => Some(SpecPos::Array(shift + 1)),
+                    _ => Some(SpecPos::Arg(usize::MAX)),
+                };
+            }
             _ => match self.static_chain_no_loader(callee) {
                 Some((Root::Ambient(r), m)) => {
                     let m: Vec<&str> = m.iter().map(String::as_str).collect();
@@ -596,15 +666,17 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                 _ => false,
             },
         };
-        if !is_loader {
-            return None;
+        is_loader.then_some(SpecPos::Arg(shift))
+    }
+
+    /// Whether `e` is `<loader>.<method>`, such as `require.bind`.
+    fn loader_method(&mut self, e: &Expression<'a>, method: &str) -> bool {
+        match e.get_inner_expression() {
+            Expression::StaticMemberExpression(m) => {
+                m.property.name.as_str() == method && self.loader_callee(&m.object, 0).is_some()
+            }
+            _ => false,
         }
-        let spec = c
-            .arguments
-            .first()
-            .and_then(Argument::as_expression)
-            .and_then(lit_str);
-        Some(Loader { spec })
     }
 
     /// [`Self::static_chain`] that does not look into loader calls, for
@@ -646,6 +718,15 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                     members.reverse();
                     let default = members.is_empty();
                     return Some((spec, members, default));
+                }
+                // `(await import("m")).f`: a member of the namespace.
+                Expression::AwaitExpression(a) => {
+                    let Expression::ImportExpression(i) = a.argument.get_inner_expression() else {
+                        return None;
+                    };
+                    let spec = lit_str(&i.source)?;
+                    members.reverse();
+                    return Some((spec, members, false));
                 }
                 _ => return None,
             }
@@ -1375,6 +1456,9 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                             default,
                             decl.span,
                         );
+                        if exported {
+                            self.re_export_last();
+                        }
                         continue;
                     }
                     if let Some(s) = sym {
@@ -1430,6 +1514,9 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                                 false,
                                 prop.span,
                             );
+                            if exported {
+                                self.re_export_last();
+                            }
                         }
                         if let Some(rest) = &p.rest
                             && let BindingPattern::BindingIdentifier(id) = &rest.argument
@@ -1444,6 +1531,9 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                                 true,
                                 rest.span,
                             );
+                            if exported {
+                                self.re_export_last();
+                            }
                         }
                         continue;
                     }
@@ -1489,6 +1579,17 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                 }
                 _ => self.expr(init, true),
             }
+        }
+    }
+
+    /// Re-exports the import just recorded under its own name, for
+    /// `export const x = require("m").f` and `await import("m")` forms.
+    fn re_export_last(&mut self) {
+        if let Some(imp) = self.ir.imports.last().cloned() {
+            self.ir.imports.push(ir::Import {
+                re_export: true,
+                ..imp
+            });
         }
     }
 
@@ -1912,7 +2013,23 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             }
             Expression::ImportExpression(i) => {
                 match lit_str(&i.source) {
-                    Some(spec) => self.import_expression_synthetic(i, &spec),
+                    Some(spec) => {
+                        let local = self.import_expression_synthetic(i, &spec);
+                        // A loaded module whose value flows (returned,
+                        // assigned, passed, or a `.then` receiver) escapes,
+                        // as for a literal `require()` (KTD5).
+                        if flow {
+                            let r = self.reference(
+                                Root::Import(local),
+                                Vec::new(),
+                                UseKind::ValueEscape,
+                                Vec::new(),
+                                None,
+                                i.span,
+                            );
+                            self.emit(r);
+                        }
+                    }
                     None => {
                         self.construct(ConstructKind::DynamicImport, i.span);
                         self.expr(&i.source, true);
@@ -2094,6 +2211,15 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             self.expr(key, false);
             return;
         }
+        // `require.call` and the like read as values are loaders too.
+        if flow
+            && ["call", "apply", "bind"]
+                .iter()
+                .any(|m| self.loader_method(e, m))
+        {
+            self.construct(ConstructKind::RequireAsValue, text);
+            return;
+        }
         match self.static_chain(e) {
             Some((root, members)) => {
                 if flow && !matches!(root, Root::Param(_) | Root::Expression) {
@@ -2104,7 +2230,11 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             }
             None => {
                 if let Some(obj) = Self::member_object(e) {
-                    self.expr(obj, false);
+                    // A member of an `import()` promise (`.then`) reads
+                    // the module value.
+                    let import =
+                        matches!(obj.get_inner_expression(), Expression::ImportExpression(_));
+                    self.expr(obj, import);
                 }
             }
         }
@@ -2168,9 +2298,22 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                     }
                 }
             }
+            // A wrapped loader callee (`(f(), require)`, `c && require`)
+            // can hold uses of its own; `require` itself reads as a test.
+            match c.callee.get_inner_expression() {
+                Expression::Identifier(_) => {}
+                Expression::CallExpression(inner) => self.args(&inner.arguments),
+                other => self.expr(other, false),
+            }
             return;
         }
         let callee = c.callee.get_inner_expression();
+        // `require.bind(this)` makes a loader whose calls are not followed.
+        if self.loader_method(callee, "bind") {
+            self.construct(ConstructKind::RequireAsValue, c.span);
+            self.args(&c.arguments);
+            return;
+        }
         if self.ctor_chain_call(callee) {
             self.construct(ConstructKind::ConstructorChain, c.span);
             if let Some(obj) = Self::member_object(callee) {

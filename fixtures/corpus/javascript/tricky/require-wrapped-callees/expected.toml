@@ -1,0 +1,31 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "net.cjs"
+symbol = "seq"
+mechanism = "javascript:https.get"
+destination = "https://api.example.com/seq"
+
+[[sites]]
+file = "net.cjs"
+symbol = "viaCall"
+mechanism = "javascript:https.get"
+destination = "https://api.example.com/call"
+
+[[sites]]
+file = "net.cjs"
+symbol = "viaApply"
+mechanism = "javascript:https.get"
+destination = "https://api.example.com/apply"
+
+[[sites]]
+file = "net.cjs"
+symbol = "viaLogical"
+mechanism = "javascript:https.get"
+destination = "https://api.example.com/logical"
+
+[[blind_spots]]
+file = "net.cjs"
+symbol = "viaBind"
+kind = "dynamic-import"

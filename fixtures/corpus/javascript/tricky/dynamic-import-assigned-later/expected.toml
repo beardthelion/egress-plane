@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "run.js"
+symbol = "run"
+mechanism = "javascript:https"
+destination = 'expr:import("https")'
