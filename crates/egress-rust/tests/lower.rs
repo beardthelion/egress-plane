@@ -67,7 +67,10 @@ fn scan(files: &[(&str, &str)]) -> Classified {
 }
 
 fn sites<'a>(c: &'a Classified, mechanism: &str) -> Vec<&'a Site> {
-    c.sites.iter().filter(|s| s.mechanism == mechanism).collect()
+    c.sites
+        .iter()
+        .filter(|s| s.mechanism == mechanism)
+        .collect()
 }
 
 fn has_site(c: &Classified, file: &str, symbol: &str, mechanism: &str, destination: &str) -> bool {
@@ -150,7 +153,13 @@ fn command_new_yields_exec_destination() {
         ),
     ]);
     assert!(
-        has_site(&c, "src/lib.rs", "up", "rust:std::process::Command::new", "exec:curl"),
+        has_site(
+            &c,
+            "src/lib.rs",
+            "up",
+            "rust:std::process::Command::new",
+            "exec:curl"
+        ),
         "{}",
         dump(&c)
     );
@@ -166,7 +175,13 @@ fn glob_import_is_an_escape_site_and_names_resolve_through_it() {
         ),
     ]);
     assert!(
-        has_site(&c, "src/lib.rs", "<module>", "rust:std::net", "expr:std::net"),
+        has_site(
+            &c,
+            "src/lib.rs",
+            "<module>",
+            "rust:std::net",
+            "expr:std::net"
+        ),
         "{}",
         dump(&c)
     );
@@ -218,7 +233,13 @@ fn glob_from_inline_module_and_super_glob_resolve() {
         ),
     ]);
     assert!(
-        has_site(&c, "src/lib.rs", "f", "rust:std::process::Command::new", "exec:ssh"),
+        has_site(
+            &c,
+            "src/lib.rs",
+            "f",
+            "rust:std::process::Command::new",
+            "exec:ssh"
+        ),
         "{}",
         dump(&c)
     );
@@ -276,7 +297,10 @@ fn sibling_workspace_crate_resolves_to_first_party_source() {
             "crates/acme-net/Cargo.toml",
             "[package]\nname = \"acme-net\"\nversion = \"0.1.0\"\n",
         ),
-        ("crates/acme-net/src/lib.rs", "pub use std::net::TcpStream;\n"),
+        (
+            "crates/acme-net/src/lib.rs",
+            "pub use std::net::TcpStream;\n",
+        ),
         (
             "crates/app/Cargo.toml",
             "[package]\nname = \"app\"\nversion = \"0.1.0\"\n\n[dependencies]\nacme-net = { path = \"../acme-net\" }\n",
@@ -366,7 +390,13 @@ fn env_var_read_through_unwrap_is_symbolic() {
         ),
     ]);
     assert!(
-        has_site(&c, "src/lib.rs", "f", "rust:reqwest::blocking::get", "env:API_URL"),
+        has_site(
+            &c,
+            "src/lib.rs",
+            "f",
+            "rust:reqwest::blocking::get",
+            "env:API_URL"
+        ),
         "{}",
         dump(&c)
     );
@@ -593,10 +623,15 @@ fn type_positions_bounds_return_types_and_ufcs_paths_are_references() {
         ir.references.iter().any(|r| {
             r.symbol == symbol
                 && r.use_kind == kind
-                && (matches!(&r.root, Root::Import(l) if l == name) || r.members.iter().any(|m| m == name))
+                && (matches!(&r.root, Root::Import(l) if l == name)
+                    || r.members.iter().any(|m| m == name))
         })
     };
-    assert!(named("TcpStream", "a", UseKind::TypePosition), "{:#?}", ir.references);
+    assert!(
+        named("TcpStream", "a", UseKind::TypePosition),
+        "{:#?}",
+        ir.references
+    );
     assert!(
         ir.references.iter().any(|r| r.symbol == "b"
             && r.use_kind == UseKind::Call
@@ -605,9 +640,21 @@ fn type_positions_bounds_return_types_and_ufcs_paths_are_references() {
         "{:#?}",
         ir.references
     );
-    assert!(named("ToSocketAddrs", "c", UseKind::TypePosition), "{:#?}", ir.references);
-    assert!(named("UdpSocket", "d", UseKind::TypePosition), "{:#?}", ir.references);
-    assert!(named("TcpStream", "e", UseKind::TypePosition), "{:#?}", ir.references);
+    assert!(
+        named("ToSocketAddrs", "c", UseKind::TypePosition),
+        "{:#?}",
+        ir.references
+    );
+    assert!(
+        named("UdpSocket", "d", UseKind::TypePosition),
+        "{:#?}",
+        ir.references
+    );
+    assert!(
+        named("TcpStream", "e", UseKind::TypePosition),
+        "{:#?}",
+        ir.references
+    );
     assert!(
         ir.references.iter().any(|r| r.symbol == "e"
             && r.use_kind == UseKind::Call
@@ -731,7 +778,11 @@ fn native_code_and_non_literal_includes_are_blind_spots() {
         ),
     ]);
     let d = dump(&c);
-    assert_eq!(blind(&c, "src/lib.rs", BlindSpotKind::NativeCode) >= 3, true, "{d}");
+    assert_eq!(
+        blind(&c, "src/lib.rs", BlindSpotKind::NativeCode) >= 3,
+        true,
+        "{d}"
+    );
     assert_eq!(blind(&c, "src/lib.rs", BlindSpotKind::MacroCode), 1, "{d}");
 }
 
@@ -798,7 +849,8 @@ fn files_lowered_in_sequence_on_one_thread_report_their_own_lines() {
     std::thread::Builder::new()
         .stack_size(64 * 1024 * 1024)
         .spawn(|| {
-            let first = "\n\n\n\n\n\nuse std::process::Command;\nfn a() { let _ = Command::new(\"a\"); }\n";
+            let first =
+                "\n\n\n\n\n\nuse std::process::Command;\nfn a() { let _ = Command::new(\"a\"); }\n";
             let second = "use std::process::Command;\nfn b() { let _ = Command::new(\"b\"); }\n";
             let ir1 = lower(b"src/a.rs", first).expect("first");
             let ir2 = lower(b"src/b.rs", second).expect("second");
@@ -838,7 +890,11 @@ fn columns_count_unicode_scalar_values() {
 #[test]
 fn nesting_at_the_prescan_cap_lowers_and_beyond_it_is_refused_first() {
     let depth = egress_core::prescan::MAX_DEPTH;
-    let ok = format!("fn f() {{ let _ = {}1{}; }}\n", "(".repeat(depth - 2), ")".repeat(depth - 2));
+    let ok = format!(
+        "fn f() {{ let _ = {}1{}; }}\n",
+        "(".repeat(depth - 2),
+        ")".repeat(depth - 2)
+    );
     assert!(!egress_core::prescan::too_deep(Language::Rust, &ok));
     let deep = format!(
         "fn f() {{ let _ = {}1{}; }}\n",

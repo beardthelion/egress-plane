@@ -72,6 +72,17 @@ pub struct CargoManifest {
     /// In-root paths of `[lib]`, `[[bin]]`, `[[example]]`, `[[test]]`, and
     /// `[[bench]]` targets.
     pub targets: Vec<Vec<u8>>,
+    /// The in-root `[lib] path`, when declared.
+    pub lib_path: Option<Vec<u8>>,
+    /// The `[lib] name`, when declared.
+    pub lib_name: Option<String>,
+    /// Dependency keys renamed with `package = "..."`, as (key, package),
+    /// from every dependency table of the package (KTD16).
+    pub renames: Vec<(String, String)>,
+    /// Dependency keys declared with `workspace = true`.
+    pub inherited: Vec<String>,
+    /// Renames declared in `[workspace.dependencies]`, as (key, package).
+    pub workspace_renames: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -230,12 +241,65 @@ fn cargo(path: &[u8], text: &str, refs: &mut Refs<'_>) -> Result<CargoManifest, 
             .any(|k| l.get(*k).and_then(toml::Value::as_bool) == Some(true))
     });
     let mut targets = Vec::new();
+    let mut lib_path = None;
     if let Some(p) = lib
         .and_then(|l| l.get("path"))
         .and_then(toml::Value::as_str)
     {
-        targets.extend(refs.add("lib.path", p));
+        lib_path = refs.add("lib.path", p);
+        targets.extend(lib_path.clone());
     }
+    let lib_name = lib
+        .and_then(|l| l.get("name"))
+        .and_then(toml::Value::as_str)
+        .map(str::to_string);
+    let mut renames = Vec::new();
+    let mut inherited = Vec::new();
+    let mut tables: Vec<&toml::Table> = ["dependencies", "dev-dependencies", "build-dependencies"]
+        .iter()
+        .filter_map(|k| t.get(*k).and_then(toml::Value::as_table))
+        .collect();
+    for target in t
+        .get("target")
+        .and_then(toml::Value::as_table)
+        .into_iter()
+        .flat_map(|x| x.values())
+        .filter_map(toml::Value::as_table)
+    {
+        tables.extend(
+            ["dependencies", "dev-dependencies", "build-dependencies"]
+                .iter()
+                .filter_map(|k| target.get(*k).and_then(toml::Value::as_table)),
+        );
+    }
+    let rename_of = |v: &toml::Value| {
+        v.as_table()
+            .and_then(|d| d.get("package"))
+            .and_then(toml::Value::as_str)
+            .map(str::to_string)
+    };
+    for table in tables {
+        for (key, v) in table {
+            if let Some(p) = rename_of(v) {
+                renames.push((key.clone(), p));
+            }
+            if v.as_table()
+                .and_then(|d| d.get("workspace"))
+                .and_then(toml::Value::as_bool)
+                == Some(true)
+            {
+                inherited.push(key.clone());
+            }
+        }
+    }
+    let workspace_renames = t
+        .get("workspace")
+        .and_then(|w| w.get("dependencies"))
+        .and_then(toml::Value::as_table)
+        .into_iter()
+        .flatten()
+        .filter_map(|(k, v)| rename_of(v).map(|p| (k.clone(), p)))
+        .collect();
     for (key, label) in [
         ("bin", "bin.path"),
         ("example", "example.path"),
@@ -263,6 +327,11 @@ fn cargo(path: &[u8], text: &str, refs: &mut Refs<'_>) -> Result<CargoManifest, 
         build,
         proc_macro,
         targets,
+        lib_path,
+        lib_name,
+        renames,
+        inherited,
+        workspace_renames,
     })
 }
 
