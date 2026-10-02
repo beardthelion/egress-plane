@@ -139,3 +139,75 @@ fn default_budgets_are_not_exhausted_on_the_corpus() {
     }
     assert!(checked > 100);
 }
+
+fn steps(resolver_steps: u64) -> Config {
+    let text = format!(
+        "files = 100\nbytes = 100000\nfindings = 1000\nresolver_steps = {resolver_steps}\n"
+    );
+    Config {
+        budgets: Budgets::parse(&text).unwrap(),
+        ..Config::default()
+    }
+}
+
+fn link_tree(name: &str) -> Tree {
+    let t = Tree::new(name);
+    t.file("a/b/c/d/e/real.py", "x = 1\n")
+        .link("l1.py", "a/b/c/d/e/real.py")
+        .link("l2.py", "a/b/c/d/e/real.py")
+        .link("l3", "a/b/c/d/e");
+    t
+}
+
+#[test]
+fn symlink_resolution_is_charged_against_the_resolver_budget() {
+    let t = link_tree("budget-links-ok");
+    let d = discover(&t.root, &steps(1000)).unwrap();
+    assert!(d.budget_exceeded.is_empty());
+    assert!(d.blind_spots.is_empty());
+    assert_eq!(d.excluded.len(), 3);
+
+    // Resolving l1.py alone takes more than three steps (a readlink and six
+    // components), so every link becomes a gap once the budget runs out.
+    let t = link_tree("budget-links-cut");
+    let d = discover(&t.root, &steps(3)).unwrap();
+    assert_eq!(d.budget_exceeded, vec![BudgetReason::ResolverSteps]);
+    let mut spots: Vec<_> = d
+        .blind_spots
+        .iter()
+        .map(|b| (b.file.as_str(), b.kind, b.coverage_gap))
+        .collect();
+    spots.sort();
+    assert_eq!(
+        spots,
+        vec![
+            ("l1.py", BlindSpotKind::ResolutionLimit, true),
+            ("l2.py", BlindSpotKind::ResolutionLimit, true),
+            ("l3", BlindSpotKind::ResolutionLimit, true),
+        ]
+    );
+    assert!(d.excluded.is_empty());
+    // The real file is still scanned.
+    assert_eq!(d.sources.len(), 1);
+}
+
+#[test]
+fn deep_self_referencing_links_are_bounded_by_the_budget() {
+    // A link that climbs out of a deep chain and back down to itself costs
+    // a full splice per hop; the budget cuts it off deterministically.
+    let t = Tree::new("budget-deep");
+    let depth = 60;
+    let chain = "a/".repeat(depth);
+    t.dir(&chain);
+    let target = format!("{}{}x", "../".repeat(depth), chain);
+    t.link(&format!("{chain}x"), &target);
+    t.file("m.py", "");
+    t.link("l.py", format!("{chain}x"));
+    let d = discover(&t.root, &steps(500)).unwrap();
+    assert_eq!(d.budget_exceeded, vec![BudgetReason::ResolverSteps]);
+    assert!(
+        d.blind_spots
+            .iter()
+            .any(|b| b.kind == BlindSpotKind::ResolutionLimit && b.coverage_gap)
+    );
+}

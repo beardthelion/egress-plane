@@ -509,3 +509,122 @@ fn unsearchable_directory_is_an_unreadable_gap_not_a_tool_error() {
     );
     assert!(d.blind_spots[0].coverage_gap);
 }
+
+#[test]
+fn source_named_link_to_a_file_not_scanned_as_that_language_is_a_gap() {
+    let t = Tree::new("alias-kind");
+    t.file("payload.txt", "import subprocess\nsubprocess.run(['x'])\n")
+        .file("payload", "import socket\n")
+        .file("payload.dat", "require('child_process').exec('x')\n")
+        .file("lib.js", "fetch('https://x')\n")
+        .file("real.py", "")
+        .file("tool", "#!/usr/bin/env python3\n")
+        .dir("pkg")
+        .link("net.py", "payload.txt")
+        .link("bare.py", "payload")
+        .link("net.js", "payload.dat")
+        .link("cross.py", "lib.js")
+        .link("alias.py", "real.py")
+        .link("stub.pyi", "real.py")
+        .link("script.py", "tool")
+        .link("pkg.py", "pkg")
+        .link("data.txt", "payload.dat");
+    let d = run(&t);
+    assert_eq!(
+        spots(&d),
+        vec![
+            ("bare.py".into(), BlindSpotKind::LoadedAsCode),
+            ("cross.py".into(), BlindSpotKind::LoadedAsCode),
+            ("net.js".into(), BlindSpotKind::LoadedAsCode),
+            ("net.py".into(), BlindSpotKind::LoadedAsCode),
+        ]
+    );
+    for b in &d.blind_spots {
+        assert!(b.coverage_gap && b.whole_file, "{b:?}");
+    }
+    assert_eq!(
+        d.blind_spots
+            .iter()
+            .find(|b| b.file == "net.js")
+            .unwrap()
+            .language,
+        Some(Language::Javascript)
+    );
+    // Links whose target is scanned under the same language stay aliases.
+    assert_eq!(
+        excluded(&d),
+        vec![
+            ("alias.py".into(), ExcludedReason::SymlinkAlias),
+            ("data.txt".into(), ExcludedReason::SymlinkAlias),
+            ("pkg.py".into(), ExcludedReason::SymlinkAlias),
+            ("script.py".into(), ExcludedReason::SymlinkAlias),
+            ("stub.pyi".into(), ExcludedReason::SymlinkAlias),
+        ]
+    );
+    assert_eq!(d.coverage.python.skipped, 3);
+    assert_eq!(d.coverage.javascript.skipped, 1);
+}
+
+#[test]
+fn unlistable_subtree_in_an_unconfirmed_exclusion_is_a_gap() {
+    if privileged() {
+        return;
+    }
+    let t = Tree::new("unc-unlistable");
+    t.file("app.py", "")
+        .file("unc/CACHEDIR.TAG", "x")
+        .file("unc/deep/z.py", "")
+        .file("nm/node_modules/p/q/h.js", "")
+        .file("whole/node_modules/x.js", "");
+    t.chmod("unc/deep", 0o000)
+        .chmod("nm/node_modules/p/q", 0o000)
+        .chmod("whole/node_modules", 0o000);
+    let d = run(&t);
+    assert_eq!(
+        spots(&d),
+        vec![
+            (
+                "nm/node_modules".into(),
+                BlindSpotKind::UnconfirmedExclusion
+            ),
+            ("unc".into(), BlindSpotKind::UnconfirmedExclusion),
+            (
+                "whole/node_modules".into(),
+                BlindSpotKind::UnconfirmedExclusion
+            ),
+        ]
+    );
+    assert!(d.blind_spots.iter().all(|b| b.coverage_gap));
+}
+
+#[test]
+fn unconfirmed_exclusion_with_unlistable_entries_is_a_gap() {
+    if privileged() {
+        return;
+    }
+    // Readable but not searchable: the names list, but no entry can be
+    // `lstat`ed, so the directory cannot be shown to hold no source.
+    let t = Tree::new("unc-nosearch");
+    t.file("app.py", "")
+        .file("unc/CACHEDIR.TAG", "x")
+        .file("unc/deep/z.py", "");
+    t.chmod("unc/deep", 0o444);
+    let d = run(&t);
+    assert_eq!(
+        spots(&d),
+        vec![("unc".into(), BlindSpotKind::UnconfirmedExclusion)]
+    );
+}
+
+#[test]
+fn directory_whose_entries_cannot_be_statted_is_an_unreadable_gap() {
+    if privileged() {
+        return;
+    }
+    let t = Tree::new("nosearch");
+    t.file("ok.py", "").file("half/hidden.py", "");
+    t.chmod("half", 0o444);
+    let d = run(&t);
+    assert_eq!(spots(&d), vec![("half".into(), BlindSpotKind::Unreadable)]);
+    assert!(d.blind_spots[0].coverage_gap);
+}

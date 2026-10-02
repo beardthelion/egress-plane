@@ -1,0 +1,7 @@
+state = "incomplete"
+exit_code = 2
+
+[[blind_spots]]
+file = "net.py"
+symbol = "<module>"
+kind = "loaded-as-code"

@@ -14,5 +14,8 @@ files = 500000
 bytes = 2147483648
 # Sites, blind spots, and unscanned dependencies kept in the report.
 findings = 1000000
-# Alias-resolution steps across the whole scan.
+# Alias-resolution steps across the whole scan. Discovery charges symlink
+# resolution (each readlink and path component, links in byte-wise path order)
+# against this same limit with its own count; a link left unresolved when it
+# runs out is a `resolution-limit` blind spot.
 resolver_steps = 100000000

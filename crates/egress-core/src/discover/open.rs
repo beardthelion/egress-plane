@@ -46,6 +46,31 @@ pub enum ReadError {
     Unreadable,
 }
 
+/// A directory reached from the root through real directories only, so a
+/// walk can step one component at a time without reopening every ancestor.
+#[derive(Debug)]
+pub struct DirHandle(OwnedFd);
+
+fn readlinkat(dir: libc::c_int, name: &CStr) -> io::Result<Vec<u8>> {
+    let mut buf = vec![0u8; 4096];
+    loop {
+        // SAFETY: `buf` is valid for `buf.len()` bytes.
+        let n = unsafe { libc::readlinkat(dir, name.as_ptr(), buf.as_mut_ptr().cast(), buf.len()) };
+        if n < 0 {
+            return Err(io::Error::last_os_error());
+        }
+        let n = n as usize;
+        if n < buf.len() {
+            buf.truncate(n);
+            return Ok(buf);
+        }
+        if buf.len() >= 1 << 20 {
+            return Err(io::Error::from(io::ErrorKind::InvalidData));
+        }
+        buf.resize(buf.len() * 2, 0);
+    }
+}
+
 /// An open handle on the canonical scan root.
 #[derive(Debug)]
 pub struct RootDir {
@@ -199,31 +224,44 @@ impl RootDir {
 
     /// The target bytes of an in-root symlink.
     pub fn readlink(&self, rel: &[u8]) -> io::Result<Vec<u8>> {
-        self.with_parent(rel, |dir, name| {
-            let mut buf = vec![0u8; 4096];
-            loop {
-                // SAFETY: `buf` is valid for `buf.len()` bytes.
-                let n = unsafe {
-                    libc::readlinkat(dir, name.as_ptr(), buf.as_mut_ptr().cast(), buf.len())
-                };
-                if n < 0 {
-                    return Err(io::Error::last_os_error());
-                }
-                let n = n as usize;
-                if n < buf.len() {
-                    buf.truncate(n);
-                    return Ok(buf);
-                }
-                if buf.len() >= 1 << 20 {
-                    return Err(io::Error::from(io::ErrorKind::InvalidData));
-                }
-                buf.resize(buf.len() * 2, 0);
-            }
-        })
+        self.with_parent(rel, readlinkat)
+    }
+
+    fn at_parts<T>(
+        &self,
+        dir: Option<&DirHandle>,
+        name: &[u8],
+        f: impl FnOnce(libc::c_int, &CStr) -> io::Result<T>,
+    ) -> io::Result<T> {
+        if components(name)?.len() != 1 {
+            return Err(io::Error::from(io::ErrorKind::InvalidInput));
+        }
+        let fd = dir.map_or(self.fd.as_raw_fd(), |d| d.0.as_raw_fd());
+        f(fd, &cstr(name)?)
+    }
+
+    /// `lstat` of the single component `name` in `dir` (the root when
+    /// `None`), never following it.
+    pub fn lstat_at(&self, dir: Option<&DirHandle>, name: &[u8]) -> io::Result<Stat> {
+        self.at_parts(dir, name, fstatat_nofollow)
+    }
+
+    /// Opens the real directory `name` in `dir` (the root when `None`),
+    /// refusing a symlink.
+    pub fn open_dir_at(&self, dir: Option<&DirHandle>, name: &[u8]) -> io::Result<DirHandle> {
+        self.at_parts(dir, name, |fd, n| openat(fd, n, DIR_FLAGS).map(DirHandle))
+    }
+
+    /// The target bytes of the symlink `name` in `dir` (the root when
+    /// `None`).
+    pub fn readlink_at(&self, dir: Option<&DirHandle>, name: &[u8]) -> io::Result<Vec<u8>> {
+        self.at_parts(dir, name, readlinkat)
     }
 
     /// Lists a directory: each entry's name and `lstat` result, sorted by
-    /// name bytes. Entries that vanish while listing are skipped.
+    /// name bytes. Entries that vanish while listing are skipped; any other
+    /// `lstat` failure fails the whole listing, so an entry is never dropped
+    /// silently.
     pub fn list_dir(&self, rel: &[u8]) -> io::Result<Vec<(Vec<u8>, Stat)>> {
         let parts = components(rel)?;
         let fd = match self.open_dir_parts(&parts)? {
@@ -271,8 +309,10 @@ impl RootDir {
         names.sort();
         let mut out = Vec::with_capacity(names.len());
         for n in names {
-            if let Ok(st) = fstatat_nofollow(raw, &cstr(&n)?) {
-                out.push((n, st));
+            match fstatat_nofollow(raw, &cstr(&n)?) {
+                Ok(st) => out.push((n, st)),
+                Err(e) if e.raw_os_error() == Some(libc::ENOENT) => {}
+                Err(e) => return Err(e),
             }
         }
         Ok(out)

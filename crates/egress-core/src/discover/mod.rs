@@ -377,13 +377,15 @@ impl Walk<'_> {
         DirClass::Walk(Ok(entries))
     }
 
-    /// Whether an excluded directory holds any supported file name. Only
+    /// Whether an excluded directory may hide a supported file: true when a
+    /// supported file name is found or when any directory in it cannot be
+    /// listed, since an unlisted subtree cannot be shown to hold none. Only
     /// names are listed; nothing inside is opened or parsed.
-    fn holds_supported(&self, dir: &[u8]) -> bool {
+    fn may_hold_supported(&self, dir: &[u8]) -> bool {
         let mut stack = vec![dir.to_vec()];
         while let Some(d) = stack.pop() {
             let Ok(entries) = self.root.list_dir(&d) else {
-                continue;
+                return true;
             };
             for (name, st) in entries {
                 if st.kind == EntryType::Dir {
@@ -420,7 +422,7 @@ impl Walk<'_> {
                         DirClass::Walk(listing) => stack.push((child, listing)),
                         DirClass::Exclude(reason) => {
                             if reason != ExcludedReason::InstallOutput
-                                && self.holds_supported(&child)
+                                && self.may_hold_supported(&child)
                             {
                                 self.blind_spots.push(spot(
                                     &child,
@@ -551,34 +553,36 @@ pub fn discover(root: &Path, config: &Config) -> Result<Discovery, ToolError> {
         }
     }
 
+    // Links are resolved in byte-wise path order against one step budget, so
+    // which links the budget cuts is deterministic.
+    let mut steps = symlinks::Steps::new(config.budgets.resolver_steps);
     for link in std::mem::take(&mut w.links) {
-        match symlinks::resolve(&rootdir, &link) {
-            LinkTarget::Outside => {
-                let kind = kind_by_name(file_name(&link));
-                let lang = language_of(&link);
-                w.blind_spots.push(spot(
-                    &link,
-                    BlindSpotKind::SymlinkOutsideRoot,
-                    lang,
-                    true,
-                    "",
-                ));
-                match kind {
-                    Some(FileKind::Source(l)) => {
-                        languages.insert(l);
-                        counts_mut(&mut coverage, Some(l)).skipped += 1;
-                    }
-                    Some(FileKind::Unsupported) => counts_mut(&mut coverage, None).skipped += 1,
-                    _ => {}
+        // A gap on the link itself: its content is unknown or never scanned
+        // under the language its name claims.
+        let mut gap = |w: &mut Walk, kind: BlindSpotKind| {
+            let lang = language_of(&link);
+            w.blind_spots.push(spot(&link, kind, lang, true, ""));
+            match kind_by_name(file_name(&link)) {
+                Some(FileKind::Source(l)) => {
+                    languages.insert(l);
+                    counts_mut(&mut coverage, Some(l)).skipped += 1;
                 }
+                Some(FileKind::Unsupported) => counts_mut(&mut coverage, None).skipped += 1,
+                _ => {}
             }
+        };
+        match symlinks::resolve(&rootdir, &link, &mut steps) {
+            LinkTarget::Outside => gap(&mut w, BlindSpotKind::SymlinkOutsideRoot),
+            LinkTarget::Budget => gap(&mut w, BlindSpotKind::ResolutionLimit),
+            LinkTarget::Unresolved => gap(&mut w, BlindSpotKind::Unreadable),
             LinkTarget::Broken => w
                 .excluded
                 .push(excluded_entry(&link, ExcludedReason::BrokenSymlink)),
             LinkTarget::HopLimit => w
                 .excluded
                 .push(excluded_entry(&link, ExcludedReason::SymlinkHopLimit)),
-            LinkTarget::InRoot { path, .. } => {
+            LinkTarget::InRoot { path, kind } => {
+                let link_kind = kind_by_name(file_name(&link));
                 if w.excluded_dirs.iter().any(|d| within(&path, d)) {
                     w.blind_spots.push(spot(
                         &link,
@@ -587,6 +591,15 @@ pub fn discover(root: &Path, config: &Config) -> Result<Discovery, ToolError> {
                         true,
                         "",
                     ));
+                } else if let Some(FileKind::Source(l)) = link_kind
+                    && kind != EntryType::Dir
+                    && index.get(&path) != Some(&FileKind::Source(l))
+                {
+                    // The alias rule holds only when the target is scanned
+                    // as the same language under its own name. `net.py ->
+                    // payload.txt` would otherwise hide the payload.
+                    gap(&mut w, BlindSpotKind::LoadedAsCode);
+                    continue;
                 }
                 w.excluded
                     .push(excluded_entry(&link, ExcludedReason::SymlinkAlias));
@@ -727,7 +740,11 @@ pub fn discover(root: &Path, config: &Config) -> Result<Discovery, ToolError> {
         excluded_dirs: w.excluded_dirs,
         manifests,
         coverage,
-        budget_exceeded: charger.exhausted().into_iter().collect(),
+        budget_exceeded: charger
+            .exhausted()
+            .into_iter()
+            .chain(steps.exhausted().then_some(BudgetReason::ResolverSteps))
+            .collect(),
         languages,
         root: rootdir,
     })

