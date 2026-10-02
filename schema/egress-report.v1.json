@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://egress-plane.invalid/schema/egress-report.v1.json",
   "title": "egress-plane report, schema version 1",
-  "description": "Output of `egress-plane scan --json`. Additive optional fields keep schema_version 1; a removal, rename, or change of meaning bumps it. Consumers ignore unknown fields; this file is strict so the emitter cannot drift from it.",
+  "description": "Output of `egress-plane scan --format json`. Additive optional fields keep schema_version 1; a removal, rename, or change of meaning bumps it. Consumers ignore unknown fields; this file is strict so the emitter cannot drift from it.",
   "type": "object",
   "additionalProperties": false,
   "required": [

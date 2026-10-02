@@ -227,6 +227,21 @@ fn deleting_a_fixture_turns_the_fixture_guard_red() {
     }
 }
 
+/// A module used as a value is a site whose mechanism names the module
+/// itself (KTD5 escape rule): accepted when the data classifies that module
+/// as egress or lists an egress entry under it, as the escape rule requires.
+fn escaped_module(rt: &RuntimeData, mechanism: &str) -> bool {
+    let Some((_, name)) = mechanism.split_once(':') else {
+        return false;
+    };
+    rt.module(name)
+        .is_some_and(|m| m.class == ModuleClass::Egress)
+        || rt
+            .entries
+            .iter()
+            .any(|e| e.module == name && matches!(e.kind, EntryKind::Egress(_)))
+}
+
 #[test]
 fn every_corpus_mechanism_is_a_data_entry() {
     let d = data();
@@ -254,7 +269,7 @@ fn every_corpus_mechanism_is_a_data_entry() {
                     let m = s["mechanism"].as_str().unwrap_or_default();
                     let lang = Language::parse(m.split(':').next().unwrap_or_default())
                         .unwrap_or_else(|| panic!("{m}"));
-                    if d.runtime(lang).entry(m).is_none() {
+                    if d.runtime(lang).entry(m).is_none() && !escaped_module(d.runtime(lang), m) {
                         missing.push(format!("{m} ({})", p.display()));
                     }
                 }

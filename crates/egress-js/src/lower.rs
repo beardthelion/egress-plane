@@ -1833,11 +1833,11 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             | Expression::ComputedMemberExpression(_)
             | Expression::PrivateFieldExpression(_) => self.member(e, flow, e.span()),
             Expression::ChainExpression(c) => match &c.expression {
-                ChainElement::CallExpression(call) => self.call(call),
+                ChainElement::CallExpression(call) => self.call(call, flow),
                 ChainElement::TSNonNullExpression(x) => self.expr(&x.expression, flow),
                 _ => self.member(e, flow, e.span()),
             },
-            Expression::CallExpression(c) => self.call(c),
+            Expression::CallExpression(c) => self.call(c, flow),
             Expression::NewExpression(n) => self.new_expr(n),
             Expression::TaggedTemplateExpression(t) => {
                 match self.static_chain(&t.tag) {
@@ -2150,11 +2150,25 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         }
     }
 
-    fn call(&mut self, c: &CallExpression<'a>) {
+    fn call(&mut self, c: &CallExpression<'a>, flow: bool) {
         if let Some(l) = self.loader(c) {
             match l.spec {
                 Some(spec) => {
-                    self.synthetic_import(c, &spec);
+                    let local = self.synthetic_import(c, &spec);
+                    // A loaded module whose value flows (passed, stored,
+                    // returned, or exported through `module.exports`) is a
+                    // module used as a value: an escape (KTD5).
+                    if flow {
+                        let r = self.reference(
+                            Root::Import(local),
+                            Vec::new(),
+                            UseKind::ValueEscape,
+                            Vec::new(),
+                            None,
+                            c.span,
+                        );
+                        self.emit(r);
+                    }
                 }
                 None => {
                     self.construct(ConstructKind::DynamicImport, c.span);
@@ -2264,7 +2278,91 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             .then(|| t.to_string())
     }
 
+    /// The import a value re-exports when it is a static chain on an import
+    /// binding (`https`, `https.get`, `require("net")`): the binding's
+    /// import with the chain's members appended. A whole-module default
+    /// binding takes `default` first, as an ESM default import does.
+    fn re_export_of(&mut self, value: &Expression<'a>) -> Option<ir::Import> {
+        let (root, members) = self.static_chain(value)?;
+        let Root::Import(local) = root else {
+            return None;
+        };
+        let mut imp = self
+            .ir
+            .imports
+            .iter()
+            .rev()
+            .find(|i| !i.re_export && !i.star && i.local.as_deref() == Some(local.as_str()))
+            .cloned()?;
+        if !members.is_empty() {
+            if imp.default && imp.members.is_empty() {
+                imp.members.push("default".into());
+            }
+            imp.default = imp.members.first().is_some_and(|m| m == "default");
+            imp.members.extend(members);
+        }
+        Some(imp)
+    }
+
+    /// CommonJS exports at module level lowered as re-exports, so importers
+    /// resolve through them as through ESM `export ... from` (KTD5, KTD16):
+    /// `module.exports = X` re-exports `X` as `default`, and
+    /// `exports.n = X`, `module.exports.n = X`, and each literal key of
+    /// `module.exports = { n: X }` re-export `X` as `n`. The value is still
+    /// walked, so a module or egress member exported as a value keeps its
+    /// escape or value-use site.
+    fn cjs_exports(&mut self, target: &AssignmentTarget<'a>, value: &Expression<'a>) {
+        if self.symbol() != "<module>" {
+            return;
+        }
+        let text = self.src(target.span());
+        let push = |this: &mut Self, name: String, v: &Expression<'a>, span: oxc_span::Span| {
+            if let Some(imp) = this.re_export_of(v) {
+                this.ir.imports.push(ir::Import {
+                    local: Some(name),
+                    re_export: true,
+                    symbol: "<module>".into(),
+                    span: Self::span(span),
+                    location: this.loc(span),
+                    ..imp
+                });
+            }
+        };
+        if text == "module.exports" {
+            match value.get_inner_expression() {
+                Expression::ObjectExpression(o) => {
+                    for p in &o.properties {
+                        let ObjectPropertyKind::ObjectProperty(p) = p else {
+                            continue;
+                        };
+                        if p.method || p.kind != PropertyKind::Init {
+                            continue;
+                        }
+                        if let Some(k) = key_name(&p.key) {
+                            push(self, k, &p.value, p.span);
+                        }
+                    }
+                }
+                v => push(self, "default".into(), v, value.span()),
+            }
+            return;
+        }
+        let name = text
+            .strip_prefix("module.exports.")
+            .or_else(|| text.strip_prefix("exports."));
+        if let Some(n) = name
+            && !n.is_empty()
+            && n.chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+        {
+            push(self, n.to_string(), value, value.span());
+        }
+    }
+
     fn assign(&mut self, a: &AssignmentExpression<'a>) {
+        if a.operator == AssignmentOperator::Assign {
+            self.cjs_exports(&a.left, &a.right);
+        }
         let name = self.target_name(&a.left);
         self.expr_named(&a.right, true, name);
         match &a.left {

@@ -1,0 +1,20 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "lib.js"
+symbol = "<module>"
+mechanism = "javascript:https"
+destination = 'expr:require("https")'
+
+[[sites]]
+file = "main.js"
+symbol = "ping"
+mechanism = "javascript:https.get"
+destination = "https://api.example.com/ping"
+
+[[sites]]
+file = "main.js"
+symbol = "upload"
+mechanism = "javascript:https.request"
+destination = "https://api.example.com/upload"

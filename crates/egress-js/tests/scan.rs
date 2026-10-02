@@ -249,3 +249,156 @@ fn deeply_nested_and_unparsable_files_are_whole_file_blind_spots() {
         ]
     );
 }
+
+#[test]
+fn cjs_whole_module_export_escapes_and_re_exports() {
+    let r = scan(&[
+        ("lib.js", "module.exports = require(\"https\");\n"),
+        (
+            "main.js",
+            "const h = require(\"./lib\");\nh.get(\"https://x.example.com\");\nconst { request } = require(\"./lib\");\nrequest(\"https://y.example.com\");\n",
+        ),
+        (
+            "esm.mjs",
+            "import lib from \"./lib.js\";\nimport { get } from \"./lib.js\";\nlib.request(\"https://z.example.com\");\nget(\"https://w.example.com\");\n",
+        ),
+    ]);
+    assert_eq!(
+        sites(&r),
+        vec![
+            t("esm.mjs", "javascript:https.get", "https://w.example.com"),
+            t(
+                "esm.mjs",
+                "javascript:https.request",
+                "https://z.example.com"
+            ),
+            t("lib.js", "javascript:https", "expr:require(\"https\")"),
+            t("main.js", "javascript:https.get", "https://x.example.com"),
+            t(
+                "main.js",
+                "javascript:https.request",
+                "https://y.example.com"
+            ),
+        ]
+    );
+    assert!(r.blind_spots.is_empty(), "{:?}", r.blind_spots);
+}
+
+#[test]
+fn cjs_whole_module_export_of_a_bound_module_re_exports() {
+    let r = scan(&[
+        (
+            "lib.js",
+            "const https = require(\"https\");\nmodule.exports = https;\n",
+        ),
+        (
+            "main.js",
+            "const h = require(\"./lib\");\nh.get(\"https://x.example.com\");\n",
+        ),
+    ]);
+    assert_eq!(
+        sites(&r),
+        vec![
+            t("lib.js", "javascript:https", "expr:https"),
+            t("main.js", "javascript:https.get", "https://x.example.com"),
+        ]
+    );
+}
+
+#[test]
+fn cjs_named_exports_of_modules_escape_and_re_export() {
+    let r = scan(&[
+        (
+            "lib.js",
+            "exports.x = require(\"net\");\nmodule.exports.y = require(\"tls\");\n",
+        ),
+        (
+            "main.js",
+            "const h = require(\"./lib\");\nh.x.connect(80, \"a.example.com\");\nconst { y } = require(\"./lib\");\ny.connect(443, \"b.example.com\");\n",
+        ),
+    ]);
+    assert_eq!(
+        sites(&r),
+        vec![
+            t("lib.js", "javascript:net", "expr:require(\"net\")"),
+            t("lib.js", "javascript:tls", "expr:require(\"tls\")"),
+            t("main.js", "javascript:net.connect", "a.example.com:80"),
+            t("main.js", "javascript:tls.connect", "b.example.com:443"),
+        ]
+    );
+    assert!(r.blind_spots.is_empty(), "{:?}", r.blind_spots);
+}
+
+#[test]
+fn cjs_object_exports_re_export_members_and_modules() {
+    let r = scan(&[
+        (
+            "lib.js",
+            "const https = require(\"https\");\nmodule.exports = { get: https.get, net: require(\"net\"), https };\n",
+        ),
+        (
+            "main.js",
+            "const h = require(\"./lib\");\nh.get(\"https://x.example.com\");\nh.net.connect(80, \"a.example.com\");\nh.https.request(\"https://y.example.com\");\n",
+        ),
+    ]);
+    assert_eq!(
+        sites(&r),
+        vec![
+            t("lib.js", "javascript:https", "expr:https"),
+            t("lib.js", "javascript:https.get", "expr:https.get"),
+            t("lib.js", "javascript:net", "expr:require(\"net\")"),
+            t("main.js", "javascript:https.get", "https://x.example.com"),
+            t(
+                "main.js",
+                "javascript:https.request",
+                "https://y.example.com"
+            ),
+            t("main.js", "javascript:net.connect", "a.example.com:80"),
+        ]
+    );
+    assert!(r.blind_spots.is_empty(), "{:?}", r.blind_spots);
+}
+
+#[test]
+fn cjs_object_assign_of_a_module_escapes() {
+    let r = scan(&[(
+        "lib.js",
+        "Object.assign(module.exports, require(\"https\"));\n",
+    )]);
+    assert!(
+        sites(&r).contains(&t("lib.js", "javascript:https", "expr:require(\"https\")")),
+        "{:?}",
+        sites(&r)
+    );
+}
+
+#[test]
+fn a_literal_require_passed_as_a_value_escapes() {
+    let r = scan(&[("lib.js", "register(require(\"child_process\"));\n")]);
+    assert_eq!(
+        sites(&r),
+        vec![t(
+            "lib.js",
+            "javascript:child_process",
+            "expr:require(\"child_process\")"
+        )]
+    );
+}
+
+#[test]
+fn must_not_cjs_exports_of_inert_or_first_party_modules() {
+    let r = scan(&[
+        (
+            "lib.js",
+            "module.exports = require(\"path\");\nexports.u = require(\"./util\");\nexports.c = require(\"./config.json\");\nrequire(\"https\");\n",
+        ),
+        ("util.js", "exports.join = (a, b) => a + b;\n"),
+        ("config.json", "{}\n"),
+        (
+            "main.js",
+            "const h = require(\"./lib\");\nh.join(\"a\", \"b\");\nh.u.join(\"a\", \"b\");\n",
+        ),
+    ]);
+    assert!(r.sites.is_empty(), "{:?}", sites(&r));
+    assert!(r.blind_spots.is_empty(), "{:?}", r.blind_spots);
+}

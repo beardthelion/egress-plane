@@ -431,19 +431,28 @@ impl<'p, 'a> Resolver<'p, 'a> {
             return Ok(Binding::Inert);
         }
         let target = self.target(from, language, &import.specifier);
-        let members: Vec<String> = if import.default && import.members == ["default"] {
-            Vec::new()
+        // A default binding names the module's `default` member first: the
+        // whole module for an external module, and for a first-party JS
+        // module its `default` export, or the module object itself when it
+        // has none, as `require` and CommonJS interop give `module.exports`.
+        let via_default =
+            import.default && (import.members.is_empty() || import.members[0] == "default");
+        let members: Vec<String> = if via_default && !import.members.is_empty() {
+            import.members[1..].to_vec()
         } else {
             import.members.clone()
         };
         match target {
             Target::External(module) => Ok(Binding::External { module, members }),
             Target::FirstParty(path) => {
+                if via_default && language == Language::Javascript {
+                    let b = match self.export(&path, "default")? {
+                        Some(b) => b,
+                        None => Binding::FirstPartyModule(path),
+                    };
+                    return self.walk(b, &members);
+                }
                 if members.is_empty() {
-                    if import.default && language == Language::Javascript {
-                        return self
-                            .walk(Binding::FirstPartyModule(path), &["default".to_string()]);
-                    }
                     return Ok(Binding::FirstPartyModule(path));
                 }
                 let first = self.export(&path, &members[0])?;
@@ -619,7 +628,26 @@ impl<'p, 'a> Resolver<'p, 'a> {
         }
         // A name no first-party source defines but an external star import
         // may provide resolves to that module, failing closed.
-        Ok(external_star)
+        if external_star.is_some() {
+            return Ok(external_star);
+        }
+        // A JS module whose own `default` export re-exports a module
+        // (CommonJS `module.exports = require("https")`) provides that
+        // module's members as named exports, as CommonJS interop does. Only
+        // the module's own binding counts, since `export *` never carries a
+        // `default`.
+        if language == Language::Javascript
+            && name != "default"
+            && let Some(imp) = ir
+                .imports
+                .iter()
+                .find(|i| !i.star && visible(i) && i.local.as_deref() == Some("default"))
+            && let d @ (Binding::External { .. } | Binding::FirstPartyModule(_)) =
+                self.import(path, language, imp)?
+        {
+            return self.walk(d, &[name.to_string()]).map(Some);
+        }
+        Ok(None)
     }
 
     /// The module a star or glob import names: its specifier's target walked

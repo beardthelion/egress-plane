@@ -1,0 +1,38 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "lib.js"
+symbol = "<module>"
+mechanism = "javascript:https.get"
+destination = "expr:https.get"
+
+[[sites]]
+file = "lib.js"
+symbol = "<module>"
+mechanism = "javascript:net"
+destination = 'expr:require("net")'
+
+[[sites]]
+file = "lib.js"
+symbol = "<module>"
+mechanism = "javascript:tls"
+destination = 'expr:require("tls")'
+
+[[sites]]
+file = "main.js"
+symbol = "health"
+mechanism = "javascript:https.get"
+destination = "https://status.example.com/health"
+
+[[sites]]
+file = "main.js"
+symbol = "probe"
+mechanism = "javascript:net.connect"
+destination = "db.example.com:5432"
+
+[[sites]]
+file = "main.js"
+symbol = "secure"
+mechanism = "javascript:tls.connect"
+destination = "vault.example.com:443"
