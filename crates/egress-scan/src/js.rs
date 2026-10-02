@@ -15,10 +15,7 @@ impl Frontend for JsFrontend {
     }
 
     fn lower(&self, input: &SourceInput<'_>) -> Result<FileIr, FrontendError> {
-        egress_js::lower(input.path, input.text).map_err(|e| match e {
-            egress_js::LowerError::Parse => FrontendError::Parse,
-            egress_js::LowerError::TooDeeplyNested => FrontendError::TooDeeplyNested,
-        })
+        egress_js::lower(input.path, input.text).map_err(Into::into)
     }
 
     fn repo_rules(&self, discovery: &Discovery) -> Option<Box<dyn SpecifierRules>> {

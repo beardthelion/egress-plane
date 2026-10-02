@@ -11,6 +11,8 @@
 
 use serde_json::Value;
 
+use crate::paths::{dir_of, is_dot_relative};
+
 /// A manifest that does not parse; reported as `manifest-parse-error`. Parser
 /// messages are dropped (KTD13).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -156,13 +158,6 @@ pub enum Parsed {
 /// The parse result: the manifest and the keys that named an out-of-root
 /// target, one entry per such reference.
 pub type ParseOutcome = (Parsed, Vec<&'static str>);
-
-fn dir_of(path: &[u8]) -> &[u8] {
-    match path.iter().rposition(|b| *b == b'/') {
-        Some(i) => &path[..i],
-        None => b"",
-    }
-}
 
 /// Folds `target` onto the in-root directory `base`. Returns `None` for an
 /// absolute target or one that climbs above the root.
@@ -410,7 +405,7 @@ fn package_json(path: &[u8], text: &str, refs: &mut Refs<'_>) -> Result<PackageJ
 }
 
 fn is_path_specifier(s: &str) -> bool {
-    s.starts_with("./") || s.starts_with("../") || s.starts_with('/') || s == "." || s == ".."
+    is_dot_relative(s) || s.starts_with('/')
 }
 
 fn tsconfig(path: &[u8], v: &Value, refs: &mut Refs<'_>) -> TsConfig {

@@ -2,6 +2,7 @@
 //! isolation, worker stacks, the in-flight byte cap, completeness, caveats,
 //! and budgets.
 
+#[path = "../../egress-core/tests/support/mod.rs"]
 mod support;
 
 use std::sync::Arc;

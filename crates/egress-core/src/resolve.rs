@@ -19,6 +19,7 @@ use crate::discover::manifests::fold;
 use crate::identity::EncodedPath;
 use crate::ir::{FileIr, Import, SymbolKind};
 use crate::model::{Label, Language};
+use crate::paths::{dir_of, is_dot_relative};
 
 /// Steps one reference may spend before it is a `resolution-limit` blind
 /// spot (KTD16).
@@ -73,19 +74,9 @@ impl GenericRules {
     }
 }
 
-fn dir_of(path: &[u8]) -> &[u8] {
-    match path.iter().rposition(|b| *b == b'/') {
-        Some(i) => &path[..i],
-        None => b"",
-    }
-}
-
 impl SpecifierRules for GenericRules {
     fn classify(&self, from: &[u8], specifier: &str) -> SpecifierKind {
-        let relative = specifier == "."
-            || specifier == ".."
-            || specifier.starts_with("./")
-            || specifier.starts_with("../");
+        let relative = is_dot_relative(specifier);
         if specifier.starts_with('/') {
             return SpecifierKind::OutsideRoot;
         }

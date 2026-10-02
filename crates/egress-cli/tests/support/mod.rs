@@ -4,11 +4,18 @@
 
 use std::ffi::OsStr;
 use std::os::unix::ffi::OsStrExt;
-use std::os::unix::fs::{PermissionsExt, symlink};
+use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
+
+#[path = "../../../egress-core/tests/support/mod.rs"]
+mod tree;
+
+use tree::restore;
+#[allow(unused_imports)]
+pub use tree::{chmod, mkfifo};
 
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -126,19 +133,6 @@ impl Drop for Temp {
     }
 }
 
-fn restore(p: &Path) {
-    if let Ok(md) = std::fs::symlink_metadata(p)
-        && md.is_dir()
-    {
-        let _ = std::fs::set_permissions(p, std::fs::Permissions::from_mode(0o755));
-        if let Ok(rd) = std::fs::read_dir(p) {
-            for e in rd.flatten() {
-                restore(&e.path());
-            }
-        }
-    }
-}
-
 /// Copies a directory tree, recreating symlinks as symlinks.
 pub fn copy_tree(from: &Path, to: &Path) {
     std::fs::create_dir_all(to).unwrap();
@@ -154,17 +148,6 @@ pub fn copy_tree(from: &Path, to: &Path) {
             std::fs::copy(e.path(), &dst).unwrap();
         }
     }
-}
-
-pub fn mkfifo(p: &Path) {
-    let c = std::ffi::CString::new(p.as_os_str().as_bytes()).unwrap();
-    // SAFETY: `c` is a valid NUL-terminated path.
-    let rc = unsafe { libc::mkfifo(c.as_ptr(), 0o644) };
-    assert_eq!(rc, 0, "mkfifo {}", p.display());
-}
-
-pub fn chmod(p: &Path, mode: u32) {
-    std::fs::set_permissions(p, std::fs::Permissions::from_mode(mode)).unwrap();
 }
 
 /// Characters KTD18 escapes, other than the newline that ends report lines.

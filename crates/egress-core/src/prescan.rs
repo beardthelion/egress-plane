@@ -475,8 +475,9 @@ fn javascript(b: &[u8], cap: usize, forced: &BTreeSet<usize>) -> Lex {
                         let o = opens.pop();
                         d.close();
                         *prev = match o {
-                            Some(Open::Paren { head: true }) => Prev::Statement,
-                            Some(Open::Brace { block: true }) => Prev::Statement,
+                            Some(Open::Paren { head: true } | Open::Brace { block: true }) => {
+                                Prev::Statement
+                            }
                             _ => Prev::Value,
                         };
                     }

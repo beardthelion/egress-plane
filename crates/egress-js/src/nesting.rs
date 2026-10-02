@@ -144,7 +144,7 @@ fn is_word_byte(b: u8) -> bool {
 }
 
 /// True when `text` may nest deeper than [`LIMIT`] units.
-pub fn too_deep(text: &str, _typescript: bool) -> bool {
+pub fn too_deep(text: &str) -> bool {
     let b = text.as_bytes();
     let mut est = Est {
         levels: vec![Level::default()],
@@ -381,17 +381,17 @@ mod tests {
     #[test]
     fn statement_keywords_survive_commas_and_reset_at_statement_ends() {
         let chain = format!("if(a){{}}{}", "else if(a){}".repeat(LIMIT));
-        assert!(too_deep(&chain, false));
+        assert!(too_deep(&chain));
         let flat = "if (a) { b(); }\n".repeat(LIMIT * 2);
-        assert!(!too_deep(&flat, false));
+        assert!(!too_deep(&flat));
     }
 
     #[test]
     fn asi_newlines_reset_but_continuation_lines_do_not() {
         let asi = "x = y\n".repeat(LIMIT * 2);
-        assert!(!too_deep(&asi, false));
+        assert!(!too_deep(&asi));
         let cont = format!("x = y{}", "\n+ y".repeat(LIMIT));
-        assert!(too_deep(&cont, false));
+        assert!(too_deep(&cont));
     }
 
     #[test]
@@ -403,11 +403,11 @@ mod tests {
             "a?".repeat(LIMIT),
             "a?".repeat(LIMIT)
         );
-        assert!(!too_deep(&s, false));
+        assert!(!too_deep(&s));
         let hole = format!("x = `${{{}y}}`;", "a ? b : ".repeat(LIMIT));
-        assert!(too_deep(&hole, false));
+        assert!(too_deep(&hole));
         // An unclosed quote on its line reads on as code.
         let open = format!("x = <p>don't {}y</p>;", "a ? b : ".repeat(LIMIT));
-        assert!(too_deep(&open, false));
+        assert!(too_deep(&open));
     }
 }

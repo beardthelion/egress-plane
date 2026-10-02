@@ -16,6 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use egress_core::discover::manifests::{Manifests, fold};
 use egress_core::discover::{Discovery, FileKind};
+use egress_core::paths::{dir_of, file_name, is_dot_relative};
 use egress_core::resolve::{SpecifierKind, SpecifierRules};
 
 /// Extensions in probe order.
@@ -42,20 +43,6 @@ pub struct JsRules {
     files: BTreeSet<Vec<u8>>,
     packages: Vec<Package>,
     tsconfigs: Vec<TsPaths>,
-}
-
-fn dir_of(path: &[u8]) -> &[u8] {
-    match path.iter().rposition(|b| *b == b'/') {
-        Some(i) => &path[..i],
-        None => b"",
-    }
-}
-
-fn file_name(path: &[u8]) -> &[u8] {
-    match path.iter().rposition(|b| *b == b'/') {
-        Some(i) => &path[i + 1..],
-        None => path,
-    }
 }
 
 /// Whether directory `dir` contains `path` (the root contains everything).
@@ -278,10 +265,7 @@ impl SpecifierRules for JsRules {
         if specifier.starts_with('/') || specifier.starts_with('\\') {
             return SpecifierKind::OutsideRoot;
         }
-        let relative = specifier == "."
-            || specifier == ".."
-            || specifier.starts_with("./")
-            || specifier.starts_with("../");
+        let relative = is_dot_relative(specifier);
         if relative {
             return match fold(dir_of(from), specifier) {
                 Some(base) => SpecifierKind::Path {

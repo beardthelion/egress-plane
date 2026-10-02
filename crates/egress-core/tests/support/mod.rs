@@ -99,7 +99,9 @@ pub fn chmod(p: &Path, mode: u32) {
     std::fs::set_permissions(p, std::fs::Permissions::from_mode(mode)).unwrap();
 }
 
-fn restore(p: &Path) {
+/// Makes every directory under `p` writable and searchable again so it can
+/// be removed.
+pub fn restore(p: &Path) {
     if let Ok(md) = std::fs::symlink_metadata(p)
         && md.is_dir()
     {

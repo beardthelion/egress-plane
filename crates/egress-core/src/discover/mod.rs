@@ -29,6 +29,7 @@ use crate::model::{
     BlindSpot, BlindSpotKind, BudgetReason, Coverage, Excluded, ExcludedReason, Label, Language,
     ToolError,
 };
+use crate::paths::file_name;
 
 pub use budgets::Budgets;
 pub use manifests::Manifests;
@@ -164,10 +165,6 @@ fn unsupported_extensions() -> &'static [String] {
     })
 }
 
-fn file_name(path: &[u8]) -> &[u8] {
-    path.rsplit(|b| *b == b'/').next().unwrap_or(path)
-}
-
 /// The extension including its dot; a leading dot does not start one.
 fn extension(name: &[u8]) -> Option<&[u8]> {
     let i = name.iter().rposition(|b| *b == b'.')?;
@@ -294,8 +291,12 @@ struct Walk<'a> {
     blind_spots: Vec<BlindSpot>,
 }
 
+/// A directory's listing, or `Err` when it could not be listed.
+type Listing = Result<Vec<(Vec<u8>, Stat)>, ()>;
+
 enum DirClass {
-    Walk,
+    /// Walk the directory, reusing the listing `classify_dir` took.
+    Walk(Listing),
     Exclude(ExcludedReason),
 }
 
@@ -330,7 +331,7 @@ impl Walk<'_> {
             });
         }
         let Ok(entries) = self.root.list_dir(path) else {
-            return DirClass::Walk;
+            return DirClass::Walk(Err(()));
         };
         if has(&entries, b"pyvenv.cfg") {
             let cfg = join(path, b"pyvenv.cfg");
@@ -373,7 +374,7 @@ impl Walk<'_> {
                 ExcludedReason::UnconfirmedInstallOutput
             });
         }
-        DirClass::Walk
+        DirClass::Walk(Ok(entries))
     }
 
     /// Whether an excluded directory holds any supported file name. Only
@@ -396,9 +397,12 @@ impl Walk<'_> {
     }
 
     fn walk(&mut self) -> Result<(), ToolError> {
-        let mut stack: Vec<Vec<u8>> = vec![Vec::new()];
-        while let Some(dir) = stack.pop() {
-            let entries = match self.root.list_dir(&dir) {
+        // The root is listed here; every other directory carries the listing
+        // its classification took.
+        let root = self.root.list_dir(b"").map_err(|_| ());
+        let mut stack: Vec<(Vec<u8>, Listing)> = vec![(Vec::new(), root)];
+        while let Some((dir, listing)) = stack.pop() {
+            let entries = match listing {
                 Ok(e) => e,
                 Err(_) if dir.is_empty() => {
                     return Err(ToolError::Internal("cannot list the scan root"));
@@ -413,7 +417,7 @@ impl Walk<'_> {
                 let child = join(&dir, name);
                 match st.kind {
                     EntryType::Dir => match self.classify_dir(&child, &entries) {
-                        DirClass::Walk => stack.push(child),
+                        DirClass::Walk(listing) => stack.push((child, listing)),
                         DirClass::Exclude(reason) => {
                             if reason != ExcludedReason::InstallOutput
                                 && self.holds_supported(&child)
@@ -770,9 +774,12 @@ impl Discovery {
                 ReadError::TooLarge => BlindSpotKind::TooLarge,
                 ReadError::Unreadable => BlindSpotKind::Unreadable,
             })?;
-        let body = bytes.strip_prefix(b"\xef\xbb\xbf").unwrap_or(&bytes);
-        std::str::from_utf8(body)
-            .map(str::to_string)
-            .map_err(|_| BlindSpotKind::Undecodable)
+        // A leading BOM is valid UTF-8, so decoding the whole buffer accepts
+        // exactly what decoding the body after it would.
+        let mut text = String::from_utf8(bytes).map_err(|_| BlindSpotKind::Undecodable)?;
+        if text.starts_with('\u{feff}') {
+            text.drain(..'\u{feff}'.len_utf8());
+        }
+        Ok(text)
     }
 }

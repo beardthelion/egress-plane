@@ -175,6 +175,9 @@ pub struct Closure {
     /// Python dunder names that are not introspection blind spots.
     pub introspection_inert: Vec<InertName>,
     /// Rust traits and types whose naming in any position is a reference.
+    /// A data-guard list: the classifier does not read it. The data tests
+    /// check it against the egress entries it names; an imported trait is a
+    /// site through its egress entry.
     pub egress_traits: Vec<String>,
 }
 
@@ -922,7 +925,7 @@ fn build_entry(rt: &RuntimeData, e: RawEntry, origin: Origin, path: &str) -> Res
     // Longest declared module that prefixes the path.
     let module = rt
         .declared_modules()
-        .filter(|m| body == *m || body.starts_with(&format!("{m}{sep}")))
+        .filter(|m| body == *m || body.strip_prefix(*m).is_some_and(|r| r.starts_with(sep)))
         .max_by_key(|m| m.len())
         .ok_or_else(|| err("its module is not declared"))?
         .to_string();

@@ -24,6 +24,7 @@ use egress_core::ir::{
     Reference, Root, Span, SymbolKind, SymbolSpan, UseKind,
 };
 use egress_core::model::Language;
+use egress_core::paths::dir_of;
 
 use crate::spec;
 
@@ -1038,7 +1039,6 @@ impl<'a> Lowerer<'a> {
                     self.visit_type_param_bound(b);
                 }
             }
-            Item::Verbatim(_) => {}
             _ => {}
         }
         self.leave();
@@ -1667,8 +1667,9 @@ impl<'a> Lowerer<'a> {
                 Expr::Reference(Box::new(r))
             }
             ("format" | "format_args", Ok(args)) => match args.first() {
-                Some(SExpr::Lit(l)) if matches!(l.lit, Lit::Str(_)) => {
-                    let Lit::Str(s) = &l.lit else { unreachable!() };
+                Some(SExpr::Lit(syn::ExprLit {
+                    lit: Lit::Str(s), ..
+                })) => {
                     let rest: Vec<&SExpr> = args.iter().skip(1).collect();
                     self.format_template(&s.value(), &rest, depth)
                 }
@@ -1960,13 +1961,6 @@ fn is_keyword(s: &str) -> bool {
             | "meta"
             | "vis"
     )
-}
-
-fn dir_of(path: &[u8]) -> &[u8] {
-    match path.iter().rposition(|b| *b == b'/') {
-        Some(i) => &path[..i],
-        None => b"",
-    }
 }
 
 /// A path rendered without generic arguments (KTD9).

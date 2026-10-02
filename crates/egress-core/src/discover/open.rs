@@ -307,7 +307,9 @@ impl RootDir {
             if stat_kind(&fstat(fd.as_raw_fd())?) != EntryType::File {
                 return Ok(Err(ReadError::NotRegular));
             }
-            let mut out = Vec::new();
+            // Sized from the stat, never past the read bound below.
+            let cap = usize::try_from(st.size.min(limit).saturating_add(1)).unwrap_or(0);
+            let mut out = Vec::with_capacity(cap);
             let mut file = std::fs::File::from(fd);
             use std::io::Read;
             (&mut file).take(limit + 1).read_to_end(&mut out)?;

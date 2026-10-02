@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 use super::FileKind;
 use super::manifests::{BuildScript, Manifests};
 use crate::model::Language;
+use crate::paths::file_name;
 
 /// One detected hook: the file the blind spot sits on, its language, and a
 /// fixed name for the hook (used as construct text, never scanned input).
@@ -29,15 +30,10 @@ pub fn file_hook(name: &[u8]) -> Option<(Language, &'static str)> {
     }
 }
 
-fn file_name(path: &[u8]) -> &[u8] {
-    path.rsplit(|b| *b == b'/').next().unwrap_or(path)
-}
-
 fn sibling(manifest: &[u8], name: &str) -> Vec<u8> {
-    match manifest.iter().rposition(|b| *b == b'/') {
-        Some(i) => [&manifest[..=i], name.as_bytes()].concat(),
-        None => name.as_bytes().to_vec(),
-    }
+    // The manifest's directory with its trailing `/`, or empty at the root.
+    let dir = &manifest[..manifest.len() - file_name(manifest).len()];
+    [dir, name.as_bytes()].concat()
 }
 
 /// Every hook in the tree. `failed_cargo` lists Cargo manifests that did not
@@ -113,4 +109,18 @@ pub fn detect(
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::sibling;
+
+    #[test]
+    fn sibling_replaces_the_file_name() {
+        assert_eq!(sibling(b"Cargo.toml", "build.rs"), b"build.rs");
+        assert_eq!(sibling(b"a/b/Cargo.toml", "build.rs"), b"a/b/build.rs");
+        assert_eq!(sibling(b"/Cargo.toml", "build.rs"), b"/build.rs");
+        assert_eq!(sibling(b"a/", "build.rs"), b"a/build.rs");
+        assert_eq!(sibling(b"", "build.rs"), b"build.rs");
+    }
 }

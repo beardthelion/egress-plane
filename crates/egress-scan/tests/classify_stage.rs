@@ -2,6 +2,7 @@
 //! IR reach the report with identities, coverage counts loaded-as-code
 //! files, and the resolver and findings budgets apply after classification.
 
+#[path = "../../egress-core/tests/support/mod.rs"]
 mod support;
 
 use egress_core::discover::{Budgets, Config};

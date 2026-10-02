@@ -452,14 +452,6 @@ impl<'p, 'a> State<'p, 'a> {
                 if !known_module(cx.rt, cx.lang(), &module, &members) {
                     self.dep(cx, package_name(cx.lang(), &module));
                 }
-                // An imported Rust egress trait is a site at the `use`, since
-                // its method calls do not name it (KTD6).
-                if cx.lang() == Language::Rust && !members.is_empty() {
-                    let full = format!("{module}::{}", members.join("::"));
-                    if cx.rt.closure.egress_traits.contains(&full) {
-                        self.external(cx, &synthetic, &module, &members, false);
-                    }
-                }
             }
             _ => {}
         }

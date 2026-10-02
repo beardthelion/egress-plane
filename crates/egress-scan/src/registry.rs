@@ -23,6 +23,33 @@ pub enum FrontendError {
     TooDeeplyNested,
 }
 
+impl From<egress_python::LowerError> for FrontendError {
+    fn from(e: egress_python::LowerError) -> Self {
+        match e {
+            egress_python::LowerError::Parse => FrontendError::Parse,
+            egress_python::LowerError::TooDeeplyNested => FrontendError::TooDeeplyNested,
+        }
+    }
+}
+
+impl From<egress_js::LowerError> for FrontendError {
+    fn from(e: egress_js::LowerError) -> Self {
+        match e {
+            egress_js::LowerError::Parse => FrontendError::Parse,
+            egress_js::LowerError::TooDeeplyNested => FrontendError::TooDeeplyNested,
+        }
+    }
+}
+
+impl From<egress_rust::LowerError> for FrontendError {
+    fn from(e: egress_rust::LowerError) -> Self {
+        match e {
+            egress_rust::LowerError::Parse => FrontendError::Parse,
+            egress_rust::LowerError::TooDeeplyNested => FrontendError::TooDeeplyNested,
+        }
+    }
+}
+
 /// One file handed to a frontend.
 #[derive(Debug, Clone, Copy)]
 pub struct SourceInput<'a> {
@@ -76,10 +103,7 @@ impl Frontend for Python {
     }
 
     fn lower(&self, input: &SourceInput<'_>) -> Result<FileIr, FrontendError> {
-        egress_python::lower(input.text).map_err(|e| match e {
-            egress_python::LowerError::Parse => FrontendError::Parse,
-            egress_python::LowerError::TooDeeplyNested => FrontendError::TooDeeplyNested,
-        })
+        egress_python::lower(input.text).map_err(Into::into)
     }
 
     fn specifier_rules(&self) -> Option<&dyn SpecifierRules> {
@@ -96,10 +120,7 @@ impl Frontend for Rust {
     }
 
     fn lower(&self, input: &SourceInput<'_>) -> Result<FileIr, FrontendError> {
-        egress_rust::lower(input.path, input.text).map_err(|e| match e {
-            egress_rust::LowerError::Parse => FrontendError::Parse,
-            egress_rust::LowerError::TooDeeplyNested => FrontendError::TooDeeplyNested,
-        })
+        egress_rust::lower(input.path, input.text).map_err(Into::into)
     }
 
     fn link(

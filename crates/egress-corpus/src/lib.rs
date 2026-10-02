@@ -8,8 +8,8 @@
 //!
 //! # Label conventions
 //!
-//! These conventions bind the detectors that later units write, because the
-//! labels were authored before any detector existed.
+//! These conventions bind every detector: the labels were authored before any
+//! detector existed, and the detectors are written to match them.
 //!
 //! - `file` is repo-relative to `tree/` with `/` separators. A whole-file blind
 //!   spot, a hook, and a non-construct gap use symbol `<module>`.

@@ -115,6 +115,34 @@ fn latin1_is_undecodable_and_bom_is_stripped() {
 }
 
 #[test]
+fn only_one_leading_bom_is_stripped_and_the_rest_must_decode() {
+    let t = Tree::new("bom-edges");
+    t.file("only.py", b"\xef\xbb\xbf")
+        .file("twice.py", b"\xef\xbb\xbf\xef\xbb\xbfx\n")
+        .file("inner.py", b"x\xef\xbb\xbf\n")
+        .file("bad.py", b"\xef\xbb\xbf\xe9\n")
+        .file("cut.py", b"\xef\xbb");
+    let d = run(&t);
+    assert_eq!(d.read_source(source(&d, "only.py")).unwrap(), "");
+    assert_eq!(
+        d.read_source(source(&d, "twice.py")).unwrap(),
+        "\u{feff}x\n"
+    );
+    assert_eq!(
+        d.read_source(source(&d, "inner.py")).unwrap(),
+        "x\u{feff}\n"
+    );
+    assert_eq!(
+        d.read_source(source(&d, "bad.py")),
+        Err(BlindSpotKind::Undecodable)
+    );
+    assert_eq!(
+        d.read_source(source(&d, "cut.py")),
+        Err(BlindSpotKind::Undecodable)
+    );
+}
+
+#[test]
 fn file_swapped_for_an_outside_symlink_is_never_followed() {
     let t = Tree::new("swap-link");
     let secret = t.outside_file("secret.py", "TOP_SECRET = 1\n");

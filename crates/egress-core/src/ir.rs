@@ -299,19 +299,33 @@ pub struct LineIndex<'a> {
     source: &'a str,
     /// Byte offset of the start of each line.
     starts: Vec<usize>,
+    /// Per line, the byte offset where its ASCII prefix ends: its first
+    /// non-ASCII byte, or the end of the line. Columns up to it are byte
+    /// offsets, so only the rest of the line is counted character by
+    /// character.
+    ascii_ends: Vec<usize>,
 }
 
 impl<'a> LineIndex<'a> {
     pub fn new(source: &'a str) -> Self {
         let mut starts = vec![0];
-        starts.extend(
-            source
-                .bytes()
-                .enumerate()
-                .filter(|(_, b)| *b == b'\n')
-                .map(|(i, _)| i + 1),
-        );
-        Self { source, starts }
+        let mut ascii_ends = Vec::new();
+        let mut first_non_ascii = None;
+        for (i, b) in source.bytes().enumerate() {
+            if !b.is_ascii() && first_non_ascii.is_none() {
+                first_non_ascii = Some(i);
+            }
+            if b == b'\n' {
+                ascii_ends.push(first_non_ascii.take().unwrap_or(i));
+                starts.push(i + 1);
+            }
+        }
+        ascii_ends.push(first_non_ascii.unwrap_or(source.len()));
+        Self {
+            source,
+            starts,
+            ascii_ends,
+        }
     }
 
     /// The location of `offset`. An offset past the end or inside a UTF-8
@@ -323,10 +337,76 @@ impl<'a> LineIndex<'a> {
         }
         let line = self.starts.partition_point(|&s| s <= offset);
         let start = self.starts[line - 1];
-        let column = self.source[start..offset].chars().count() + 1;
+        let ascii_end = self.ascii_ends[line - 1];
+        // Every byte before `ascii_end` is one character, and `ascii_end` is a
+        // character boundary because it starts a multi-byte sequence.
+        let column = if offset <= ascii_end {
+            offset - start + 1
+        } else {
+            ascii_end - start + self.source[ascii_end..offset].chars().count() + 1
+        };
         Location {
             line: u32::try_from(line).unwrap_or(u32::MAX),
             column: u32::try_from(column).unwrap_or(u32::MAX),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The direct definition: count characters from the line start.
+    fn reference(source: &str, offset: usize) -> Location {
+        let mut offset = offset.min(source.len());
+        while !source.is_char_boundary(offset) {
+            offset -= 1;
+        }
+        let line_start = source[..offset].rfind('\n').map_or(0, |i| i + 1);
+        let line = source[..offset].matches('\n').count() + 1;
+        let column = source[line_start..offset].chars().count() + 1;
+        Location {
+            line: u32::try_from(line).unwrap(),
+            column: u32::try_from(column).unwrap(),
+        }
+    }
+
+    #[test]
+    fn columns_match_character_counts_on_mixed_lines() {
+        let sources = [
+            "",
+            "abc",
+            "\n",
+            "\n\n",
+            "abc\ndef\n",
+            "caf\u{e9} = fetch(x)\nplain line\n\u{e9}\n",
+            "x = \"\u{4e2d}\u{6587}\u{5b57}\"; fetch(u)\r\nascii only\r\n\u{1f600}tail",
+            "ascii\n\u{e9}\u{e9}\u{4e2d}abc\u{1f600}d\nend",
+            "trailing non-ascii \u{4e2d}",
+            "\u{4e2d}\n\u{e9}",
+        ];
+        for s in sources {
+            let index = LineIndex::new(s);
+            for offset in 0..=s.len() + 3 {
+                assert_eq!(
+                    index.location(offset),
+                    reference(s, offset),
+                    "{s:?} at {offset}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn offsets_inside_a_character_clamp_to_its_start() {
+        let s = "a\u{e9}b\u{4e2d}c";
+        let index = LineIndex::new(s);
+        // `é` is bytes 1..3, `中` is bytes 4..7.
+        assert_eq!(index.location(2), index.location(1));
+        assert_eq!(index.location(1).column, 2);
+        assert_eq!(index.location(5), index.location(4));
+        assert_eq!(index.location(6), index.location(4));
+        assert_eq!(index.location(4).column, 4);
+        assert_eq!(index.location(7).column, 5);
     }
 }

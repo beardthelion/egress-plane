@@ -28,6 +28,7 @@ use std::collections::{HashMap, HashSet};
 
 use egress_core::ir::{self, ConstructKind, Expr, FileIr, LineIndex, Provenance, Root, UseKind};
 use egress_core::model::Language;
+use egress_core::paths::{file_name, is_dot_relative};
 use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
 use oxc_parser::Parser;
@@ -71,13 +72,6 @@ enum FileKind {
     Dts,
 }
 
-fn file_name(path: &[u8]) -> &[u8] {
-    match path.iter().rposition(|b| *b == b'/') {
-        Some(i) => &path[i + 1..],
-        None => path,
-    }
-}
-
 /// The source type per extension (U6 approach step 1): `.mjs` and `.mts`
 /// are modules, `.cjs` and `.cts` CommonJS, and everything else a module
 /// when it contains ESM syntax and a script otherwise. JS files accept JSX.
@@ -108,7 +102,7 @@ fn source_type(path: &[u8]) -> (SourceType, FileKind) {
 /// Lowers the file at repo-relative `path` with source `text`.
 pub fn lower(path: &[u8], text: &str) -> Result<FileIr, LowerError> {
     let (st, kind) = source_type(path);
-    if nesting::too_deep(text, kind != FileKind::Js) {
+    if nesting::too_deep(text) {
         return Err(LowerError::TooDeeplyNested);
     }
     let alloc = Allocator::default();
@@ -258,12 +252,7 @@ fn key_name(key: &PropertyKey<'_>) -> Option<String> {
 }
 
 fn is_relative(spec: &str) -> bool {
-    spec.starts_with("./")
-        || spec.starts_with("../")
-        || spec == "."
-        || spec == ".."
-        || spec.starts_with('/')
-        || spec.starts_with('#')
+    is_dot_relative(spec) || spec.starts_with('/') || spec.starts_with('#')
 }
 
 impl<'s, 'a> Lowerer<'s, 'a> {

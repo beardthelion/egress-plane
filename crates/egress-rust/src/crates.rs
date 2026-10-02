@@ -14,23 +14,10 @@ use egress_core::discover::FileKind;
 use egress_core::discover::manifests::{BuildScript, CargoManifest, Manifests, fold};
 use egress_core::ir::{ConstructKind, DynamicConstruct, FileIr};
 use egress_core::model::Language;
+use egress_core::paths::{dir_of, file_name};
 use egress_core::resolve::{SpecifierKind, SpecifierRules};
 
 use crate::spec;
-
-fn dir_of(path: &[u8]) -> &[u8] {
-    match path.iter().rposition(|b| *b == b'/') {
-        Some(i) => &path[..i],
-        None => b"",
-    }
-}
-
-fn name_of(path: &[u8]) -> &[u8] {
-    match path.iter().rposition(|b| *b == b'/') {
-        Some(i) => &path[i + 1..],
-        None => path,
-    }
-}
 
 fn join(dir: &[u8], rest: &str) -> Vec<u8> {
     let mut p = dir.to_vec();
@@ -157,7 +144,7 @@ impl RustRules {
                     if dir_of(p) == base.as_slice()
                         || (sub == "src/bin"
                             && dir_of(dir_of(p)) == base.as_slice()
-                            && name_of(p) == b"main.rs")
+                            && file_name(p) == b"main.rs")
                     {
                         roots.insert(p.clone());
                     }
@@ -178,8 +165,8 @@ impl RustRules {
         }
         // Crate roots without a manifest still start a tree.
         for p in &rules.sources {
-            let name = name_of(p);
-            if (name == b"lib.rs" || name == b"main.rs") && name_of(dir_of(p)) == b"src" {
+            let name = file_name(p);
+            if (name == b"lib.rs" || name == b"main.rs") && file_name(dir_of(p)) == b"src" {
                 roots.insert(p.clone());
             }
         }
@@ -220,7 +207,7 @@ impl RustRules {
                 if rules.files.contains_key(&child) {
                     continue;
                 }
-                let modrs = !imp.specifier.starts_with(spec::MOD) || name_of(&child) == b"mod.rs";
+                let modrs = !imp.specifier.starts_with(spec::MOD) || file_name(&child) == b"mod.rs";
                 rules.files.insert(
                     child.clone(),
                     FileInfo {
@@ -245,8 +232,8 @@ impl RustRules {
         if let Some(i) = self.files.get(from) {
             return i.modrs;
         }
-        let name = name_of(from);
-        let parent = name_of(dir_of(from));
+        let name = file_name(from);
+        let parent = file_name(dir_of(from));
         matches!(name, b"mod.rs" | b"lib.rs" | b"main.rs" | b"build.rs")
             || matches!(parent, b"bin" | b"tests" | b"examples" | b"benches")
     }
@@ -257,7 +244,7 @@ impl RustRules {
         if self.modrs(from) {
             return dir.to_vec();
         }
-        let name = name_of(from);
+        let name = file_name(from);
         let stem = name.strip_suffix(b".rs").unwrap_or(name);
         let mut p = dir.to_vec();
         if !p.is_empty() {

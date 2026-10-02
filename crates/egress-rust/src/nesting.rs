@@ -52,7 +52,7 @@ pub fn too_deep(text: &str) -> bool {
     too_deep_with_cap(text, MAX_CHAIN)
 }
 
-pub fn too_deep_with_cap(text: &str, cap: usize) -> bool {
+fn too_deep_with_cap(text: &str, cap: usize) -> bool {
     let b = text.as_bytes();
     let n = b.len();
     let mut frames: Vec<Frame> = vec![Frame::default()];
