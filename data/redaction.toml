@@ -103,4 +103,4 @@ pattern = '''/api/(?:v[0-9]+/)?webhooks/[0-9]+/(?P<secret>[^/?#\s"'`{}<>]+)'''
 # scheme word is kept.
 [[path_secrets]]
 name = "authorization-scheme"
-pattern = '''(?:^|[^A-Za-z0-9_])(?:Bearer|bearer|Basic)\s+(?P<secret>[A-Za-z0-9._~+/=-]+)'''
+pattern = '''(?:^|[^A-Za-z0-9_])(?i:bearer|basic)\s+(?P<secret>[A-Za-z0-9._~+/=-]+)'''

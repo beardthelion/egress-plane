@@ -395,6 +395,14 @@ fn authorization_scheme_token_is_redacted() {
         redact("fetch(u, {headers: {Authorization: `bearer ${t}`}})"),
         "fetch(u, {headers: {Authorization: <redacted>}})"
     );
+    assert_eq!(
+        redact("h.set(\"BEARER abc.DEF-1\")"),
+        "h.set(\"BEARER <redacted>\")"
+    );
+    assert_eq!(
+        redact("h.set(\"basic dXNlcjpwYXNz\")"),
+        "h.set(\"basic <redacted>\")"
+    );
 }
 
 #[test]
