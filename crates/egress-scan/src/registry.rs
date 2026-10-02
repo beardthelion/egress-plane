@@ -6,6 +6,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use egress_core::discover::Discovery;
 use egress_core::ir::FileIr;
 use egress_core::model::Language;
 use egress_core::resolve::SpecifierRules;
@@ -40,6 +41,13 @@ pub trait Frontend: Send + Sync {
     /// The language's specifier rules (KTD16). `None` resolves only exact
     /// relative paths.
     fn specifier_rules(&self) -> Option<&dyn SpecifierRules> {
+        None
+    }
+
+    /// Specifier rules built from this repository's manifests and file
+    /// index (KTD16). When present they take precedence over
+    /// [`Frontend::specifier_rules`].
+    fn repo_rules(&self, _discovery: &Discovery) -> Option<Box<dyn SpecifierRules>> {
         None
     }
 }
@@ -81,6 +89,7 @@ impl Registry {
     pub fn builtin() -> Registry {
         let mut r = Registry::new();
         r.register(Python(egress_python::PythonRules));
+        r.register(crate::js::JsFrontend);
         r
     }
 

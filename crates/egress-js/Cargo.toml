@@ -1,0 +1,21 @@
+[package]
+name = "egress-js"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# Every external dependency is pinned to an exact version (KTD21). The oxc
+# crates share one pinned release (KTD1).
+[dependencies]
+egress-core.workspace = true
+oxc_allocator = "=0.152.0"
+oxc_ast = "=0.152.0"
+oxc_ast_visit = "=0.152.0"
+oxc_parser = "=0.152.0"
+oxc_semantic = "=0.152.0"
+oxc_span = "=0.152.0"
+oxc_syntax = "=0.152.0"
+
+[dev-dependencies]
+egress-scan.workspace = true
