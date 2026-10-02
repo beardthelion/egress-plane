@@ -855,6 +855,33 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         }
     }
 
+    /// A binding's value: a bare name of the global object or of an
+    /// external module stays a reference, so the binding is an alias the
+    /// core can follow (`const g = globalThis; g.fetch(u)`); a first-party
+    /// or local name stays a name, so constants still evaluate (KTD7).
+    fn binding_value(&mut self, init: &Expression<'a>) -> Expr {
+        if let Expression::Identifier(id) = init.get_inner_expression() {
+            let root = self.ident_root(id);
+            let alias = match &root {
+                Root::Ambient(_) => true,
+                Root::Import(local) => self.import_spec.get(local).is_some_and(|s| !is_relative(s)),
+                _ => false,
+            };
+            if alias {
+                let r = self.reference(
+                    root,
+                    Vec::new(),
+                    UseKind::ValueEscape,
+                    Vec::new(),
+                    None,
+                    id.span,
+                );
+                return Expr::Reference(Box::new(r));
+            }
+        }
+        self.lower_expr(init)
+    }
+
     fn args_expr(&mut self, args: &[Argument<'a>]) -> Vec<Expr> {
         let mut out = Vec::new();
         for a in args {
@@ -1372,7 +1399,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                     let single = d.kind == VariableDeclarationKind::Const
                         || sym.is_some_and(|s| !self.scoping.symbol_is_mutated(s));
                     if single {
-                        let value = self.lower_expr(init);
+                        let value = self.binding_value(init);
                         if self.owner().path == "<module>" {
                             self.ir.constants.push(ir::ModuleConstant {
                                 name,

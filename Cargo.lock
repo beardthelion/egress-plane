@@ -206,6 +206,7 @@ name = "egress-js"
 version = "0.1.0"
 dependencies = [
  "egress-core",
+ "egress-scan",
  "oxc_allocator",
  "oxc_ast",
  "oxc_ast_visit",

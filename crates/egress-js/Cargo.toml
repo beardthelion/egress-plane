@@ -16,3 +16,6 @@ oxc_parser = "=0.152.0"
 oxc_semantic = "=0.152.0"
 oxc_span = "=0.152.0"
 oxc_syntax = "=0.152.0"
+
+[dev-dependencies]
+egress-scan.workspace = true
