@@ -778,9 +778,8 @@ fn native_code_and_non_literal_includes_are_blind_spots() {
         ),
     ]);
     let d = dump(&c);
-    assert_eq!(
+    assert!(
         blind(&c, "src/lib.rs", BlindSpotKind::NativeCode) >= 3,
-        true,
         "{d}"
     );
     assert_eq!(blind(&c, "src/lib.rs", BlindSpotKind::MacroCode), 1, "{d}");

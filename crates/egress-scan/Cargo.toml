@@ -7,6 +7,7 @@ publish.workspace = true
 
 [dependencies]
 egress-core.workspace = true
+egress-rust = { path = "../egress-rust" }
 
 [dev-dependencies]
 libc = "=0.2.189"

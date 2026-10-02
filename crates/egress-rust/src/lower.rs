@@ -126,6 +126,8 @@ pub struct Lowerer<'a> {
     bind_counts: HashMap<(String, String), u32>,
     reassigned: HashSet<(String, String)>,
     import_counter: u32,
+    /// Indices of references made for private `use` paths.
+    use_refs: HashSet<usize>,
 }
 
 fn ident_str(i: &proc_macro2::Ident) -> String {
@@ -251,10 +253,35 @@ impl<'a> Lowerer<'a> {
             bind_counts: HashMap::new(),
             reassigned: HashSet::new(),
             import_counter: 0,
+            use_refs: HashSet::new(),
         }
     }
 
     pub fn finish(mut self) -> FileIr {
+        // A private `use` path is a reference only for a binding nothing else
+        // in the file names (an imported trait, an unused import): a binding
+        // the file uses is accounted for where it is used.
+        let used: HashSet<String> = self
+            .ir
+            .references
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !self.use_refs.contains(i))
+            .filter_map(|(_, r)| match &r.root {
+                Root::Import(l) => Some(l.clone()),
+                _ => None,
+            })
+            .collect();
+        let refs = std::mem::take(&mut self.ir.references);
+        self.ir.references = refs
+            .into_iter()
+            .enumerate()
+            .filter(|(i, r)| {
+                !self.use_refs.contains(i)
+                    || !matches!(&r.root, Root::Import(l) if used.contains(l))
+            })
+            .map(|(_, r)| r)
+            .collect();
         for (symbol, name, value, span) in std::mem::take(&mut self.lets) {
             let key = (symbol.clone(), name.clone());
             if self.bind_counts.get(&key) == Some(&1) && !self.reassigned.contains(&key) {
@@ -1158,6 +1185,9 @@ impl<'a> Lowerer<'a> {
             span,
             text,
         );
+        if !pub_use {
+            self.use_refs.insert(self.ir.references.len());
+        }
         self.emit(r);
     }
 
