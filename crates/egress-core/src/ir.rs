@@ -38,6 +38,10 @@ pub struct FileIr {
     /// Python attribute accesses whose name is a dunder or starts with `tb_`,
     /// `f_`, `gi_`, `cr_`, or `ag_` (KTD15).
     pub introspection: Vec<IntrospectionAccess>,
+    /// Symbol paths whose findings take the `test` label: Rust `#[cfg(test)]`
+    /// scopes and `#[test]` functions. A finding is in a scope when its symbol
+    /// equals the scope or starts with the scope followed by `::`.
+    pub test_scopes: Vec<String>,
 }
 
 impl FileIr {
@@ -52,6 +56,7 @@ impl FileIr {
             locals: Vec::new(),
             self_attributes: Vec::new(),
             introspection: Vec::new(),
+            test_scopes: Vec::new(),
         }
     }
 }

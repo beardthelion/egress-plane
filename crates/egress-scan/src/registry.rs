@@ -7,6 +7,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use egress_core::discover::Discovery;
+use egress_core::discover::FileKind;
+use egress_core::discover::manifests::Manifests;
 use egress_core::ir::FileIr;
 use egress_core::model::Language;
 use egress_core::resolve::SpecifierRules;
@@ -50,6 +52,19 @@ pub trait Frontend: Send + Sync {
     fn repo_rules(&self, _discovery: &Discovery) -> Option<Box<dyn SpecifierRules>> {
         None
     }
+
+    /// Runs once after every file is lowered and before classification,
+    /// with this frontend's lowered files. A frontend may add facts only the
+    /// whole program reveals and return specifier rules built from the
+    /// program, which replace [`Frontend::specifier_rules`].
+    fn link(
+        &self,
+        _manifests: &Manifests,
+        _index: &BTreeMap<Vec<u8>, FileKind>,
+        _files: &mut [(&[u8], &mut FileIr)],
+    ) -> Option<Box<dyn SpecifierRules>> {
+        None
+    }
 }
 
 /// The Python frontend (U5).
@@ -72,6 +87,31 @@ impl Frontend for Python {
     }
 }
 
+/// The Rust frontend (U7).
+struct Rust;
+
+impl Frontend for Rust {
+    fn language(&self) -> Language {
+        Language::Rust
+    }
+
+    fn lower(&self, input: &SourceInput<'_>) -> Result<FileIr, FrontendError> {
+        egress_rust::lower(input.path, input.text).map_err(|e| match e {
+            egress_rust::LowerError::Parse => FrontendError::Parse,
+            egress_rust::LowerError::TooDeeplyNested => FrontendError::TooDeeplyNested,
+        })
+    }
+
+    fn link(
+        &self,
+        manifests: &Manifests,
+        index: &BTreeMap<Vec<u8>, FileKind>,
+        files: &mut [(&[u8], &mut FileIr)],
+    ) -> Option<Box<dyn SpecifierRules>> {
+        Some(Box::new(egress_rust::link(manifests, index, files)))
+    }
+}
+
 /// Frontends by language.
 #[derive(Clone, Default)]
 pub struct Registry {
@@ -90,6 +130,7 @@ impl Registry {
         let mut r = Registry::new();
         r.register(Python(egress_python::PythonRules));
         r.register(crate::js::JsFrontend);
+        r.register(Rust);
         r
     }
 

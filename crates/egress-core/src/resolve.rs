@@ -499,6 +499,20 @@ impl<'p, 'a> Resolver<'p, 'a> {
                         },
                     };
                 }
+                // A Rust definition may be an inline module or a type: its
+                // members are qualified names in the same file (`net` plus
+                // `TcpStream` is `net::TcpStream`).
+                Binding::FirstPartyDef { path, name }
+                    if self.program.files.get(&path).map(|f| f.language)
+                        == Some(Language::Rust) =>
+                {
+                    self.step()?;
+                    let q = format!("{name}::{m}");
+                    b = match self.export(&path, &q)? {
+                        Some(next) => next,
+                        None => Binding::FirstPartyDef { path, name: q },
+                    };
+                }
                 // A member of a first-party definition is first-party code.
                 Binding::FirstPartyDef { .. } => return Ok(Binding::FirstParty),
                 other => return Ok(other),
@@ -533,8 +547,22 @@ impl<'p, 'a> Resolver<'p, 'a> {
         };
         let language = pf.language;
         let ir = pf.ir;
-        let visible =
-            |i: &Import| i.symbol == "<module>" && (language == Language::Python || i.re_export);
+        // Rust module-level items in inline modules carry qualified local
+        // names and the frontend marks every module-level item visible, since
+        // Rust lets descendants name private imports; block-level ones are not.
+        let visible = |i: &Import| match language {
+            Language::Python => i.symbol == "<module>",
+            Language::Rust => i.re_export,
+            Language::Javascript => i.symbol == "<module>" && i.re_export,
+        };
+        // A Rust glob applies to names in the module that declares it.
+        let (scope, leaf) = match language {
+            Language::Rust => match name.rsplit_once("::") {
+                Some((s, l)) => (s, l),
+                None => ("<module>", name),
+            },
+            _ => ("<module>", name),
+        };
         // An import binding the name. An import is preferred over a
         // definition of the same name because the IR does not record which
         // comes last, and the import is the one that can reach egress.
@@ -561,43 +589,120 @@ impl<'p, 'a> Resolver<'p, 'a> {
             }));
         }
         // Star and glob imports, first-party ones expanded from source.
-        let mut external_star: Option<String> = None;
+        let mut external_star: Option<Binding> = None;
         let stars: Vec<&Import> = ir
             .imports
             .iter()
             .filter(|i| i.star && !i.type_only && visible(i))
+            .filter(|i| language != Language::Rust || i.symbol == scope)
             .collect();
         for imp in stars {
-            match self.target(path, language, &imp.specifier) {
-                Target::FirstParty(p) => {
-                    if let Some(b) = self.export(&p, name)? {
+            match self.star_module(path, language, imp)? {
+                Some(Binding::External { module, members }) => {
+                    if let Some(b) = self.external_member(language, &module, &members, leaf) {
+                        return Ok(Some(b));
+                    }
+                    let mut ms = members;
+                    ms.push(leaf.to_string());
+                    external_star.get_or_insert(Binding::External {
+                        module,
+                        members: ms,
+                    });
+                }
+                Some(m) => {
+                    if let Some(b) = self.module_member(m, language, leaf)? {
                         return Ok(Some(b));
                     }
                 }
-                Target::External(m) => {
-                    let rt = self.data.runtime(language);
-                    let segs = module_segments(language, &m);
-                    let mut members: Vec<&str> = segs[1..].iter().map(String::as_str).collect();
-                    members.push(name);
-                    if matches!(
-                        rt.lookup(&segs[0], &members),
-                        Some(crate::data::Classification::Entry(_))
-                    ) {
-                        return Ok(Some(Binding::External {
-                            module: m,
-                            members: vec![name.to_string()],
-                        }));
-                    }
-                    external_star.get_or_insert(m);
-                }
-                _ => {}
+                None => {}
             }
         }
         // A name no first-party source defines but an external star import
         // may provide resolves to that module, failing closed.
-        Ok(external_star.map(|m| Binding::External {
-            module: m,
-            members: vec![name.to_string()],
-        }))
+        Ok(external_star)
+    }
+
+    /// The module a star or glob import names: its specifier's target walked
+    /// through the import's member path (Rust `use crate::m::*` names `m`).
+    fn star_module(
+        &mut self,
+        from: &[u8],
+        language: Language,
+        imp: &Import,
+    ) -> Result<Option<Binding>, Limit> {
+        let base = match self.target(from, language, &imp.specifier) {
+            Target::FirstParty(p) => Binding::FirstPartyModule(p),
+            Target::External(m) => Binding::External {
+                module: m,
+                members: Vec::new(),
+            },
+            _ => return Ok(None),
+        };
+        self.walk(base, &imp.members).map(Some)
+    }
+
+    /// `name` in a first-party module binding, or `None`.
+    fn module_member(
+        &mut self,
+        module: Binding,
+        language: Language,
+        name: &str,
+    ) -> Result<Option<Binding>, Limit> {
+        match module {
+            Binding::FirstPartyModule(p) => self.export(&p, name),
+            Binding::FirstPartyDef { path, name: q } if language == Language::Rust => {
+                self.export(&path, &format!("{q}::{name}"))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// `name` in an external module when the data classifies it as an entry.
+    fn external_member(
+        &self,
+        language: Language,
+        module: &str,
+        members: &[String],
+        name: &str,
+    ) -> Option<Binding> {
+        let rt = self.data.runtime(language);
+        let segs = module_segments(language, module);
+        let mut rest: Vec<&str> = segs[1..]
+            .iter()
+            .chain(members.iter())
+            .map(String::as_str)
+            .collect();
+        rest.push(name);
+        if matches!(
+            rt.lookup(&segs[0], &rest),
+            Some(crate::data::Classification::Entry(_))
+        ) {
+            let mut ms = members.to_vec();
+            ms.push(name.to_string());
+            Some(Binding::External {
+                module: module.to_string(),
+                members: ms,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// `name` as provided by the star or glob import `imp` written in the
+    /// file at `from`, or `None` when that import does not provide it.
+    pub fn star_member(
+        &mut self,
+        from: &[u8],
+        language: Language,
+        imp: &Import,
+        name: &str,
+    ) -> Result<Option<Binding>, Limit> {
+        match self.star_module(from, language, imp)? {
+            Some(Binding::External { module, members }) => {
+                Ok(self.external_member(language, &module, &members, name))
+            }
+            Some(m) => self.module_member(m, language, name),
+            None => Ok(None),
+        }
     }
 }

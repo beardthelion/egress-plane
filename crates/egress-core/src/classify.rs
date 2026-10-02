@@ -225,6 +225,40 @@ fn to_part(v: Val) -> TemplatePart {
     }
 }
 
+/// The file's labels plus `test` when `symbol` lies in one of the file's
+/// test scopes (Rust `#[cfg(test)]` and `#[test]`).
+fn labels_at(cx: Ctx<'_, '_>, symbol: &str) -> Vec<crate::model::Label> {
+    let mut labels = cx.pf.labels.clone();
+    let in_test = cx.pf.ir.test_scopes.iter().any(|t| {
+        symbol == t
+            || symbol
+                .strip_prefix(t.as_str())
+                .is_some_and(|rest| rest.starts_with("::"))
+    });
+    if in_test && !labels.contains(&crate::model::Label::Test) {
+        labels.push(crate::model::Label::Test);
+    }
+    labels
+}
+
+/// Whether `module` is known to the runtime data: it classifies, or (for a
+/// Rust crate root such as `std`) it prefixes a declared module.
+fn known_module(rt: &RuntimeData, lang: Language, module: &str, members: &[String]) -> bool {
+    let segs = module_segments(lang, module);
+    let rest: Vec<&str> = segs[1..]
+        .iter()
+        .chain(members.iter())
+        .map(String::as_str)
+        .collect();
+    if rt.lookup(&segs[0], &rest).is_some() {
+        return true;
+    }
+    lang == Language::Rust && {
+        let prefix = format!("{}::", segs[0]);
+        rt.modules.iter().any(|m| m.name.starts_with(&prefix))
+    }
+}
+
 /// The class owning a method symbol path (`Api.users` gives `Api`).
 fn enclosing_class(symbol: &str) -> Option<&str> {
     symbol.rsplit_once('.').map(|(c, _)| c)
@@ -251,7 +285,7 @@ impl<'p, 'a> State<'p, 'a> {
             mechanism: mechanism.to_string(),
             destination,
             ordinal: 0,
-            labels: cx.pf.labels.clone(),
+            labels: labels_at(cx, &rf.symbol),
             location: Some(rf.location),
         });
     }
@@ -276,7 +310,7 @@ impl<'p, 'a> State<'p, 'a> {
             coverage_gap,
             construct: destination::construct_text(text),
             ordinal: 0,
-            labels: cx.pf.labels.clone(),
+            labels: labels_at(cx, symbol),
             location: Some(location),
         });
     }
@@ -398,7 +432,13 @@ impl<'p, 'a> State<'p, 'a> {
                     args: Vec::new(),
                     kwargs: Vec::new(),
                     receiver: None,
-                    text: imp.specifier.clone(),
+                    // A Rust specifier names only the crate, so the text
+                    // spells out the whole path.
+                    text: if cx.lang() == Language::Rust && !imp.members.is_empty() {
+                        format!("{}::{}", imp.specifier, imp.members.join("::"))
+                    } else {
+                        imp.specifier.clone()
+                    },
                     symbol: imp.symbol.clone(),
                     span: imp.span,
                     location: imp.location,
@@ -409,9 +449,7 @@ impl<'p, 'a> State<'p, 'a> {
                     self.external(cx, &synthetic, &module, &members, false);
                     return;
                 }
-                let segs = module_segments(cx.lang(), &module);
-                let rest: Vec<&str> = segs[1..].iter().map(String::as_str).collect();
-                if cx.rt.lookup(&segs[0], &rest).is_none() {
+                if !known_module(cx.rt, cx.lang(), &module, &members) {
                     self.dep(cx, package_name(cx.lang(), &module));
                 }
                 // An imported Rust egress trait is a site at the `use`, since
@@ -490,27 +528,8 @@ impl<'p, 'a> State<'p, 'a> {
             .filter(|i| i.star && !i.type_only)
             .collect();
         for imp in stars {
-            match self.r.target(cx.path, cx.lang(), &imp.specifier) {
-                Target::FirstParty(p) => {
-                    if let Some(b) = self.r.export(&p, name)? {
-                        return Ok(Some(b));
-                    }
-                }
-                Target::External(m) => {
-                    let segs = module_segments(cx.lang(), &m);
-                    let mut rest: Vec<&str> = segs[1..].iter().map(String::as_str).collect();
-                    rest.push(name);
-                    if matches!(
-                        cx.rt.lookup(&segs[0], &rest),
-                        Some(Classification::Entry(_))
-                    ) {
-                        return Ok(Some(Binding::External {
-                            module: m,
-                            members: vec![name.to_string()],
-                        }));
-                    }
-                }
-                _ => {}
+            if let Some(b) = self.r.star_member(cx.path, cx.lang(), imp, name)? {
+                return Ok(Some(b));
             }
         }
         Ok(None)

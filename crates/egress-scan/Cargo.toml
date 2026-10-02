@@ -9,6 +9,7 @@ publish.workspace = true
 egress-core.workspace = true
 egress-python = { path = "../egress-python" }
 egress-js.workspace = true
+egress-rust = { path = "../egress-rust" }
 
 [dev-dependencies]
 libc = "=0.2.189"

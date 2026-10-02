@@ -98,7 +98,7 @@ enum Outcome {
     /// Read and pre-scanned; `ir` is `None` when no frontend is registered.
     Scanned {
         labels: Vec<Label>,
-        ir: Option<FileIr>,
+        ir: Option<Box<FileIr>>,
     },
     Failed {
         kind: BlindSpotKind,
@@ -134,7 +134,7 @@ fn process(registry: &Registry, f: &SourceFile, text: &str) -> Outcome {
         Some(Ok(ir)) => {
             return Outcome::Scanned {
                 labels,
-                ir: Some(ir),
+                ir: Some(Box::new(ir)),
             };
         }
         Some(Err(FrontendError::Parse)) => BlindSpotKind::ParseError,
@@ -248,7 +248,7 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
                         file: f.file.clone(),
                         language: f.language,
                         labels,
-                        ir,
+                        ir: *ir,
                     });
                 }
             }
@@ -262,17 +262,25 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
     }
 
     let mut budget_exceeded = discovery.budget_exceeded.clone();
-    let repo_rules: Vec<_> = Language::ALL
-        .into_iter()
-        .filter_map(|lang| {
-            let r = options.registry.get(lang)?.repo_rules(&discovery)?;
-            Some((lang, r))
-        })
-        .collect();
+    let mut linked = Vec::new();
+    for lang in Language::ALL {
+        if let Some(fe) = options.registry.get(lang) {
+            let mut view: Vec<(&[u8], &mut FileIr)> = files
+                .iter_mut()
+                .filter(|f| f.language == lang)
+                .map(|f| (f.path.as_slice(), &mut f.ir))
+                .collect();
+            if let Some(rules) = fe.link(&discovery.manifests, &discovery.index, &mut view) {
+                linked.push((lang, rules));
+            } else if let Some(rules) = fe.repo_rules(&discovery) {
+                linked.push((lang, rules));
+            }
+        }
+    }
     let mut program = Program::new(&discovery.index, &discovery.excluded_dirs);
     for lang in Language::ALL {
-        if let Some((_, r)) = repo_rules.iter().find(|(l, _)| *l == lang) {
-            program.set_rules(lang, r.as_ref());
+        if let Some((_, rules)) = linked.iter().find(|(l, _)| *l == lang) {
+            program.set_rules(lang, rules.as_ref());
         } else if let Some(rules) = options.registry.get(lang).and_then(|f| f.specifier_rules()) {
             program.set_rules(lang, rules);
         }
