@@ -55,7 +55,7 @@ fn all_text(d: &Discovery) -> String {
 // ---- file types and routing ------------------------------------------------
 
 #[test]
-fn covers_ae10_notebook_is_unsupported_and_skipped() {
+fn notebook_is_unsupported_and_skipped() {
     let t = Tree::new("ipynb");
     t.file("app.py", "x = 1\n").file("analysis.ipynb", "{}");
     let d = run(&t);
@@ -70,7 +70,7 @@ fn covers_ae10_notebook_is_unsupported_and_skipped() {
 }
 
 #[test]
-fn covers_ae9_go_only_tree_has_no_supported_files() {
+fn go_only_tree_has_no_supported_files() {
     let t = Tree::new("go");
     t.file("main.go", "package main\n")
         .file("go.mod", "module x\n");
@@ -157,7 +157,7 @@ fn shebang_routes_extensionless_scripts() {
 // ---- exclusions -------------------------------------------------------------
 
 #[test]
-fn covers_ae19_venv_without_home_is_an_unconfirmed_exclusion() {
+fn venv_without_home_is_an_unconfirmed_exclusion() {
     let t = Tree::new("venv-unconfirmed");
     t.file("src/app.py", "")
         .file("src/lib/pyvenv.cfg", "version = 3.12.3\n")
@@ -177,7 +177,7 @@ fn covers_ae19_venv_without_home_is_an_unconfirmed_exclusion() {
 }
 
 #[test]
-fn covers_ae19_venv_with_home_is_excluded_without_a_gap() {
+fn venv_with_home_is_excluded_without_a_gap() {
     let t = Tree::new("venv-confirmed");
     t.file("src/app.py", "")
         .file("src/lib/pyvenv.cfg", "home = /usr/bin\nversion = 3.12.3\n")
@@ -285,7 +285,7 @@ fn git_directories_are_excluded_and_gap_only_with_supported_files() {
 // ---- labels -----------------------------------------------------------------
 
 #[test]
-fn covers_ae11_path_labels_never_change_what_is_scanned() {
+fn path_labels_never_change_what_is_scanned() {
     let t = Tree::new("labels");
     t.file("vendor/httplib_copy/client.py", "")
         .file("dist/app.min.js", "")
@@ -317,8 +317,8 @@ fn covers_ae11_path_labels_never_change_what_is_scanned() {
 // ---- symlinks ---------------------------------------------------------------
 
 #[test]
-fn covers_ae12_outside_link_is_reported_and_target_never_printed() {
-    let t = Tree::new("ae12");
+fn outside_link_is_reported_and_target_never_printed() {
+    let t = Tree::new("symlinks");
     let target = t.outside_file("payload_dir/evil.py", "import socket\n");
     t.file("src/real.py", "x = 1\n")
         .link("src/evil.py", &target)
@@ -341,11 +341,11 @@ fn covers_ae12_outside_link_is_reported_and_target_never_printed() {
 }
 
 #[test]
-fn covers_ae24_outside_target_in_unsearchable_directory_is_never_touched() {
+fn outside_target_in_unsearchable_directory_is_never_touched() {
     if privileged() {
         return;
     }
-    let t = Tree::new("ae24");
+    let t = Tree::new("hostile");
     let target = t.outside_file("locked/x.py", "import socket\n");
     support::chmod(&t.outside.join("locked"), 0o000);
     t.file("src/app.py", "").link("src/share.py", &target);

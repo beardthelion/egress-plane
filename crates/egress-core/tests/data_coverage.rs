@@ -114,7 +114,7 @@ fn loader_reads_every_embedded_file_with_a_stable_digest() {
 }
 
 #[test]
-fn runtime_range_matches_ktd20() {
+fn runtime_range_matches_the_declared_range() {
     let d = data();
     assert_eq!(d.runtime_range.python, "3.8-3.13");
     assert_eq!(d.runtime_range.node, "18-22");
@@ -581,7 +581,7 @@ fn os_path_is_wholly_inert_and_os_is_not() {
 
 /// `os.path.join` is inert and `os.system` is egress.
 #[test]
-fn ae15_os_path_join_is_inert_and_os_system_is_egress() {
+fn os_path_join_is_inert_and_os_system_is_egress() {
     let d = data();
     let py = d.runtime(Language::Python);
     assert_eq!(id_of(py.lookup("os", &["path", "join"])), "module os.path");
@@ -596,7 +596,7 @@ fn ae15_os_path_join_is_inert_and_os_system_is_egress() {
 
 /// Bare `fetch` is an ambient egress entry.
 #[test]
-fn ae16_bare_fetch_is_an_ambient_egress_entry() {
+fn bare_fetch_is_an_ambient_egress_entry() {
     let d = data();
     let js = d.runtime(Language::Javascript);
     match js.lookup_global(&["fetch"]) {

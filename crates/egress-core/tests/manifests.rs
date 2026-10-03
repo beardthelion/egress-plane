@@ -44,7 +44,7 @@ fn assert_outside(t: &Tree, manifest: &str) {
 }
 
 #[test]
-fn covers_ae17_cargo_lib_path_outside_root() {
+fn cargo_lib_path_outside_root() {
     let t = Tree::new("cargo-lib-outside");
     t.file(
         "Cargo.toml",
@@ -54,7 +54,7 @@ fn covers_ae17_cargo_lib_path_outside_root() {
 }
 
 #[test]
-fn covers_ae17_cargo_absolute_bin_path() {
+fn cargo_absolute_bin_path() {
     let t = Tree::new("cargo-bin-abs");
     t.file(
         "Cargo.toml",
@@ -64,7 +64,7 @@ fn covers_ae17_cargo_absolute_bin_path() {
 }
 
 #[test]
-fn covers_ae17_package_json_workspaces_outside_root() {
+fn package_json_workspaces_outside_root() {
     let t = Tree::new("workspaces-outside");
     t.file("package.json", r#"{"name":"a","workspaces":["../*"]}"#);
     assert_outside(&t, "package.json");
@@ -77,14 +77,14 @@ fn covers_ae17_package_json_workspaces_outside_root() {
 }
 
 #[test]
-fn covers_ae17_tsconfig_extends_outside_root() {
+fn tsconfig_extends_outside_root() {
     let t = Tree::new("tsconfig-extends-outside");
     t.file("tsconfig.json", r#"{"extends": "../../base.json"}"#);
     assert_outside(&t, "tsconfig.json");
 }
 
 #[test]
-fn covers_ae17_tsconfig_paths_outside_root() {
+fn tsconfig_paths_outside_root() {
     let t = Tree::new("tsconfig-paths-outside");
     t.file(
         "tsconfig.json",
@@ -94,7 +94,7 @@ fn covers_ae17_tsconfig_paths_outside_root() {
 }
 
 #[test]
-fn covers_ae17_pyproject_backend_path_outside_root() {
+fn pyproject_backend_path_outside_root() {
     let t = Tree::new("backend-path-outside");
     t.file(
         "pyproject.toml",

@@ -28,7 +28,7 @@ fn hooks(d: &Discovery) -> Vec<String> {
 const CARGO: &str = "[package]\nname = \"a\"\nversion = \"0.1.0\"\n";
 
 #[test]
-fn covers_ae5_build_rs_is_a_hook_and_scanned_as_source() {
+fn build_rs_is_a_hook_and_scanned_as_source() {
     let t = Tree::new("build-rs");
     t.file("Cargo.toml", CARGO)
         .file("build.rs", "fn main() {}\n")

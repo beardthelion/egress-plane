@@ -37,14 +37,14 @@ fn cov(py_scanned: u64, py_skipped: u64, unsupported_skipped: u64) -> Coverage {
 }
 
 #[test]
-fn covers_ae9_no_supported_file_is_empty_even_with_gaps() {
+fn no_supported_file_is_empty_even_with_gaps() {
     assert_eq!(state(&cov(0, 0, 0), &[], &[]), CompletenessState::Empty);
     let nb = spot(BlindSpotKind::UnsupportedFileType, true);
     assert_eq!(state(&cov(0, 0, 1), &[nb], &[]), CompletenessState::Empty);
 }
 
 #[test]
-fn covers_ae9_a_clean_scan_is_complete() {
+fn a_clean_scan_is_complete() {
     assert_eq!(state(&cov(1, 0, 0), &[], &[]), CompletenessState::Complete);
 }
 
@@ -78,7 +78,7 @@ fn hooks_and_construct_blind_spots_leave_the_state_alone() {
 }
 
 #[test]
-fn covers_ae25_js_trees_carry_the_browser_dom_caveat() {
+fn js_trees_carry_the_browser_dom_caveat() {
     let js: BTreeSet<Language> = [Language::Javascript, Language::Python].into();
     let c = caveats(&js);
     assert_eq!(c.len(), 1);

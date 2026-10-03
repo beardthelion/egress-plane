@@ -54,9 +54,9 @@ fn text_is_the_default_format() {
 }
 
 #[test]
-fn covers_ae8_python2_file_is_a_parse_error_gap() {
+fn python2_file_is_a_parse_error_gap() {
     let (text, _) = both(
-        &case("python/completeness/ae8-python2-print-parse-error"),
+        &case("python/completeness/python2-print-parse-error"),
         2,
         "incomplete",
     );
@@ -69,24 +69,24 @@ fn covers_ae8_python2_file_is_a_parse_error_gap() {
 }
 
 #[test]
-fn covers_ae9_go_only_is_empty_and_no_egress_python_is_complete() {
-    let (text, j) = both(&case("mixed/completeness/ae9-go-only-empty"), 3, "empty");
+fn go_only_is_empty_and_no_egress_python_is_complete() {
+    let (text, j) = both(&case("mixed/completeness/go-only-empty"), 3, "empty");
     let v = json(&j);
     for lang in ["python", "javascript", "rust"] {
         assert_eq!(v["completeness"]["coverage"][lang]["scanned"], 0);
     }
     assert!(text.contains("Coverage: python 0 scanned"), "{text}");
     both(
-        &case("python/completeness/ae9-no-egress-complete"),
+        &case("python/completeness/no-egress-complete"),
         0,
         "complete",
     );
 }
 
 #[test]
-fn covers_ae17_path_outside_root_is_a_gap_and_never_printed() {
+fn path_outside_root_is_a_gap_and_never_printed() {
     let (text, j) = both(
-        &case("rust/completeness/ae17-path-attribute-absolute"),
+        &case("rust/completeness/path-attribute-absolute"),
         2,
         "incomplete",
     );
@@ -95,9 +95,9 @@ fn covers_ae17_path_outside_root_is_a_gap_and_never_printed() {
 }
 
 #[test]
-fn covers_ae19_planted_pyvenv_is_incomplete_and_real_venv_is_complete() {
+fn planted_pyvenv_is_incomplete_and_real_venv_is_complete() {
     let (text, _) = both(
-        &case("python/completeness/ae19-unconfirmed-venv"),
+        &case("python/completeness/unconfirmed-venv"),
         2,
         "incomplete",
     );
@@ -127,9 +127,9 @@ fn covers_ae19_planted_pyvenv_is_incomplete_and_real_venv_is_complete() {
 const DOM: &str = "Browser DOM-mediated requests are not covered";
 
 #[test]
-fn covers_ae25_js_tree_carries_the_browser_dom_caveat_and_python_does_not() {
+fn js_tree_carries_the_browser_dom_caveat_and_python_does_not() {
     let (text, j) = both(
-        &case("javascript/completeness/ae25-js-only-caveat"),
+        &case("javascript/completeness/js-only-caveat"),
         0,
         "complete",
     );
@@ -137,7 +137,7 @@ fn covers_ae25_js_tree_carries_the_browser_dom_caveat_and_python_does_not() {
     assert_eq!(json(&j)["caveats"][0]["id"], "browser-dom");
 
     let (text, j) = both(
-        &case("python/completeness/ae25-python-only-no-caveat"),
+        &case("python/completeness/python-only-no-caveat"),
         0,
         "complete",
     );
@@ -251,7 +251,7 @@ fn text_groups_sites_by_destination_and_lists_dependencies_once() {
 /// Every corpus case that lists `absent_text` (redaction, out-of-root paths)
 /// keeps those strings out of both the text report and the JSON.
 #[test]
-fn covers_ae14_absent_text_never_appears_in_either_format() {
+fn absent_text_never_appears_in_either_format() {
     let mut checked = 0;
     for lang in ["python", "javascript", "rust", "mixed"] {
         let Ok(cats) = std::fs::read_dir(corpus().join(lang)) else {
@@ -283,7 +283,7 @@ fn covers_ae14_absent_text_never_appears_in_either_format() {
         }
     }
     assert!(checked >= 10, "only {checked} cases list absent_text");
-    let text = scan(&case("python/tricky/ae14-redaction-userinfo-query"), "text").stdout;
+    let text = scan(&case("python/tricky/redaction-userinfo-query"), "text").stdout;
     assert!(
         text.contains("https://<redacted>@api.example.com/x?token=<redacted>&page=2"),
         "{text}"

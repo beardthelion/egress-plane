@@ -899,7 +899,7 @@ id = "python:requests.post"
 kind = "egress"
 mechanism = "network"
 destination = { arg = 1, keyword = "url", form = "url" }
-fixture = "python/ordinary/ae1-requests-post-env"
+fixture = "python/ordinary/requests-post-env"
 
 [[entry]]
 id = "python:requests.put"

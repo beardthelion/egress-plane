@@ -59,7 +59,7 @@ fn package_names_follow_the_import_root() {
 }
 
 #[test]
-fn covers_ae7_three_hop_first_party_re_export_chain_resolves_to_the_primitive() {
+fn three_hop_first_party_re_export_chain_resolves_to_the_primitive() {
     let c = fx()
         .file(
             "net/a.py",
@@ -334,7 +334,7 @@ fn reduced_global_budget_turns_the_remaining_references_into_resolution_limits()
 }
 
 #[test]
-fn covers_ae18_relative_import_targets() {
+fn relative_import_targets() {
     let c = fx()
         .other("payload.dat")
         .other("config.json")

@@ -122,7 +122,7 @@ fn unknown_member_of_an_egress_module_takes_the_module_bucket() {
 // ---- value-use rule --------------------------------------------------------
 
 #[test]
-fn covers_ae20_value_uses_of_egress_members_are_expr_sites() {
+fn value_uses_of_egress_members_are_expr_sites() {
     let c = fx()
         .file(
             "jobs.py",
@@ -203,7 +203,7 @@ fn alias_of_an_egress_member_called_later_is_a_site() {
 // ---- ambient module rule ----------------------------------------------------------
 
 #[test]
-fn covers_ae16_ambient_fetch_and_local_fetch_and_computed_global() {
+fn ambient_fetch_and_local_fetch_and_computed_global() {
     let c = fx()
         .file(
             "a.js",
@@ -338,7 +338,7 @@ fn python_builtins_subscript_with_a_non_literal_key_is_scope_injection() {
 // ---- reflective access ------------------------------------------
 
 #[test]
-fn covers_ae22_getattr_with_a_non_literal_name_on_a_module_is_a_blind_spot() {
+fn getattr_with_a_non_literal_name_on_a_module_is_a_blind_spot() {
     let c = fx()
         .file(
             "a.py",
@@ -393,7 +393,7 @@ fn computed_member_on_a_module_binding_is_reflective_access() {
 }
 
 #[test]
-fn covers_ae27_non_literal_reflective_access_on_untracked_provenance_is_reflective_unknown() {
+fn non_literal_reflective_access_on_untracked_provenance_is_reflective_unknown() {
     for p in [
         Provenance::FirstPartyCallResult,
         Provenance::UnscannedCallResult,

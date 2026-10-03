@@ -16,7 +16,7 @@ fn contains(haystack: &[u8], needle: &str) -> bool {
 }
 
 #[test]
-fn covers_ae14_userinfo_and_listed_query_key() {
+fn userinfo_and_listed_query_key() {
     let dest = d::literal("https://bob:hunter2@api.example.com/x?token=abc&page=2");
     assert_eq!(
         dest.display,
@@ -106,7 +106,7 @@ fn token_prefix_under_unlisted_key_is_redacted() {
 }
 
 #[test]
-fn covers_ae23_token_run_in_every_text_position() {
+fn token_run_in_every_text_position() {
     let path = d::literal("https://h.example/x/ghp_abc123");
     assert_eq!(path.display, "https://h.example/x/<redacted>");
 

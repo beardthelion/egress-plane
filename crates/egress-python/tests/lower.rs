@@ -67,7 +67,7 @@ impl Tree {
     fn new(files: &[(&str, &str)]) -> Tree {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
         let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
-            .join("egress-u5")
+            .join("egress-python-tests")
             .join(format!("t-{}-{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         for (path, body) in files {
@@ -135,7 +135,7 @@ fn pair(a: &str, b: &str) -> (String, String) {
 // ---- references and arguments --------------------------------------------
 
 #[test]
-fn covers_ae1_requests_post_with_an_env_read_argument() {
+fn requests_post_with_an_env_read_argument() {
     let ir = ir(
         "import os\nimport requests\n\ndef notify(p):\n    requests.post(os.environ[\"WEBHOOK_URL\"], json=p)\n",
     );
@@ -155,7 +155,7 @@ fn covers_ae1_requests_post_with_an_env_read_argument() {
 }
 
 #[test]
-fn covers_ae3_import_of_a_non_literal_name_is_a_dynamic_import_trigger() {
+fn import_of_a_non_literal_name_is_a_dynamic_import_trigger() {
     let ir = ir("def f(name, url):\n    getattr(__import__(name), \"urlopen\")(url)\n");
     let r = one(&ir, &amb("__import__"), &[]);
     assert_eq!(r.use_kind, UseKind::Call);
@@ -172,12 +172,12 @@ fn covers_ae3_import_of_a_non_literal_name_is_a_dynamic_import_trigger() {
 }
 
 #[test]
-fn covers_ae8_python2_print_is_a_parse_error() {
+fn python2_print_is_a_parse_error() {
     assert_eq!(lower("print \"hello\"\n"), Err(LowerError::Parse));
 }
 
 #[test]
-fn covers_ae22_nested_call_argument_and_reflective_access_on_a_module() {
+fn nested_call_argument_and_reflective_access_on_a_module() {
     let ir = ir(
         "import base64\nimport requests\n\ndef send(blob, verb):\n    requests.post(base64.b64decode(blob).decode())\n    getattr(requests, verb)\n",
     );
@@ -199,7 +199,7 @@ fn covers_ae22_nested_call_argument_and_reflective_access_on_a_module() {
 }
 
 #[test]
-fn covers_ae27_receiver_provenance_for_untracked_values() {
+fn receiver_provenance_for_untracked_values() {
     let ir = ir(
         "def make_client():\n    return object()\n\ndef run(name, u):\n    c = make_client()\n    getattr(c, name)(u)\n\ndef f(o, n):\n    getattr(o, n)\n",
     );
@@ -323,7 +323,7 @@ fn assignment_to_an_egress_module_member_is_an_assignment_target() {
 }
 
 #[test]
-fn ktd8_self_attribute_in_init_and_method_call_on_it() {
+fn self_attribute_in_init_and_method_call_on_it() {
     let ir = ir(
         "import requests\n\nclass Api:\n    def __init__(self):\n        self.s = requests.Session()\n\n    def get(self, u):\n        return self.s.get(u)\n\n    def reset(self):\n        self.t = 1\n",
     );
@@ -352,7 +352,7 @@ fn ktd8_self_attribute_in_init_and_method_call_on_it() {
 }
 
 #[test]
-fn covers_ae20_value_uses_in_every_evaluated_position() {
+fn value_uses_in_every_evaluated_position() {
     let src = "import functools, os, socket\n\
 run = functools.partial(os.system, cmd)\n\
 f = os.system\n\
@@ -394,7 +394,7 @@ fn eager_annotations_are_references_unless_postponed() {
 }
 
 #[test]
-fn covers_ae21_introspection_roots_are_recorded_and_reported() {
+fn introspection_roots_are_recorded_and_reported() {
     let ir = ir("().__class__.__base__.__subclasses__()\n");
     let names: Vec<&str> = ir
         .introspection
@@ -527,7 +527,7 @@ fn must_not_literal_getattr_is_an_ordinary_reference() {
 }
 
 #[test]
-fn ktd10_columns_count_unicode_scalar_values() {
+fn columns_count_unicode_scalar_values() {
     let ir = ir("import requests\nx = \"\u{e9}\u{4e2d}\"; requests.get(u)\n");
     let r = one(&ir, &imp("requests"), &["get"]);
     assert_eq!((r.location.line, r.location.column), (2, 11));
@@ -623,7 +623,7 @@ fn probes(k: SpecifierKind) -> Vec<String> {
 }
 
 #[test]
-fn ktd16_relative_specifiers() {
+fn relative_specifiers_resolve_within_the_package() {
     let r = PythonRules;
     assert_eq!(
         probes(r.classify(b"pkg/app.py", ".net")),
@@ -644,7 +644,7 @@ fn ktd16_relative_specifiers() {
 }
 
 #[test]
-fn ktd16_absolute_specifiers_probe_package_roots() {
+fn absolute_specifiers_probe_package_roots() {
     let r = PythonRules;
     let SpecifierKind::Bare { probes: p, module } = r.classify(b"svc/api/app.py", "net.http")
     else {

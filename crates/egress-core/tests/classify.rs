@@ -9,7 +9,7 @@ use egress_core::ir::{Expr, Provenance};
 use egress_core::model::{Bucket, DestinationKind};
 
 #[test]
-fn covers_ae15_os_path_join_is_inert_and_os_system_is_a_site() {
+fn os_path_join_is_inert_and_os_system_is_a_site() {
     let c = fx()
         .file(
             "a.py",
@@ -32,7 +32,7 @@ fn covers_ae15_os_path_join_is_inert_and_os_system_is_a_site() {
 }
 
 #[test]
-fn covers_ae2_forty_calls_on_an_uncatalogued_package_list_it_once() {
+fn forty_calls_on_an_uncatalogued_package_list_it_once() {
     let mut ir = js().import(default_import("left-pad", "leftPad"));
     for i in 0..40 {
         ir = ir.r(r(imp("leftPad"), &[], Call, "leftPad(s)").arg(name(&format!("s{i}"))));
@@ -216,7 +216,7 @@ fn one_dest(ir: Ir) -> String {
 }
 
 #[test]
-fn covers_ae1_env_subscript_is_env_name() {
+fn env_subscript_is_env_name() {
     let environ = r(imp("os"), &["environ"], ValueEscape, "os.environ");
     let ir = post_with(subscript(environ.expr(), lit("WEBHOOK_URL"))).import(import_module("os"));
     assert_eq!(one_dest(ir), "env:WEBHOOK_URL");
@@ -364,7 +364,7 @@ fn f_string_with_a_parameter_is_a_template_with_a_param_hole() {
 }
 
 #[test]
-fn covers_ae22_encoded_destination_is_an_expr_site_without_a_blind_spot() {
+fn encoded_destination_is_an_expr_site_without_a_blind_spot() {
     let decode = r(
         imp("base64"),
         &["b64decode", "decode"],
@@ -490,7 +490,7 @@ fn literal_destination_is_redacted() {
 // ---- wrappers ----------------------------------------------------------
 
 #[test]
-fn covers_ae13_wrapper_param_is_one_site_and_callers_add_none() {
+fn wrapper_param_is_one_site_and_callers_add_none() {
     let c = fx()
         .file(
             "api.py",

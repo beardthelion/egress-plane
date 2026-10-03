@@ -45,7 +45,7 @@ fn id_is_sixteen_hex_of_sha256() {
 }
 
 #[test]
-fn covers_ae6_line_shift_changes_only_location() {
+fn line_shift_changes_only_location() {
     let a = common::report(
         vec![
             post(12),

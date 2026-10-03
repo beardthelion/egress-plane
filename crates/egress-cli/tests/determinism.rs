@@ -63,10 +63,10 @@ fn is_location_line(l: &str) -> bool {
 
 /// A blank line above an egress call changes only `location` lines.
 #[test]
-fn covers_ae6_blank_line_changes_only_location() {
-    let t = Temp::new("ae6");
+fn blank_line_changes_only_location() {
+    let t = Temp::new("line-shift");
     let root = t.path("tree");
-    copy_tree(&case("python/ordinary/ae1-requests-post-env"), &root);
+    copy_tree(&case("python/ordinary/requests-post-env"), &root);
     let before = scan(&root, "json");
     let file = root.join("notify.py");
     let src = std::fs::read_to_string(&file).unwrap();

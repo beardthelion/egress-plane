@@ -25,7 +25,7 @@ impl Tree {
     pub fn new(name: &str) -> Tree {
         let n = COUNTER.fetch_add(1, Ordering::SeqCst);
         let base = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
-            .join("egress-u3")
+            .join("egress-core-tests")
             .join(format!("{name}-{}-{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         let root = base.join("root");

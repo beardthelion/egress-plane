@@ -537,7 +537,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn exit_codes_follow_r17() {
+    fn exit_codes_follow_the_completeness_state() {
         assert_eq!(CompletenessState::Complete.exit_code(), 0);
         assert_eq!(CompletenessState::Incomplete.exit_code(), 2);
         assert_eq!(CompletenessState::Empty.exit_code(), 3);

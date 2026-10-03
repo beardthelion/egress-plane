@@ -4419,7 +4419,7 @@ id = "python:os.system"
 kind = "egress"
 mechanism = "process"
 destination = { arg = 1, keyword = "command", form = "program" }
-fixture = "python/ordinary/ae15-os-path-and-system"
+fixture = "python/ordinary/os-path-and-system"
 
 [[entry]]
 id = "python:pdb"

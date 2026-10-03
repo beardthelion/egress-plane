@@ -660,8 +660,8 @@ fn removing_any_one_case_from_the_ledger_turns_the_run_red() {
 }
 
 #[test]
-fn ae9_go_only_case_fails_against_the_stub() {
-    let id = "mixed/completeness/ae9-go-only-empty";
+fn go_only_case_fails_against_the_stub() {
+    let id = "mixed/completeness/go-only-empty";
     let e = load_expected(&corpus_root().join(id).join("expected.toml")).unwrap();
     assert_eq!(e.state, CompletenessState::Empty);
     assert_eq!(e.exit_code, 3);

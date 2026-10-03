@@ -88,8 +88,8 @@ fn budgets(files: u64, bytes: u64, findings: u64) -> Config {
 }
 
 #[test]
-fn covers_ae10_notebook_makes_the_scan_incomplete() {
-    let t = Tree::new("ae10");
+fn notebook_makes_the_scan_incomplete() {
+    let t = Tree::new("notebook");
     t.file("app.py", "x = 1\n").file("analysis.ipynb", "{}");
     let r = scan(&t.root).unwrap();
     assert_eq!(r.completeness.state, CompletenessState::Incomplete);
@@ -103,15 +103,15 @@ fn covers_ae10_notebook_makes_the_scan_incomplete() {
 }
 
 #[test]
-fn covers_ae9_go_only_is_empty_and_inert_python_complete() {
-    let t = Tree::new("ae9-go");
+fn go_only_is_empty_and_inert_python_complete() {
+    let t = Tree::new("go-only");
     t.file("main.go", "package main\n");
     let r = scan(&t.root).unwrap();
     assert_eq!(r.completeness.state, CompletenessState::Empty);
     assert_eq!(r.exit_code(), 3);
     assert_eq!(r.completeness.coverage, Coverage::default());
 
-    let t = Tree::new("ae9-py");
+    let t = Tree::new("python-clean");
     t.file("calc.py", "def add(a, b):\n    return a + b\n");
     let r = scan(&t.root).unwrap();
     assert_eq!(r.completeness.state, CompletenessState::Complete);
@@ -132,8 +132,8 @@ fn notebooks_only_is_empty_with_the_blind_spot_listed() {
 }
 
 #[test]
-fn covers_ae25_caveat_follows_javascript_and_keeps_the_state() {
-    let t = Tree::new("ae25-js");
+fn caveat_follows_javascript_and_keeps_the_state() {
+    let t = Tree::new("caveat-js");
     t.file("index.js", "export const a = 1;\n");
     let r = scan(&t.root).unwrap();
     let ids: Vec<_> = r.caveats.iter().map(|c| c.id.as_str()).collect();
@@ -141,7 +141,7 @@ fn covers_ae25_caveat_follows_javascript_and_keeps_the_state() {
     assert_eq!(r.completeness.state, CompletenessState::Complete);
     assert_eq!(r.exit_code(), 0);
 
-    let t = Tree::new("ae25-py");
+    let t = Tree::new("caveat-py");
     t.file("app.py", "x = 1\n");
     assert!(scan(&t.root).unwrap().caveats.is_empty());
 }
@@ -170,8 +170,8 @@ fn root_errors_are_tool_errors() {
 }
 
 #[test]
-fn covers_ae26_files_budget_cut_is_deterministic() {
-    let t = Tree::new("ae26");
+fn files_budget_cut_is_deterministic() {
+    let t = Tree::new("files-budget");
     for n in ["d.py", "a.py", "c.py", "b.py"] {
         t.file(n, "x = 1\n");
     }
@@ -192,8 +192,8 @@ fn covers_ae26_files_budget_cut_is_deterministic() {
 }
 
 #[test]
-fn covers_ae26_bytes_budget_cut() {
-    let t = Tree::new("ae26-bytes");
+fn bytes_budget_cut() {
+    let t = Tree::new("bytes-budget");
     for n in ["a.py", "b.py", "c.py"] {
         t.file(n, "x = 1\n");
     }
@@ -429,8 +429,8 @@ fn content_and_hook_labels_reach_lowered_files() {
 }
 
 #[test]
-fn covers_ae24_hostile_repository_finishes_without_control_characters() {
-    let t = Tree::new("ae24");
+fn hostile_repository_finishes_without_control_characters() {
+    let t = Tree::new("hostile");
     t.fifo("src/pipe.py")
         .file(
             "src/deep.py",

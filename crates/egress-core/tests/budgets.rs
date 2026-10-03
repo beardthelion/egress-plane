@@ -43,7 +43,7 @@ fn five_files(t: &Tree) {
 }
 
 #[test]
-fn covers_ae26_files_budget_parses_the_bytewise_first_files() {
+fn files_budget_parses_the_bytewise_first_files() {
     let t = Tree::new("budget-files");
     five_files(&t);
     let d = discover(&t.root, &reduced(2, 1 << 30)).unwrap();
@@ -55,7 +55,7 @@ fn covers_ae26_files_budget_parses_the_bytewise_first_files() {
 }
 
 #[test]
-fn covers_ae26_bytes_budget_cuts_the_same_way() {
+fn bytes_budget_cuts_the_same_way() {
     let t = Tree::new("budget-bytes");
     five_files(&t);
     let d = discover(&t.root, &reduced(100, 13)).unwrap();

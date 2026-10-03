@@ -872,7 +872,7 @@ id = "javascript:globalThis.fetch"
 kind = "egress"
 mechanism = "network"
 destination = { arg = 1, keyword = "input", form = "url" }
-fixture = "javascript/ordinary/ae16-fetch-ambient-global"
+fixture = "javascript/ordinary/fetch-ambient-global"
 
 [[entry]]
 id = "javascript:globalThis.global"
@@ -1202,7 +1202,7 @@ id = "javascript:net.Socket"
 kind = "egress"
 mechanism = "network"
 constructor = true
-fixture = "javascript/tricky/ae20-extends-net-socket"
+fixture = "javascript/tricky/extends-net-socket"
 
 [[entry]]
 id = "javascript:net.Stream"

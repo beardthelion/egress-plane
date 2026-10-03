@@ -92,8 +92,8 @@ fn evasive_strings_are_escaped_in_the_text_report() {
 /// a symlink into an unsearchable outside directory. The scan finishes, exits
 /// 2, and the text report holds no raw control character.
 #[test]
-fn covers_ae24_hostile_repository_finishes_with_clean_output() {
-    let t = Temp::new("ae24");
+fn hostile_repository_finishes_with_clean_output() {
+    let t = Temp::new("hostile");
     let root = t.path("root");
     let locked = t.path("outside/locked");
     t.file("outside/locked/x.py", "import socket\n");

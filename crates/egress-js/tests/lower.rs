@@ -176,7 +176,7 @@ export { get };
 }
 
 #[test]
-fn ae18_require_of_data_and_json_files_is_an_import() {
+fn require_of_data_and_json_files_is_an_import() {
     let f = ir(
         "app.js",
         r#"const payload = require("./payload.dat");
@@ -202,7 +202,7 @@ const n = await import(spec);
 // ---- references ---------------------------------------------------------------------
 
 #[test]
-fn covers_ae16_ambient_local_and_computed_global() {
+fn ambient_local_and_computed_global() {
     let f = ir("a.js", "export function load(url) { return fetch(url); }");
     let r = one(&f, "fetch(url)");
     assert_eq!(r.root, amb("fetch"));
@@ -224,7 +224,7 @@ fn covers_ae16_ambient_local_and_computed_global() {
 }
 
 #[test]
-fn covers_ae2_forty_calls_are_forty_references_to_one_import() {
+fn forty_calls_are_forty_references_to_one_import() {
     let mut src = String::from("import leftPad from \"left-pad\";\n");
     for i in 0..40 {
         src.push_str(&format!("leftPad(s{i});\n"));
@@ -240,7 +240,7 @@ fn covers_ae2_forty_calls_are_forty_references_to_one_import() {
 }
 
 #[test]
-fn covers_ae27_receiver_provenance() {
+fn receiver_provenance() {
     let f = ir(
         "a.js",
         r#"import lib from "lib";
@@ -346,7 +346,7 @@ fn this_attribute_assignment_outside_the_constructor_is_an_assignment_target() {
 }
 
 #[test]
-fn covers_ae20_base_class_reflect_apply_and_call() {
+fn base_class_reflect_apply_and_call() {
     let f = ir(
         "conn.js",
         r#"import net from "node:net";
@@ -423,7 +423,7 @@ fn must_not_this_in_methods_arrows_strict_functions_and_modules_is_not_ambient()
 }
 
 #[test]
-fn symbol_paths_follow_ktd9() {
+fn symbol_paths_are_qualified_by_their_enclosing_definitions() {
     let f = ir(
         "a.js",
         r#"export class Api { list() { fetch(a); } constructor() { fetch(b); } }
@@ -504,7 +504,7 @@ export function e() { return fetch(process.env.URL); }
 // ---- structural triggers -----------------------------------------------------
 
 #[test]
-fn covers_ae4_non_literal_loaders_are_dynamic_import_triggers() {
+fn non_literal_loaders_are_dynamic_import_triggers() {
     for src in [
         "require(variable);",
         "createRequire(__filename)(x);",
@@ -564,7 +564,7 @@ fn function_constructor_and_eval_are_references() {
 }
 
 #[test]
-fn covers_ae21_constructor_chains() {
+fn constructor_chains() {
     let f = ir(
         "a.js",
         r#"(() => {}).constructor("return process")();

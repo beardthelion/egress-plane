@@ -59,7 +59,7 @@ fn p(a: &str, b: &str) -> (String, String) {
 }
 
 #[test]
-fn covers_ae16_ambient_local_and_computed_global() {
+fn ambient_local_and_computed_global() {
     let r = scan(&[
         ("a.js", "export function f(url) { return fetch(url); }\n"),
         (
@@ -79,14 +79,14 @@ fn covers_ae16_ambient_local_and_computed_global() {
 }
 
 #[test]
-fn covers_ae4_require_of_a_variable_is_a_blind_spot() {
+fn require_of_a_variable_is_a_blind_spot() {
     let r = scan(&[("a.cjs", "module.exports = (n) => require(n);\n")]);
     assert_eq!(spots(&r), vec![p("a.cjs", "dynamic-import")]);
     assert!(r.sites.is_empty());
 }
 
 #[test]
-fn covers_ae27_reflective_unknown_and_literal_receivers() {
+fn reflective_unknown_and_literal_receivers() {
     let r = scan(&[(
         "a.js",
         r#"import lib from "lib";
@@ -160,7 +160,7 @@ fn declaration_only_targets_are_unresolved_for_values_and_inert_for_types() {
 }
 
 #[test]
-fn covers_ae18_loaded_as_code_and_json_data() {
+fn loaded_as_code_and_json_data() {
     let r = scan(&[
         (
             "app.js",
@@ -215,7 +215,7 @@ module.exports = { f };
 }
 
 #[test]
-fn covers_ae11_minified_bundle_site_is_labeled() {
+fn minified_bundle_site_is_labeled() {
     let mut src = String::from("var a=[");
     for i in 0..400 {
         src.push_str(&format!("{i},"));

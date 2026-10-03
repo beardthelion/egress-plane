@@ -99,7 +99,7 @@ const CARGO: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition
 
 /// A local re-export of a primitive resolves to the primitive.
 #[test]
-fn ae7_local_reexport_resolves_to_the_primitive() {
+fn local_reexport_resolves_to_the_primitive() {
     let c = scan(&[
         ("Cargo.toml", CARGO),
         ("src/net.rs", "pub use std::net::TcpStream as Sock;\n"),
@@ -122,7 +122,7 @@ fn ae7_local_reexport_resolves_to_the_primitive() {
 }
 
 #[test]
-fn ae7_inline_module_reexport_resolves() {
+fn inline_module_reexport_resolves() {
     let c = scan(&[
         ("Cargo.toml", CARGO),
         (
@@ -436,7 +436,7 @@ fn client_local_method_is_a_tracked_site() {
 }
 
 #[test]
-fn method_parameters_exclude_the_receiver_and_symbols_follow_ktd9() {
+fn method_parameters_exclude_the_receiver_and_symbols_are_impl_qualified() {
     let c = scan(&[
         ("Cargo.toml", CARGO),
         (
@@ -693,7 +693,7 @@ fn type_positions_bounds_return_types_and_ufcs_paths_are_references() {
 
 /// An absolute `#[path]` target is outside the root and never printed.
 #[test]
-fn ae17_absolute_path_attribute_is_outside_root_and_never_printed() {
+fn absolute_path_attribute_is_outside_root_and_never_printed() {
     let c = scan(&[
         ("Cargo.toml", CARGO),
         (
