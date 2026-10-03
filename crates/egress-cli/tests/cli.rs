@@ -260,12 +260,13 @@ fn covers_ae14_absent_text_never_appears_in_either_format() {
         };
         for cat in cats.flatten() {
             for c in std::fs::read_dir(cat.path()).unwrap().flatten() {
-                let expected = std::fs::read_to_string(c.path().join("expected.toml")).unwrap();
-                let Some(line) = expected.lines().find(|l| l.starts_with("absent_text")) else {
+                let expected: toml::Table = std::fs::read_to_string(c.path().join("expected.toml"))
+                    .unwrap()
+                    .parse()
+                    .unwrap();
+                let Some(v) = expected.get("absent_text") else {
                     continue;
                 };
-                let v: serde_json::Value =
-                    serde_json::from_str(line.split_once('=').unwrap().1.trim()).unwrap();
                 let root = c.path().join("tree");
                 let text = scan(&root, "text").stdout;
                 let j = scan(&root, "json").stdout;

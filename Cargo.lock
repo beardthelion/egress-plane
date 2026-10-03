@@ -283,6 +283,7 @@ dependencies = [
  "egress-scan",
  "libc",
  "serde_json",
+ "toml",
 ]
 
 [[package]]
