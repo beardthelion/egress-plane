@@ -1,0 +1,26 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "used"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "xalias-used.example.com:443"
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "qualified"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "xalias-qualified.example.com:443"
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "nested"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "xalias-inline.example.com:443"
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "chained"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "xalias-chain.example.com:443"

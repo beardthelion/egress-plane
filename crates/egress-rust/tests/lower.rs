@@ -1185,3 +1185,210 @@ fn type_alias_to_first_party_or_inert_type_produces_nothing() {
         assert!(c.blind_spots.is_empty(), "{src}\n{}", dump(&c));
     }
 }
+
+// ---- type aliases across modules ---------------------------------------------
+
+/// Whether `c` has the `TcpStream::connect` site in `file`/`symbol` for
+/// `dest`.
+fn has_connect(c: &Classified, file: &str, symbol: &str, dest: &str) -> bool {
+    has_site(c, file, symbol, "rust:std::net::TcpStream::connect", dest)
+}
+
+#[test]
+fn type_alias_in_another_file_resolves_through_a_use() {
+    let c = scan(&[
+        ("Cargo.toml", CARGO),
+        ("src/m.rs", "pub type T = std::net::TcpStream;\n"),
+        (
+            "src/lib.rs",
+            "mod m;\nuse crate::m::T;\npub fn f() {\n    let _ = T::connect(\"xalias-use.example:443\");\n}\n",
+        ),
+    ]);
+    assert!(
+        has_connect(&c, "src/lib.rs", "f", "xalias-use.example:443"),
+        "{}",
+        dump(&c)
+    );
+}
+
+#[test]
+fn type_alias_in_another_file_resolves_through_a_qualified_path() {
+    for call in [
+        "m::T::connect",
+        "crate::m::T::connect",
+        "self::m::T::connect",
+    ] {
+        let c = scan(&[
+            ("Cargo.toml", CARGO),
+            ("src/m.rs", "pub(crate) type T = std::net::TcpStream;\n"),
+            (
+                "src/lib.rs",
+                &format!(
+                    "mod m;\npub fn f() {{\n    let _ = {call}(\"xalias-path.example:443\");\n}}\n"
+                ),
+            ),
+        ]);
+        assert!(
+            has_connect(&c, "src/lib.rs", "f", "xalias-path.example:443"),
+            "{call}\n{}",
+            dump(&c)
+        );
+    }
+}
+
+#[test]
+fn type_alias_in_an_inline_module_resolves() {
+    for src in [
+        "mod m {\n    pub type T = std::net::TcpStream;\n}\npub fn f() {\n    let _ = m::T::connect(\"xalias-inline.example:443\");\n}\n",
+        "mod m {\n    pub type T = std::net::TcpStream;\n}\nuse m::T;\npub fn f() {\n    let _ = T::connect(\"xalias-inline.example:443\");\n}\n",
+        "mod m {\n    use std::net::TcpStream;\n    pub(crate) type T = TcpStream;\n}\npub fn f() {\n    let _ = crate::m::T::connect(\"xalias-inline.example:443\");\n}\n",
+        "mod outer {\n    pub mod m {\n        pub type T = super::super::S;\n    }\n}\ntype S = std::net::TcpStream;\npub fn f() {\n    let _ = outer::m::T::connect(\"xalias-inline.example:443\");\n}\n",
+    ] {
+        let c = scan(&[("Cargo.toml", CARGO), ("src/lib.rs", src)]);
+        assert!(
+            has_connect(&c, "src/lib.rs", "f", "xalias-inline.example:443"),
+            "{src}\n{}",
+            dump(&c)
+        );
+    }
+}
+
+#[test]
+fn type_alias_chain_across_two_files_resolves() {
+    let c = scan(&[
+        ("Cargo.toml", CARGO),
+        ("src/a.rs", "pub type A = std::net::TcpStream;\n"),
+        ("src/b.rs", "pub type B = crate::a::A;\n"),
+        (
+            "src/lib.rs",
+            "mod a;\nmod b;\nuse b::B;\npub fn f() {\n    let _ = B::connect(\"xalias-chain.example:443\");\n}\npub fn g() {\n    let _ = b::B::connect(\"xalias-chain2.example:443\");\n}\n",
+        ),
+    ]);
+    assert!(
+        has_connect(&c, "src/lib.rs", "f", "xalias-chain.example:443"),
+        "{}",
+        dump(&c)
+    );
+    assert!(
+        has_connect(&c, "src/lib.rs", "g", "xalias-chain2.example:443"),
+        "{}",
+        dump(&c)
+    );
+}
+
+#[test]
+fn type_alias_in_another_file_to_first_party_or_inert_type_produces_nothing() {
+    for m in [
+        "pub struct Conn;\nimpl Conn {\n    pub fn connect(_: &str) -> Self { Conn }\n}\npub type T = Conn;\n",
+        "pub type T = String;\n",
+        "pub type T = std::string::String;\n",
+        "pub type T = Vec<u8>;\n",
+        "pub type T<X> = X;\n",
+        "pub type T = (u8, u8);\n",
+    ] {
+        let c = scan(&[
+            ("Cargo.toml", CARGO),
+            ("src/m.rs", m),
+            (
+                "src/lib.rs",
+                "mod m;\nuse m::T;\npub fn f() {\n    let _ = T::connect(\"h.example.com:1\");\n    let _ = m::T::from(\"h.example.com:1\");\n}\n",
+            ),
+        ]);
+        assert!(c.sites.is_empty(), "{m}\n{}", dump(&c));
+        assert!(c.blind_spots.is_empty(), "{m}\n{}", dump(&c));
+        assert!(c.unscanned_dependencies.is_empty(), "{m}\n{}", dump(&c));
+    }
+}
+
+#[test]
+fn cyclic_type_alias_in_another_file_produces_no_site() {
+    let c = scan(&[
+        ("Cargo.toml", CARGO),
+        ("src/m.rs", "pub type T = U;\npub type U = T;\n"),
+        (
+            "src/lib.rs",
+            "mod m;\nuse m::T;\npub fn f() {\n    let _ = T::connect(\"h.example.com:1\");\n    let _ = m::U::connect(\"h.example.com:1\");\n}\n",
+        ),
+    ]);
+    assert!(c.sites.is_empty(), "{}", dump(&c));
+}
+
+#[test]
+fn type_alias_to_a_glob_imported_name_in_another_file_resolves() {
+    let c = scan(&[
+        ("Cargo.toml", CARGO),
+        ("src/m.rs", "use std::net::*;\npub type T = TcpStream;\n"),
+        (
+            "src/lib.rs",
+            "mod m;\npub fn f() {\n    let _ = m::T::connect(\"xalias-glob.example:443\");\n}\n",
+        ),
+    ]);
+    assert!(
+        has_connect(&c, "src/lib.rs", "f", "xalias-glob.example:443"),
+        "{}",
+        dump(&c)
+    );
+}
+
+#[test]
+fn type_alias_past_the_use_hop_cap_is_a_resolution_limit_not_silence() {
+    let mut m = String::from("use std::net::TcpStream as A0;\n");
+    for i in 1..=8 {
+        m.push_str(&format!("use A{} as A{i};\n", i - 1));
+    }
+    m.push_str("pub type T = A8;\n");
+    let c = scan(&[
+        ("Cargo.toml", CARGO),
+        ("src/m.rs", &m),
+        (
+            "src/lib.rs",
+            "mod m;\npub fn f() {\n    let _ = m::T::connect(\"h.example.com:1\");\n}\n",
+        ),
+    ]);
+    assert!(
+        has_connect(&c, "src/lib.rs", "f", "h.example.com:1")
+            || blind(&c, "src/m.rs", BlindSpotKind::ResolutionLimit) >= 1,
+        "{}",
+        dump(&c)
+    );
+}
+
+#[test]
+fn fn_local_or_glob_type_aliases_to_inert_types_in_another_file_produce_nothing() {
+    for m in [
+        "use std::collections::*;\npub type T = HashMap<u8, u8>;\n",
+        "pub fn g() {\n    type T = std::net::TcpStream;\n}\npub struct T;\nimpl T {\n    pub fn connect(_: &str) {}\n}\n",
+    ] {
+        let c = scan(&[
+            ("Cargo.toml", CARGO),
+            ("src/m.rs", m),
+            (
+                "src/lib.rs",
+                "mod m;\npub fn f() {\n    let _ = m::T::connect(\"h.example.com:1\");\n    let _ = m::T::new();\n}\n",
+            ),
+        ]);
+        assert!(c.sites.is_empty(), "{m}\n{}", dump(&c));
+        assert!(c.blind_spots.is_empty(), "{m}\n{}", dump(&c));
+    }
+}
+
+/// An alias to a name only a glob can bind is looked up through the
+/// module's globs, as `m::Name` through a glob re-export is: a prelude name
+/// there gets the glob's conservative module escape, never a specific
+/// mechanism.
+#[test]
+fn type_alias_to_a_prelude_name_beside_a_glob_is_at_most_the_glob_escape() {
+    let c = scan(&[
+        ("Cargo.toml", CARGO),
+        ("src/m.rs", "use std::net::*;\npub type T = String;\n"),
+        (
+            "src/lib.rs",
+            "mod m;\npub fn f() {\n    let _ = m::T::connect(\"h.example.com:1\");\n}\n",
+        ),
+    ]);
+    assert!(
+        c.sites.iter().all(|s| s.mechanism == "rust:std::net"),
+        "{}",
+        dump(&c)
+    );
+}

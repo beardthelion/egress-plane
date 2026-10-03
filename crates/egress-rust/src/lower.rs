@@ -1045,6 +1045,7 @@ impl<'a> Lowerer<'a> {
                 self.def_symbol(&ident_str(&t.ident), t.ident.span());
                 visit::visit_generics(self, &t.generics);
                 self.visit_type(&t.ty);
+                self.alias_import(t);
             }
             Item::Const(c) => {
                 for a in &c.attrs {
@@ -1264,6 +1265,65 @@ impl<'a> Lowerer<'a> {
             self.use_refs.insert(self.ir.references.len());
         }
         self.emit(r);
+    }
+
+    /// Records `type name = path;` as an import of its
+    /// target, the way `use path as name;` is lowered, so a path naming the
+    /// alias from another module or file follows it. In-module uses resolve
+    /// through [`Name::TypeAlias`] instead. A target this module cannot name
+    /// as a path (a prelude type, a generic parameter, a non-path type) binds
+    /// nothing, matching [`Self::path_root_at`].
+    fn alias_import(&mut self, t: &syn::ItemType) {
+        let Type::Path(p) = &*t.ty else { return };
+        if p.qself.is_some() {
+            return;
+        }
+        let segs = path_segs(&p.path);
+        let leading = p.path.leading_colon.is_some();
+        let Some(first) = segs.first() else { return };
+        let scope = self.scopes.len() - 1;
+        let unbound = !leading
+            && !matches!(first.as_str(), "crate" | "$crate" | "self" | "super")
+            && self.lookup_in(scope, first).is_none();
+        let abs = if unbound
+            && self.globs_at(scope)
+            && first.chars().next().is_some_and(char::is_uppercase)
+        {
+            // A name only a glob import binds: look it up in this module,
+            // whose glob imports the resolver follows.
+            let mut s = self.prefix_at(scope);
+            s.extend(segs.iter().cloned());
+            Ok(Abs {
+                base: Base::SelfFile,
+                segs: s,
+            })
+        } else if unbound
+            && !(segs.len() > 1 && first.chars().next().is_some_and(char::is_lowercase))
+        {
+            return;
+        } else {
+            self.abs(scope, &segs, leading, 0)
+        };
+        let abs = match abs {
+            Ok(abs) => abs,
+            Err(Unresolved::Untracked) => return,
+            Err(Unresolved::HopCap) => {
+                self.construct(ConstructKind::ResolutionLimit, t.span());
+                return;
+            }
+        };
+        let local = self.qualified_local(&ident_str(&t.ident));
+        let symbol = self.symbol();
+        let visible = !self.in_block();
+        self.push_import(
+            Some(local),
+            abs.spec(),
+            abs.segs,
+            false,
+            visible,
+            symbol,
+            t.span(),
+        );
     }
 
     /// [`Self::abs`] for a `use` path; a name that binds itself (`use x;`
