@@ -711,6 +711,47 @@ fn literal_loader_values_that_flow_elsewhere_escape() {
 }
 
 #[test]
+fn must_not_bare_loader_statements_escape() {
+    // A loader call that is the whole value of an expression statement
+    // discards its module value: it is an import, not a module escape.
+    let cases = [
+        "import importlib\nimportlib.import_module(\"subprocess\")\n",
+        "__import__(\"socket\")\n",
+        "def f():\n    __import__(\"socket\")\n",
+        "import importlib\nclass C:\n    importlib.import_module(\"subprocess\")\n",
+    ];
+    for src in cases {
+        let report = scan(&[("a.py", src)]);
+        assert!(
+            report.blind_spots.is_empty(),
+            "{src:?}: {:?}",
+            report.blind_spots
+        );
+    }
+    let f = ir("__import__(\"socket\")\n");
+    assert!(
+        refs(&f, &imp("__import__(\"socket\")"), &[]).is_empty(),
+        "{:#?}",
+        f.references
+    );
+    assert_eq!(
+        import_named(&f, "__import__(\"socket\")").specifier,
+        "socket"
+    );
+    // The discard covers only the statement's own call: a loader call
+    // nested inside it still flows somewhere.
+    for src in [
+        "print(__import__(\"socket\"))\n",
+        "(__import__(\"socket\"), 1)\n",
+        "(m := __import__(\"socket\"))\n",
+        "__import__(\"socket\") if c else None\n",
+    ] {
+        let report = scan(&[("a.py", src)]);
+        assert_eq!(kinds(&report), vec![s("module-escape")], "{src:?}");
+    }
+}
+
+#[test]
 fn many_dotted_imports_lower_in_near_linear_work() {
     // Each `import a.bN` and each reference used to scan every dotted name
     // bound in the scope. Doubling the input must not quadruple the time.

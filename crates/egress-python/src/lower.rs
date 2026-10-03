@@ -248,6 +248,10 @@ struct Walker<'s> {
     /// The loader call about to be visited as the base of a member chain;
     /// the chain's own reference covers its module value.
     chain_base: Option<(u32, u32)>,
+    /// The call about to be visited as the whole value of an expression
+    /// statement; its value is discarded, so a loader call there is an
+    /// import and nothing more.
+    discarded: Option<(u32, u32)>,
 }
 
 fn key(r: TextRange) -> (u32, u32) {
@@ -333,6 +337,7 @@ impl<'s> Walker<'s> {
             in_annotation: 0,
             named_loaders: HashSet::new(),
             chain_base: None,
+            discarded: None,
         }
     }
 
@@ -1017,6 +1022,7 @@ impl<'s> Walker<'s> {
 
     fn visit_call(&mut self, c: &ExprCall) {
         let chain_base = self.chain_base.take() == Some(key(c.range()));
+        let discarded = self.discarded.take() == Some(key(c.range()));
         if !self.emit() {
             self.visit_expr(&c.func);
             for a in &c.arguments.args {
@@ -1095,8 +1101,9 @@ impl<'s> Walker<'s> {
                     // The module value goes somewhere other than a name or
                     // a member chain (a return, a lambda body, a tuple, a
                     // ternary): a module used as a value, like a bare
-                    // imported name in `chain_value`.
-                    if !chain_base {
+                    // imported name in `chain_value`. A bare expression
+                    // statement discards the value, so nothing escapes.
+                    if !chain_base && !discarded {
                         let kind = if self.in_annotation > 0 {
                             UseKind::TypePosition
                         } else {
@@ -1681,6 +1688,13 @@ impl<'a> Visitor<'a> for Walker<'_> {
                     self.visit_type_params(tp);
                 }
                 self.visit_annotation_expr(&t.value);
+            }
+            Stmt::Expr(e) => {
+                if let Expr::Call(c) = e.value.as_ref() {
+                    self.discarded = Some(key(c.range()));
+                }
+                self.visit_expr(&e.value);
+                self.discarded = None;
             }
             _ => walk_stmt(self, stmt),
         }
