@@ -85,6 +85,7 @@ struct Patterns {
     url: Regex,
     param: Regex,
     keyed: Regex,
+    pair: Regex,
 }
 
 fn patterns() -> &'static Patterns {
@@ -105,6 +106,14 @@ fn patterns() -> &'static Patterns {
             r#"(?:^|[\s(\[{,;])(?P<open>["'`])?(?P<key>[A-Za-z_][A-Za-z0-9_-]*)(?P<close>["'`])?\s*(?P<sep>[=:])\s*"#,
         )
         .expect("keyed pattern"),
+        // A pair entry: a quoted key followed by a comma and its value, as in
+        // `[("X-Api-Key", v)]`, `["Authorization", v]`, or
+        // `h.set("Authorization", v)`, with the same start rule as `keyed`.
+        // The match ends where the value starts; see [`value_end`].
+        pair: Regex::new(
+            r#"(?:^|[\s(\[{,;])(?:"(?P<k1>[A-Za-z_][A-Za-z0-9_-]*)"|'(?P<k2>[A-Za-z_][A-Za-z0-9_-]*)'|`(?P<k3>[A-Za-z_][A-Za-z0-9_-]*)`)\s*,\s*"#,
+        )
+        .expect("pair pattern"),
     })
 }
 
@@ -132,7 +141,8 @@ pub fn redact_with(rules: &Rules, text: &str) -> String {
             .collect();
         text = replace_spans(&text, spans);
     }
-    let spans = keyed_spans(&p.keyed, rules, &text);
+    let mut spans = keyed_spans(&p.keyed, rules, &text);
+    spans.extend(pair_spans(&p.pair, rules, &text));
     let text = replace_spans(&text, spans);
     let spans = token_spans(rules, &text);
     replace_spans(&text, spans)
@@ -173,6 +183,34 @@ fn keyed_spans(keyed: &Regex, rules: &Rules, text: &str) -> Vec<(usize, usize)> 
         // redaction is idempotent and a literal `<redacted>` in the source
         // cannot hide the rest of the value.
         let end = value_end(bytes, start, in_string);
+        if end > start {
+            spans.push((start, end));
+            covered = end;
+        }
+    }
+    spans
+}
+
+/// Value spans of pair entries (a quoted key, a comma, a value) whose key
+/// is listed. As in [`keyed_spans`], a match whose value starts inside the
+/// previous span is skipped, so the pass is linear.
+fn pair_spans(pair: &Regex, rules: &Rules, text: &str) -> Vec<(usize, usize)> {
+    let bytes = text.as_bytes();
+    let mut spans = Vec::new();
+    let mut covered = 0usize;
+    for c in pair.captures_iter(text) {
+        let key = ["k1", "k2", "k3"]
+            .iter()
+            .find_map(|k| c.name(k))
+            .expect("one key group");
+        if !key_matches(rules, key.as_str()) {
+            continue;
+        }
+        let start = c.get(0).expect("whole match").end();
+        if start < covered {
+            continue;
+        }
+        let end = value_end(bytes, start, None);
         if end > start {
             spans.push((start, end));
             covered = end;

@@ -33,6 +33,11 @@
 #   Unbalanced input runs to the end of the text (fail closed). `==`, `=>`,
 #   and `::` after the key are a comparison, an arrow, and a path, not
 #   entries.
+# - Pair entries: the value after a quoted key and a comma (a tuple or array
+#   pair such as `("X-Api-Key", v)` or `["Authorization", v]`, or a call such
+#   as `h.set("Authorization", v)`) is redacted when the quoted key matches
+#   `keys`. The quoted key starts the text or follows whitespace, `(`, `[`,
+#   `{`, `,`, or `;`, and the value ends as a keyed entry's does.
 # - Token runs: see `token_prefixes`.
 # - Provider path secrets: see `path_secrets`.
 

@@ -15,6 +15,11 @@ absent_text = [
   "LEAKBOTFAKE",
   "LEAKTOKENSTRFAKE",
   "LEAKDIGESTFAKE",
+  "LEAKPAIRDICTFAKE",
+  "LEAKPAIRTUPLEFAKE",
+  "LEAKPAIRARRAYFAKE",
+  "LEAKPAIRSETFAKE",
+  "LEAKPAIRAPPENDFAKE",
 ]
 
 [[sites]]
@@ -106,3 +111,33 @@ file = "db.py"
 symbol = "curl_token"
 mechanism = "python:os.system"
 destination = "{param:1:curl_token} -H 'Authorization: <redacted>'"
+
+[[sites]]
+file = "db.py"
+symbol = "pair_dict"
+mechanism = "python:urllib.request.urlopen"
+destination = "expr:urllib.request.Request(u, headers=dict([(\"X-Api-Key\", <redacted>)]))"
+
+[[sites]]
+file = "db.py"
+symbol = "pair_tuples"
+mechanism = "python:requests.get"
+destination = "expr:requests.get(**kw, headers=[(\"Authorization\", <redacted>), (\"host\", \"h\")])"
+
+[[sites]]
+file = "client.js"
+symbol = "pairArray"
+mechanism = "javascript:https.request"
+destination = "expr:https.request({ hostname: h, headers: [[\"Authorization\", <redacted>], [\"page\", 2]] })"
+
+[[sites]]
+file = "client.js"
+symbol = "pairSet"
+mechanism = "javascript:globalThis.fetch"
+destination = "expr:mk(u, h.set(\"Authorization\", <redacted>))"
+
+[[sites]]
+file = "client.js"
+symbol = "pairAppend"
+mechanism = "javascript:globalThis.fetch"
+destination = "expr:mk(u, headers.append(\"x-api-key\", <redacted>))"

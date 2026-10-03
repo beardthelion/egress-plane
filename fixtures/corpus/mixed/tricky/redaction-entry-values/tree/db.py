@@ -1,4 +1,5 @@
 import os
+import urllib.request
 
 import psycopg2
 import requests
@@ -43,3 +44,11 @@ def bare_then_host(pw):
 
 def curl_token(u):
     return os.system(u + " -H 'Authorization: token LEAKCURLTOKENFAKE'")
+
+
+def pair_dict(u):
+    return urllib.request.urlopen(urllib.request.Request(u, headers=dict([("X-Api-Key", "LEAKPAIRDICTFAKE")])))
+
+
+def pair_tuples(kw):
+    return requests.get(**kw, headers=[("Authorization", "Token LEAKPAIRTUPLEFAKE"), ("host", "h")])

