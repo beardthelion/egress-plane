@@ -646,6 +646,97 @@ fn export_star_cycle_keeps_every_importer_regardless_of_file_order() {
     }
 }
 
+/// A three-hop cycle: `a` star-imports `b` then `d`, `b` star-imports `c`,
+/// `c` star-imports `a`, and `d` binds `x`. The lookup through `a` cuts at
+/// `c -> a`, two hops below it; neither `c` nor `b` may be remembered as
+/// having no `x`.
+fn star_cycle3_py(first: &str) -> Fx {
+    fx().file("a.py", py().import(star("b")).import(star("d")))
+        .file("b.py", py().import(star("c")))
+        .file("c.py", py().import(star("a")))
+        .file("d.py", py().import(import(Some("x"), "requests", &[])))
+        .file(
+            first,
+            py().import(import(Some("x"), "a", &["x"])).r(r(
+                imp("x"),
+                &["get"],
+                Call,
+                "x.get(\"http://1\")",
+            )
+            .arg(lit("http://1"))),
+        )
+        .file(
+            "m2.py",
+            py().import(import(Some("y"), "b", &["x"])).r(r(
+                imp("y"),
+                &["get"],
+                Call,
+                "y.get(\"http://2\")",
+            )
+            .arg(lit("http://2"))),
+        )
+}
+
+#[test]
+fn three_hop_star_import_cycle_keeps_every_importer_regardless_of_file_order() {
+    for first in ["m1.py", "z1.py"] {
+        let c = star_cycle3_py(first).run();
+        assert_eq!(
+            mechs(&c),
+            vec![
+                pair("python:requests.get", "http://1"),
+                pair("python:requests.get", "http://2"),
+            ],
+            "first importer {first}"
+        );
+        assert!(c.blind_spots.is_empty(), "{:?}", c.blind_spots);
+    }
+}
+
+fn star_cycle3_js(first: &str) -> Fx {
+    fx().file(
+        "a.js",
+        js().import(re_export(star("./b")))
+            .import(re_export(star("./d"))),
+    )
+    .file("b.js", js().import(re_export(star("./c"))))
+    .file("c.js", js().import(re_export(star("./a"))))
+    .file(
+        "d.js",
+        js().import(re_export(import(Some("x"), "net", &["connect"]))),
+    )
+    .file(
+        first,
+        js().import(import(Some("x"), "./a", &["x"]))
+            .r(r(imp("x"), &[], Call, "x(80, \"one\")")
+                .arg(lit("80"))
+                .arg(lit("one"))),
+    )
+    .file(
+        "m2.js",
+        js().import(import(Some("y"), "./b", &["x"]))
+            .r(r(imp("y"), &[], Call, "y(80, \"two\")")
+                .arg(lit("80"))
+                .arg(lit("two"))),
+    )
+}
+
+#[test]
+fn three_hop_export_star_cycle_keeps_every_importer_regardless_of_file_order() {
+    for first in ["m1.js", "z1.js"] {
+        let c = star_cycle3_js(first).run();
+        assert_eq!(
+            mechs(&c),
+            vec![
+                pair("javascript:net.connect", "one:80"),
+                pair("javascript:net.connect", "two:80"),
+            ],
+            "first importer {first}"
+        );
+        assert!(c.blind_spots.is_empty(), "{:?}", c.blind_spots);
+    }
+}
+
 /// A resolver over `index` with `excluded` directories and generic rules.
 fn target_of(excluded: &[&str], specifier: &str) -> Target {
     let index = BTreeMap::new();
@@ -751,4 +842,84 @@ fn js_bare_import_whose_probe_is_excluded_stays_external() {
         .run();
     assert!(c.blind_spots.is_empty(), "{:?}", c.blind_spots);
     assert_eq!(deps(&c), vec![s("lib")]);
+}
+
+/// `from pkg import app` and `from .. import app`, where `app` is a
+/// subpackage the scan excluded (a `pyvenv.cfg` marks it), reach code the
+/// scan skipped: the import is a reference-into-excluded blind spot, not a
+/// definition in `pkg/__init__.py`.
+#[test]
+fn from_import_of_an_excluded_subpackage_is_a_reference_into_excluded() {
+    let call = || r(imp("app"), &["go"], Call, "app.go()");
+    let absolute = fx()
+        .excluded("pkg/app")
+        .file("pkg/__init__.py", py())
+        .file(
+            "main.py",
+            py().import(import(Some("app"), "pkg", &["app"])).r(call()),
+        )
+        .run();
+    // The test rules recurse on a bare `.`, so the relative form goes up
+    // one package; the corpus covers `from . import app` with the real rules.
+    let relative = fx()
+        .excluded("pkg/app")
+        .file("pkg/__init__.py", py())
+        .file("pkg/sub/__init__.py", py())
+        .file(
+            "pkg/sub/main.py",
+            py().import(import(Some("app"), "..", &["app"])).r(call()),
+        )
+        .run();
+    for (c, file) in [(&absolute, "main.py"), (&relative, "pkg/sub/main.py")] {
+        assert_eq!(
+            spots(c),
+            vec![pair(file, "reference-into-excluded")],
+            "{file}"
+        );
+        assert!(c.blind_spots[0].coverage_gap, "{file}");
+        assert!(c.sites.is_empty(), "{file}");
+    }
+}
+
+/// Must-not: `from pkg import name` where `name` is an ordinary definition
+/// in `pkg/__init__.py`, or a name the package binds in a way the resolver
+/// does not see with no submodule of that name, stays first-party code with
+/// no blind spot, even beside an excluded sibling subpackage.
+#[test]
+fn from_import_of_a_package_definition_is_not_a_gap() {
+    let c = fx()
+        .excluded("pkg/app")
+        .file("pkg/__init__.py", py().sym(func("helper", &[])))
+        .file(
+            "main.py",
+            py().import(import(Some("helper"), "pkg", &["helper"]))
+                .import(import(Some("dynamic"), "pkg", &["dynamic"]))
+                .r(r(imp("helper"), &[], Call, "helper()"))
+                .r(r(imp("dynamic"), &["go"], Call, "dynamic.go()")),
+        )
+        .run();
+    assert!(c.blind_spots.is_empty(), "{:?}", c.blind_spots);
+    assert!(c.sites.is_empty(), "{:?}", c.sites);
+}
+
+/// `from pkg import app` where `pkg/app.py` is indexed but not lowered is
+/// first-party code the resolver does not look into, as a direct import of
+/// it is.
+#[test]
+fn from_import_of_an_unlowered_submodule_is_first_party() {
+    let c = fx()
+        .unlowered("pkg/app.py")
+        .file("pkg/__init__.py", py())
+        .file(
+            "main.py",
+            py().import(import(Some("app"), "pkg", &["app"])).r(r(
+                imp("app"),
+                &["go"],
+                Call,
+                "app.go()",
+            )),
+        )
+        .run();
+    assert!(c.blind_spots.is_empty(), "{:?}", c.blind_spots);
+    assert!(c.sites.is_empty(), "{:?}", c.sites);
 }

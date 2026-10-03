@@ -481,10 +481,17 @@ impl<'p, 'a> Resolver<'p, 'a> {
                                 module: m,
                                 members: Vec::new(),
                             },
-                            _ => Binding::FirstPartyDef {
+                            Some(Target::Unlowered(_)) => Binding::FirstParty,
+                            // No module of that name: a name the package
+                            // binds in a way the index does not record.
+                            None | Some(Target::Unresolved) => Binding::FirstPartyDef {
                                 path: path.clone(),
                                 name: members[0].clone(),
                             },
+                            // A submodule the scan cannot follow (excluded,
+                            // outside the root, not code) is a gap, as a
+                            // direct import of it is.
+                            Some(t) => Binding::Gap(t),
                         }
                     }
                 };
