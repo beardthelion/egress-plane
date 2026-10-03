@@ -518,3 +518,94 @@ fn must_not_ordinary_require_member_reads() {
     assert!(r.sites.is_empty(), "{:?}", sites(&r));
     assert!(r.blind_spots.is_empty(), "{:?}", r.blind_spots);
 }
+
+#[test]
+fn require_through_computed_call_apply_bind_is_a_loader() {
+    for (file, src) in [
+        (
+            "a.cjs",
+            "require[\"call\"](null, \"child_process\").exec(\"x\");\n",
+        ),
+        (
+            "a.cjs",
+            "require['apply'](null, [\"child_process\"]).exec(\"x\");\n",
+        ),
+        (
+            "a.cjs",
+            "require[`call`](null, \"child_process\").exec(\"x\");\n",
+        ),
+        (
+            "a.cjs",
+            "require.call[\"call\"](null, null, \"child_process\").exec(\"x\");\n",
+        ),
+        (
+            "a.cjs",
+            "require[\"call\"].call(null, null, \"child_process\").exec(\"x\");\n",
+        ),
+        (
+            "a.mjs",
+            "import { createRequire } from \"node:module\";\nconst r = createRequire(import.meta.url);\nr[\"call\"](null, \"child_process\").exec(\"x\");\n",
+        ),
+        (
+            "a.mjs",
+            "import { createRequire } from \"node:module\";\nconst r = createRequire(import.meta.url);\nr[\"apply\"](null, [\"child_process\"]).exec(\"x\");\n",
+        ),
+    ] {
+        let r = scan(&[(file, src)]);
+        assert_eq!(
+            sites(&r).into_iter().map(|(_, m, _)| m).collect::<Vec<_>>(),
+            vec!["javascript:child_process.exec".to_string()],
+            "{src}: {:?}",
+            r.blind_spots
+        );
+    }
+    // Bound, non-literal, or unknown-key computed loader callees fail closed.
+    for (file, src) in [
+        ("a.cjs", "require[\"bind\"](null)(\"child_process\");\n"),
+        ("a.cjs", "require[`bind`](null)(\"child_process\");\n"),
+        ("a.cjs", "require[\"call\"](null, m);\n"),
+        ("a.cjs", "require[\"apply\"](null, args);\n"),
+        ("a.cjs", "require[k](null, \"child_process\");\n"),
+        ("a.cjs", "require.call[k](null, null, \"child_process\");\n"),
+        (
+            "a.mjs",
+            "import { createRequire } from \"node:module\";\nconst r = createRequire(import.meta.url);\nr[\"bind\"](null)(\"child_process\");\n",
+        ),
+        (
+            "a.mjs",
+            "import { createRequire } from \"node:module\";\nconst r = createRequire(import.meta.url);\nr[k](null, \"child_process\");\n",
+        ),
+    ] {
+        let r = scan(&[(file, src)]);
+        assert!(r.sites.is_empty(), "{src}: {:?}", sites(&r));
+        assert!(
+            r.blind_spots
+                .iter()
+                .any(|b| b.kind.as_str() == "dynamic-import"),
+            "{src}: {:?}",
+            r.blind_spots
+        );
+    }
+    // The bracketed method read as a value is a loader too.
+    let r = scan(&[(
+        "a.cjs",
+        "const f = require[\"call\"];\nmodule.exports = f;\n",
+    )]);
+    assert!(
+        r.blind_spots
+            .iter()
+            .any(|b| b.kind.as_str() == "dynamic-import"),
+        "{:?}",
+        r.blind_spots
+    );
+}
+
+#[test]
+fn must_not_computed_ordinary_require_member_reads() {
+    let r = scan(&[(
+        "a.cjs",
+        "if (typeof require !== \"undefined\") {}\nconst p = require[\"resolve\"](\"./a.cjs\");\nconst c = require[\"cache\"];\nconst q = require[`resolve`](\"./a.cjs\");\nconst m = require[\"main\"] === module;\n",
+    )]);
+    assert!(r.sites.is_empty(), "{:?}", sites(&r));
+    assert!(r.blind_spots.is_empty(), "{:?}", r.blind_spots);
+}

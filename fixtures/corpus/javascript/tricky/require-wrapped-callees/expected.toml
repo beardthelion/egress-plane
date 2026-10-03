@@ -29,3 +29,47 @@ destination = "https://api.example.com/logical"
 file = "net.cjs"
 symbol = "viaBind"
 kind = "dynamic-import"
+
+[[sites]]
+file = "net.cjs"
+symbol = "computedCall"
+mechanism = "javascript:https.get"
+destination = "https://api.example.com/computed-call"
+
+[[sites]]
+file = "net.cjs"
+symbol = "computedApply"
+mechanism = "javascript:https.get"
+destination = "https://api.example.com/computed-apply"
+
+[[sites]]
+file = "net.cjs"
+symbol = "computedTemplate"
+mechanism = "javascript:https.get"
+destination = "https://api.example.com/computed-template"
+
+[[sites]]
+file = "esm.mjs"
+symbol = "createdCall"
+mechanism = "javascript:https.get"
+destination = "https://api.example.com/created-call"
+
+[[blind_spots]]
+file = "net.cjs"
+symbol = "computedBind"
+kind = "dynamic-import"
+
+[[blind_spots]]
+file = "net.cjs"
+symbol = "computedKey"
+kind = "dynamic-import"
+
+[[blind_spots]]
+file = "net.cjs"
+symbol = "computedKey"
+kind = "reflective-access"
+
+[[blind_spots]]
+file = "esm.mjs"
+symbol = "createdBind"
+kind = "dynamic-import"

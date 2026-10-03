@@ -234,6 +234,27 @@ fn lit_str(e: &Expression<'_>) -> Option<String> {
     }
 }
 
+/// The object and key of a plain member expression: the key is `None`
+/// for a computed key that is not a string or plain template literal.
+fn member_key<'e, 'a>(e: &'e Expression<'a>) -> Option<(&'e Expression<'a>, Option<&'e str>)> {
+    match e {
+        Expression::StaticMemberExpression(m) => Some((&m.object, Some(m.property.name.as_str()))),
+        Expression::ComputedMemberExpression(m) => {
+            let key = match m.expression.get_inner_expression() {
+                Expression::StringLiteral(s) => Some(s.value.as_str()),
+                Expression::TemplateLiteral(t) if t.expressions.is_empty() => t
+                    .quasis
+                    .first()
+                    .and_then(|q| q.value.cooked.as_ref())
+                    .map(|c| c.as_str()),
+                _ => None,
+            };
+            Some((&m.object, key))
+        }
+        _ => None,
+    }
+}
+
 fn stringish(e: &Expression<'_>) -> bool {
     match e.get_inner_expression() {
         Expression::StringLiteral(_) | Expression::TemplateLiteral(_) => true,
@@ -636,14 +657,20 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                     .loader_callee(&x.consequent, shift)
                     .or_else(|| self.loader_callee(&x.alternate, shift));
             }
-            Expression::StaticMemberExpression(m) if m.property.name.as_str() == "call" => {
-                return self.loader_callee(&m.object, shift + 1);
+            // `require.call` and `require["call"]` alike.
+            _ if let Some((obj, Some("call"))) = member_key(callee) => {
+                return self.loader_callee(obj, shift + 1);
             }
-            Expression::StaticMemberExpression(m) if m.property.name.as_str() == "apply" => {
-                return match self.loader_callee(&m.object, 0)? {
+            _ if let Some((obj, Some("apply"))) = member_key(callee) => {
+                return match self.loader_callee(obj, 0)? {
                     SpecPos::Arg(0) => Some(SpecPos::Array(shift + 1)),
                     _ => Some(SpecPos::Arg(usize::MAX)),
                 };
+            }
+            // `require[k]` with a key that is not a literal could be any
+            // of the methods above, so its specifier is never read.
+            _ if let Some((obj, None)) = member_key(callee) => {
+                return self.loader_callee(obj, 0).map(|_| SpecPos::Arg(usize::MAX));
             }
             _ => match self.static_chain_no_loader(callee) {
                 Some((Root::Ambient(r), m)) => {
@@ -671,10 +698,8 @@ impl<'s, 'a> Lowerer<'s, 'a> {
 
     /// Whether `e` is `<loader>.<method>`, such as `require.bind`.
     fn loader_method(&mut self, e: &Expression<'a>, method: &str) -> bool {
-        match e.get_inner_expression() {
-            Expression::StaticMemberExpression(m) => {
-                m.property.name.as_str() == method && self.loader_callee(&m.object, 0).is_some()
-            }
+        match member_key(e.get_inner_expression()) {
+            Some((obj, Some(name))) => name == method && self.loader_callee(obj, 0).is_some(),
             _ => false,
         }
     }
