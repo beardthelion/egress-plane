@@ -97,6 +97,13 @@ enum Name {
     Inline,
     /// A function, type, trait, or macro defined here.
     Item,
+    /// `type name = target;`: the target path as written (generic arguments
+    /// dropped) with the scope it was declared in, or `None` when the target
+    /// is not a plain path.
+    TypeAlias {
+        target: Option<(Vec<String>, bool)>,
+        scope: usize,
+    },
     /// A `const` or `static`, by its IR constant name.
     Const(String),
     /// `extern crate c as name;`: the local name.
@@ -482,7 +489,19 @@ impl<'a> Lowerer<'a> {
                     scope.names.insert(ident_str(&s.ident), Name::Item);
                 }
                 Item::Type(s) => {
-                    scope.names.insert(ident_str(&s.ident), Name::Item);
+                    let target = match &*s.ty {
+                        Type::Path(p) if p.qself.is_none() => {
+                            Some((path_segs(&p.path), p.path.leading_colon.is_some()))
+                        }
+                        _ => None,
+                    };
+                    scope.names.insert(
+                        ident_str(&s.ident),
+                        Name::TypeAlias {
+                            target,
+                            scope: index,
+                        },
+                    );
                 }
                 Item::Macro(m) => {
                     if let Some(i) = &m.ident {
@@ -522,8 +541,8 @@ impl<'a> Lowerer<'a> {
         None
     }
 
-    fn globs_in_scope(&self) -> bool {
-        for s in self.scopes.iter().rev() {
+    fn globs_at(&self, scope: usize) -> bool {
+        for s in self.scopes[..=scope].iter().rev() {
             if s.globs {
                 return true;
             }
@@ -723,6 +742,21 @@ impl<'a> Lowerer<'a> {
         value: bool,
         span: PmSpan,
     ) -> Option<(Root, Vec<String>)> {
+        let scope = self.scopes.len().checked_sub(1)?;
+        self.path_root_at(segs, leading, value, span, scope, 0)
+    }
+
+    /// [`Self::path_root`] with names looked up from `scope`, after `hops`
+    /// `type` alias hops.
+    fn path_root_at(
+        &mut self,
+        segs: &[String],
+        leading: bool,
+        value: bool,
+        span: PmSpan,
+        scope: usize,
+        hops: u32,
+    ) -> Option<(Root, Vec<String>)> {
         let (first, rest) = segs.split_first()?;
         if leading {
             let abs = Abs {
@@ -754,11 +788,10 @@ impl<'a> Lowerer<'a> {
         }
         if matches!(first.as_str(), "crate" | "$crate" | "self" | "super") {
             // A `crate`, `self`, or `super` head never follows an alias.
-            let abs = self.abs(self.scopes.len() - 1, segs, false, 0).ok()?;
+            let abs = self.abs(scope, segs, false, 0).ok()?;
             return Some(self.synthetic_root(abs, span));
         }
-        let scope = self.scopes.len().checked_sub(1)?;
-        match self.lookup(first) {
+        match self.lookup_in(scope, first) {
             Some((Name::Use { local, .. }, _))
             | Some((Name::ModFile(local), _))
             | Some((Name::ExternCrate(local), _)) => Some((Root::Import(local), rest.to_vec())),
@@ -771,13 +804,29 @@ impl<'a> Lowerer<'a> {
                 let abs = self.abs(scope, segs, false, 0).ok()?;
                 Some(self.synthetic_root(abs, span))
             }
+            Some((Name::TypeAlias { target, scope: s }, _)) => {
+                // Follow the alias to its target, as written where it was
+                // declared. An unresolvable target or an over-long chain
+                // used as a path root fails closed rather than vanishing.
+                // The cap counts bindings followed the way `abs` does for a
+                // `use` chain, so both kinds of alias resolve equally deep.
+                let target = target.filter(|_| hops <= MAX_ALIAS_HOPS);
+                let Some((mut path, lead)) = target else {
+                    if !rest.is_empty() {
+                        self.construct(ConstructKind::ResolutionLimit, span);
+                    }
+                    return None;
+                };
+                path.extend(rest.iter().cloned());
+                self.path_root_at(&path, lead, false, span, s, hops + 1)
+            }
             Some((Name::Item, _)) | Some((Name::Const(_), _)) => None,
             None => {
-                if self.globs_in_scope() && first.chars().next().is_some_and(char::is_uppercase) {
+                if self.globs_at(scope) && first.chars().next().is_some_and(char::is_uppercase) {
                     return Some((Root::Ambient(first.clone()), rest.to_vec()));
                 }
                 if rest.is_empty() {
-                    return if self.globs_in_scope() {
+                    return if self.globs_at(scope) {
                         Some((Root::Ambient(first.clone()), Vec::new()))
                     } else {
                         None

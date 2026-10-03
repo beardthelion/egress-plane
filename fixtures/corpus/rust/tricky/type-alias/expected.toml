@@ -1,0 +1,31 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "one"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "typealias-one.example.com:443"
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "two"
+mechanism = "rust:std::net::TcpStream::connect"
+destination = "typealias-two.example.com:443"
+
+[[sites]]
+file = "src/local.rs"
+symbol = "three"
+mechanism = "rust:reqwest::blocking::Client::new"
+destination = "expr:C::new()"
+
+[[sites]]
+file = "src/local.rs"
+symbol = "three"
+mechanism = "rust:reqwest::blocking::Client::get"
+destination = "https://typealias-three.example.com/items"
+
+[[blind_spots]]
+file = "src/chain.rs"
+symbol = "far"
+kind = "resolution-limit"

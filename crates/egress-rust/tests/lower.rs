@@ -974,3 +974,214 @@ fn alias_chain_past_the_hop_cap_is_a_resolution_limit() {
         );
     }
 }
+
+// ---- type aliases --------------------------------------------------------------
+
+const REQWEST_CARGO: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nreqwest = { version = \"0.12\", features = [\"blocking\"] }\n";
+
+/// The sites of `src/lib.rs` as (symbol, mechanism, destination), sorted.
+fn site_keys(c: &Classified) -> Vec<(String, String, String)> {
+    let mut v: Vec<_> = c
+        .sites
+        .iter()
+        .map(|s| {
+            (
+                s.symbol.clone(),
+                s.mechanism.clone(),
+                s.destination.display.clone(),
+            )
+        })
+        .collect();
+    v.sort();
+    v
+}
+
+#[test]
+fn module_type_alias_to_std_type_resolves() {
+    let c = scan(&[
+        ("Cargo.toml", CARGO),
+        (
+            "src/lib.rs",
+            "type T = std::net::TcpStream;\npub fn one() -> std::io::Result<T> {\n    T::connect(\"typealias-one.example:443\")\n}\n",
+        ),
+    ]);
+    assert!(
+        has_site(
+            &c,
+            "src/lib.rs",
+            "one",
+            "rust:std::net::TcpStream::connect",
+            "typealias-one.example:443"
+        ),
+        "{}",
+        dump(&c)
+    );
+}
+
+#[test]
+fn pub_type_alias_through_a_use_resolves() {
+    let c = scan(&[
+        ("Cargo.toml", CARGO),
+        (
+            "src/lib.rs",
+            "use std::net::TcpStream;\npub type U = TcpStream;\npub fn two() {\n    let _ = U::connect(\"typealias-two.example:443\");\n}\n",
+        ),
+    ]);
+    assert!(
+        has_site(
+            &c,
+            "src/lib.rs",
+            "two",
+            "rust:std::net::TcpStream::connect",
+            "typealias-two.example:443"
+        ),
+        "{}",
+        dump(&c)
+    );
+}
+
+#[test]
+fn fn_local_type_alias_to_catalogued_crate_type_matches_the_direct_path() {
+    let direct = scan(&[
+        ("Cargo.toml", REQWEST_CARGO),
+        (
+            "src/lib.rs",
+            "pub fn three() {\n    let _ = reqwest::blocking::Client::new().get(\"https://typealias-three.example/x\").send();\n    let c = reqwest::blocking::Client::new();\n    let _ = c.get(\"https://typealias-three.example/y\").send();\n}\n",
+        ),
+    ]);
+    let aliased = scan(&[
+        ("Cargo.toml", REQWEST_CARGO),
+        (
+            "src/lib.rs",
+            "pub fn three() {\n    type C = reqwest::blocking::Client;\n    let _ = C::new().get(\"https://typealias-three.example/x\").send();\n    let c = C::new();\n    let _ = c.get(\"https://typealias-three.example/y\").send();\n}\n",
+        ),
+    ]);
+    // A constructor destination is the expression text, which names the
+    // alias; the mechanisms and the URL destination must match.
+    let key = |c: &Classified| -> Vec<(String, String)> {
+        site_keys(c)
+            .into_iter()
+            .map(|(sym, mech, dest)| {
+                let dest = if dest.starts_with("expr:") {
+                    String::new()
+                } else {
+                    dest
+                };
+                (format!("{sym} {mech}"), dest)
+            })
+            .collect()
+    };
+    assert!(
+        has_site(
+            &direct,
+            "src/lib.rs",
+            "three",
+            "rust:reqwest::blocking::Client::get",
+            "https://typealias-three.example/y"
+        ),
+        "{}",
+        dump(&direct)
+    );
+    assert_eq!(key(&aliased), key(&direct), "{}", dump(&aliased));
+}
+
+#[test]
+fn generic_type_alias_chain_resolves() {
+    let c = scan(&[
+        ("Cargo.toml", CARGO),
+        (
+            "src/lib.rs",
+            "type A<X> = B<X>;\ntype B<X> = std::net::TcpStream;\npub fn four() {\n    let _ = A::<u8>::connect(\"typealias-four.example:443\");\n}\n",
+        ),
+    ]);
+    assert!(
+        has_site(
+            &c,
+            "src/lib.rs",
+            "four",
+            "rust:std::net::TcpStream::connect",
+            "typealias-four.example:443"
+        ),
+        "{}",
+        dump(&c)
+    );
+}
+
+/// `type A0 = std::net::TcpStream; type A1 = A0; ... type A{n} = A{n-1};`
+/// with a call through the last alias.
+fn type_alias_chain(n: usize) -> String {
+    let mut s = String::from("type A0 = std::net::TcpStream;\n");
+    for i in 1..=n {
+        s.push_str(&format!("type A{i} = A{};\n", i - 1));
+    }
+    s.push_str(&format!(
+        "pub fn main() {{\n    let _ = A{n}::connect(\"h.example.com:1\");\n}}\n"
+    ));
+    s
+}
+
+#[test]
+fn type_alias_chain_at_the_hop_cap_resolves_and_past_it_is_a_resolution_limit() {
+    let c = scan(&[("Cargo.toml", CARGO), ("src/lib.rs", &type_alias_chain(8))]);
+    assert!(
+        has_site(
+            &c,
+            "src/lib.rs",
+            "main",
+            "rust:std::net::TcpStream::connect",
+            "h.example.com:1"
+        ),
+        "{}",
+        dump(&c)
+    );
+    assert_eq!(
+        blind(&c, "src/lib.rs", BlindSpotKind::ResolutionLimit),
+        0,
+        "{}",
+        dump(&c)
+    );
+    for n in [9, 12] {
+        let c = scan(&[("Cargo.toml", CARGO), ("src/lib.rs", &type_alias_chain(n))]);
+        assert!(
+            blind(&c, "src/lib.rs", BlindSpotKind::ResolutionLimit) >= 1,
+            "{n}: {}",
+            dump(&c)
+        );
+    }
+}
+
+#[test]
+fn cyclic_or_non_path_type_alias_used_as_a_call_root_is_a_resolution_limit() {
+    for src in [
+        "type A = B;\ntype B = A;\npub fn f() {\n    let _ = A::connect(\"h.example.com:1\");\n}\n",
+        "type T = <std::net::TcpStream as Iterator>::Item;\npub fn f() {\n    let _ = T::connect(\"h.example.com:1\");\n}\n",
+    ] {
+        let c = scan(&[("Cargo.toml", CARGO), ("src/lib.rs", src)]);
+        assert!(
+            blind(&c, "src/lib.rs", BlindSpotKind::ResolutionLimit) >= 1,
+            "{src}\n{}",
+            dump(&c)
+        );
+        assert!(c.sites.is_empty(), "{src}\n{}", dump(&c));
+    }
+}
+
+#[test]
+fn type_alias_to_first_party_or_inert_type_produces_nothing() {
+    for src in [
+        // A first-party type with a method named like an egress primitive.
+        "struct Conn;\nimpl Conn {\n    fn connect(_: &str) -> Self { Conn }\n}\ntype T = Conn;\npub fn f() {\n    let _ = T::connect(\"h.example.com:1\");\n}\n",
+        // A fn-local first-party type behind a fn-local alias.
+        "pub fn f() {\n    struct Conn;\n    impl Conn {\n        fn connect(_: &str) -> Self { Conn }\n    }\n    type T = Conn;\n    let _ = T::connect(\"h.example.com:1\");\n}\n",
+        // Inert std types.
+        "type S = std::string::String;\ntype M = std::collections::HashMap<u8, u8>;\npub fn f() {\n    let _ = S::from(\"h.example.com:1\");\n    let _ = M::new();\n}\n",
+        // A prelude generic alias and an unused alias.
+        "type R<X> = Result<X, ()>;\ntype Unused = std::net::TcpStream;\npub fn f() -> R<u8> {\n    R::Ok(1)\n}\n",
+        // A non-path alias used only in type position.
+        "type F = fn(u8) -> u8;\npub fn f(g: F) -> u8 {\n    g(1)\n}\n",
+    ] {
+        let c = scan(&[("Cargo.toml", CARGO), ("src/lib.rs", src)]);
+        assert!(c.sites.is_empty(), "{src}\n{}", dump(&c));
+        assert!(c.blind_spots.is_empty(), "{src}\n{}", dump(&c));
+    }
+}
