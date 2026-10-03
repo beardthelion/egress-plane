@@ -1,4 +1,4 @@
-//! Manifest parsing (KTD13) and manifest-declared paths (KTD12).
+//! Manifest parsing and manifest-declared paths.
 //!
 //! Discovery reads each manifest through the safe open path with the 8 MiB
 //! cap, then parses it here on a worker stack with panic capture. A failure is
@@ -14,7 +14,7 @@ use serde_json::Value;
 use crate::paths::{dir_of, is_dot_relative};
 
 /// A manifest that does not parse; reported as `manifest-parse-error`. Parser
-/// messages are dropped (KTD13).
+/// messages are dropped.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Malformed;
 
@@ -79,7 +79,7 @@ pub struct CargoManifest {
     /// The `[lib] name`, when declared.
     pub lib_name: Option<String>,
     /// Dependency keys renamed with `package = "..."`, as (key, package),
-    /// from every dependency table of the package (KTD16).
+    /// from every dependency table of the package.
     pub renames: Vec<(String, String)>,
     /// Dependency keys declared with `workspace = true`.
     pub inherited: Vec<String>,
@@ -102,7 +102,7 @@ pub struct PackageJson {
     pub main: Option<Vec<u8>>,
     /// `imports` (`#internal`) patterns and their in-root path targets; a
     /// conditional target takes its `node`, `import`, `require`, or
-    /// `default` branch, first present wins (KTD16).
+    /// `default` branch, first present wins.
     pub imports: Vec<(String, Vec<u8>)>,
     /// npm lifecycle scripts present, in [`NPM_LIFECYCLE`] order.
     pub lifecycle: Vec<&'static str>,
@@ -126,7 +126,7 @@ pub struct PyProject {
     pub backend_path: Vec<Vec<u8>>,
 }
 
-/// Parsed manifest facts later stages map into the file index (KTD16).
+/// Parsed manifest facts later stages map into the file index.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Manifests {
     pub cargo: Vec<CargoManifest>,
@@ -135,7 +135,7 @@ pub struct Manifests {
     pub pyproject: Vec<PyProject>,
 }
 
-/// npm scripts that run on install or publish (KTD17).
+/// npm scripts that run on install or publish.
 pub const NPM_LIFECYCLE: [&str; 6] = [
     "preinstall",
     "install",

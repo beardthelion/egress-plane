@@ -1,5 +1,5 @@
-//! JS/TS lowering to the IR (U6): imports, references, provenance,
-//! structural triggers (KTD15), symbol paths (KTD9), source types, and
+//! JS/TS lowering to the IR: imports, references, provenance,
+//! structural triggers, symbol paths, source types, and
 //! parse errors.
 
 use egress_core::ir::{
@@ -501,7 +501,7 @@ export function e() { return fetch(process.env.URL); }
     );
 }
 
-// ---- structural triggers (KTD15) -----------------------------------------------------
+// ---- structural triggers -----------------------------------------------------
 
 #[test]
 fn covers_ae4_non_literal_loaders_are_dynamic_import_triggers() {

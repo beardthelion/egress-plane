@@ -1,4 +1,4 @@
-//! Discovery (KTD12): walks the disk under the canonical root, builds the
+//! Discovery: walks the disk under the canonical root, builds the
 //! file index, routes files to languages, applies exclusions, labels, hooks,
 //! manifests, and the file and byte budgets. It ignores VCS ignore files and
 //! is the only code that opens paths.
@@ -34,9 +34,9 @@ use crate::paths::file_name;
 pub use budgets::Budgets;
 pub use manifests::Manifests;
 
-/// Largest file read, in bytes (KTD12).
+/// Largest file read, in bytes.
 pub const MAX_FILE_BYTES: u64 = 8 * 1024 * 1024;
-/// Stack size of every thread that parses untrusted input (KTD13).
+/// Stack size of every thread that parses untrusted input.
 pub const WORKER_STACK_BYTES: usize = 64 * 1024 * 1024;
 /// Bytes read to find a `#!` line; Linux reads no more for a shebang.
 const SHEBANG_BYTES: u64 = 256;
@@ -193,7 +193,7 @@ fn kind_by_name(name: &[u8]) -> Option<FileKind> {
         .then_some(FileKind::Unsupported)
 }
 
-/// The language a `#!` line names, if any (KTD12).
+/// The language a `#!` line names, if any.
 fn shebang_language(head: &[u8]) -> Option<Language> {
     let line = head.strip_prefix(b"#!")?;
     let line = line.split(|b| *b == b'\n').next().unwrap_or(line);
@@ -778,7 +778,7 @@ impl Walk<'_> {
 
 impl Discovery {
     /// Reads one source file through the safe open path, strips a UTF-8 BOM,
-    /// and decodes it. UTF-8 is the only accepted encoding (KTD12).
+    /// and decodes it. UTF-8 is the only accepted encoding.
     pub fn read_source(&self, file: &SourceFile) -> Result<String, BlindSpotKind> {
         if self.unsafe_open {
             return Err(BlindSpotKind::UnsafeOpenUnavailable);

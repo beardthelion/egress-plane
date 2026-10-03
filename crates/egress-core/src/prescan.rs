@@ -1,4 +1,4 @@
-//! Bracket-depth pre-scan (KTD13).
+//! Bracket-depth pre-scan.
 //!
 //! Parsers recurse while parsing, and a stack overflow aborts the process
 //! instead of unwinding, so every supported file is checked here first. The

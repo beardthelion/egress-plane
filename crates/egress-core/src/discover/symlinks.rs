@@ -1,4 +1,4 @@
-//! Lexical symlink resolution (KTD12, R19, R22).
+//! Lexical symlink resolution.
 //!
 //! A link is resolved one component at a time, as the kernel would, but only
 //! in-root components are ever touched: each is checked with `lstat` and, when
@@ -11,7 +11,7 @@
 //! automount or a network filesystem lookup.
 //!
 //! Every readlink and every component step is charged to a [`Steps`] budget
-//! shared by all links in the scan (KTD19), and the walk holds a handle on
+//! shared by all links in the scan, and the walk holds a handle on
 //! each directory it has entered, so one step costs one system call however
 //! deep the tree is.
 

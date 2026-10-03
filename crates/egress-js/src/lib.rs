@@ -1,8 +1,8 @@
-//! JavaScript and TypeScript frontend (U6).
+//! JavaScript and TypeScript frontend.
 //!
-//! [`lower`] parses one file with oxc and lowers it to the shared IR
-//! (KTD4); [`rules`] builds the repository's module specifier rules from
-//! discovery's manifests and file index (KTD16). The scan crate adapts both
+//! [`lower`] parses one file with oxc and lowers it to the shared IR;
+//! [`rules`] builds the repository's module specifier rules from
+//! discovery's manifests and file index. The scan crate adapts both
 //! to its `Frontend` trait, so this crate depends only on `egress-core`.
 
 pub mod lower;

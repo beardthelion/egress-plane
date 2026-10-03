@@ -1,4 +1,4 @@
-//! The corpus gate (R12, R13): every case outside `pending.toml` must pass
+//! The corpus gate: every case outside `pending.toml` must pass
 //! against the real scanner, and every pending case must still fail. The
 //! false-positive count is printed and written to `target/corpus-report.json`.
 

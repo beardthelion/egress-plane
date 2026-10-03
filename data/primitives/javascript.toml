@@ -1,6 +1,6 @@
-# JavaScript primitive list (KTD6): the globalThis ambient module and its aliases
-# (KTD5), closure sections (KTD15), the classification of every Node builtin
-# module across Node 18 to 22 (KTD20), and member entries.
+# JavaScript primitive list: the globalThis ambient module and its aliases,
+# closure sections, the classification of every Node builtin
+# module across Node 18 to 22, and member entries.
 
 language = "javascript"
 runtime_range = "18-22"
@@ -34,7 +34,7 @@ introspection_prefixes = [
 egress_traits = [
 ]
 
-# Standard library and builtin module classification (KTD6).
+# Standard library and builtin module classification.
 
 [[module]]
 name = "_http_agent"
@@ -792,28 +792,28 @@ fixture = "javascript/primitives/globalthis-rtcpeerconnection-type"
 id = "javascript:globalThis.Reflect.defineProperty"
 kind = "blind-spot"
 blind_spot = "monkeypatch"
-reason = "defines a property; on a module this is a monkeypatch (KTD15)"
+reason = "defines a property; on a module this is a monkeypatch"
 fixture = "javascript/primitives/globalthis-reflect-defineproperty-type"
 
 [[entry]]
 id = "javascript:globalThis.Reflect.deleteProperty"
 kind = "blind-spot"
 blind_spot = "monkeypatch"
-reason = "deletes a property; on a module this is a monkeypatch (KTD15)"
+reason = "deletes a property; on a module this is a monkeypatch"
 fixture = "javascript/primitives/globalthis-reflect-deleteproperty-type"
 
 [[entry]]
 id = "javascript:globalThis.Reflect.get"
 kind = "blind-spot"
 blind_spot = "reflective-access"
-reason = "reads a property named by a value; a literal key resolves as member access (KTD15)"
+reason = "reads a property named by a value; a literal key resolves as member access"
 fixture = "javascript/primitives/globalthis-reflect-get"
 
 [[entry]]
 id = "javascript:globalThis.Reflect.set"
 kind = "blind-spot"
 blind_spot = "monkeypatch"
-reason = "writes a property; on a module this is a monkeypatch (KTD15)"
+reason = "writes a property; on a module this is a monkeypatch"
 fixture = "javascript/primitives/globalthis-reflect-set"
 
 [[entry]]
@@ -1089,7 +1089,7 @@ fixture = "javascript/primitives/inspector-promises-open"
 id = "javascript:module.Module"
 kind = "blind-spot"
 blind_spot = "dynamic-import"
-reason = "loads a module named by a string; a literal specifier resolves as an import (KTD15)"
+reason = "loads a module named by a string; a literal specifier resolves as an import"
 fixture = "javascript/primitives/module-module-type"
 
 [[entry]]
@@ -1117,7 +1117,7 @@ fixture = "javascript/primitives/module-_initpaths-type"
 id = "javascript:module._load"
 kind = "blind-spot"
 blind_spot = "dynamic-import"
-reason = "loads a module named by a string; a literal specifier resolves as an import (KTD15)"
+reason = "loads a module named by a string; a literal specifier resolves as an import"
 fixture = "javascript/primitives/module-_load"
 
 [[entry]]
@@ -1131,7 +1131,7 @@ fixture = "javascript/primitives/module-_pathcache-type"
 id = "javascript:module._preloadModules"
 kind = "blind-spot"
 blind_spot = "dynamic-import"
-reason = "loads a module named by a string; a literal specifier resolves as an import (KTD15)"
+reason = "loads a module named by a string; a literal specifier resolves as an import"
 fixture = "javascript/primitives/module-_preloadmodules-type"
 
 [[entry]]
@@ -1145,7 +1145,7 @@ fixture = "javascript/primitives/module-_resolvefilename-type"
 id = "javascript:module.createRequire"
 kind = "blind-spot"
 blind_spot = "dynamic-import"
-reason = "loads a module named by a string; a literal specifier resolves as an import (KTD15)"
+reason = "loads a module named by a string; a literal specifier resolves as an import"
 fixture = "javascript/primitives/module-createrequire-type"
 
 [[entry]]
@@ -1180,7 +1180,7 @@ fixture = "javascript/primitives/module-registerhooks-type"
 id = "javascript:module.runMain"
 kind = "blind-spot"
 blind_spot = "dynamic-import"
-reason = "loads a module named by a string; a literal specifier resolves as an import (KTD15)"
+reason = "loads a module named by a string; a literal specifier resolves as an import"
 fixture = "javascript/primitives/module-runmain-type"
 
 [[entry]]
@@ -1283,7 +1283,7 @@ fixture = "javascript/primitives/process-execve"
 id = "javascript:process.getBuiltinModule"
 kind = "blind-spot"
 blind_spot = "dynamic-import"
-reason = "loads a builtin module named by a string; a literal name resolves as an import (KTD15)"
+reason = "loads a builtin module named by a string; a literal name resolves as an import"
 fixture = "javascript/primitives/process-getbuiltinmodule-type"
 
 [[entry]]
@@ -1387,7 +1387,7 @@ fixture = "javascript/primitives/wasi"
 id = "javascript:worker_threads.Worker"
 kind = "blind-spot"
 blind_spot = "dynamic-import"
-reason = "runs code named by a specifier or given as source with eval: true; a literal in-root specifier resolves (KTD15)"
+reason = "runs code named by a specifier or given as source with eval: true; a literal in-root specifier resolves"
 fixture = "javascript/primitives/worker_threads-worker-type"
 
 [[inert]]
@@ -1656,7 +1656,7 @@ members = [
     "origin",
     "isSecureContext",
 ]
-justification = "Browser DOM, storage, layout, and timing globals; DOM-mediated requests (src, href, action, form submission) are the fixed caveat (R23), not sites."
+justification = "Browser DOM, storage, layout, and timing globals; DOM-mediated requests (src, href, action, form submission) are the fixed browser-DOM caveat, not sites."
 fixture = "javascript/primitives/must-not-globalthis-type-document"
 
 [[inert]]
@@ -1673,7 +1673,7 @@ members = [
     "setTimeout",
     "setInterval",
 ]
-justification = "Timers over callbacks; a string callback is a structural dynamic-code blind spot (KTD15)."
+justification = "Timers over callbacks; a string callback is a structural dynamic-code blind spot."
 fixture = "javascript/primitives/must-not-globalthis-type-settimeout-type"
 
 [[inert]]

@@ -1,4 +1,4 @@
-//! Bounded manifest reading (KTD13) and manifest-declared paths (KTD12).
+//! Bounded manifest reading and manifest-declared paths.
 
 mod support;
 

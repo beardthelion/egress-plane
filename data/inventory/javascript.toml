@@ -2,7 +2,7 @@
 # Probed Node versions: 22.22.2.
 # Versions of the declared range 18 to 22 without a binary are listed in
 # not_generated; their builtin modules and members are not inventoried.
-# globalThis is the ambient module (KTD5); its members are Node's own globals.
+# globalThis is the ambient module; its members are Node's own globals.
 
 language = "javascript"
 generated_from = ["22.22.2"]

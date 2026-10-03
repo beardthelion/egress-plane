@@ -1,5 +1,5 @@
-# JavaScript egress catalog (KTD6). A member matching neither an egress nor an
-# inert pattern lists its package as an unscanned dependency (KTD5). A package
+# JavaScript egress catalog. A member matching neither an egress nor an
+# inert pattern lists its package as an unscanned dependency. A package
 # name ending in /* covers every package in that npm scope.
 
 language = "javascript"

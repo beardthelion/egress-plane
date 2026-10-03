@@ -1,11 +1,11 @@
 //! `egress-plane scan <root> [--format text|json]`.
 //!
 //! Prints the text report (the default) or the JSON report on stdout and
-//! exits with the code R17 assigns to the completeness state (KTD13): 0
+//! exits with the code assigned to the completeness state: 0
 //! complete, 2 incomplete, 3 empty. A tool error, including a usage error,
 //! writes one line to stderr, nothing to stdout, and exits 1. The binary
 //! spawns no subprocess, opens no network connection, and reads no
-//! environment variable (KTD1, KTD7).
+//! environment variable.
 
 mod text_report;
 

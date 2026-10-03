@@ -1,6 +1,6 @@
-//! Data guards over the embedded primitive lists, catalog, and inventory
-//! (KTD6, KTD20). Each guard runs on the real data and, where the plan names
-//! a deletion or misclassification case, on a mutated copy that must fail.
+//! Data guards over the embedded primitive lists, catalog, and inventory.
+//! Each guard runs on the real data and, for deletion and misclassification
+//! cases, on a mutated copy that must fail.
 
 use std::path::{Path, PathBuf};
 
@@ -228,7 +228,7 @@ fn deleting_a_fixture_turns_the_fixture_guard_red() {
 }
 
 /// A module used as a value is a site whose mechanism names the module
-/// itself (KTD5 escape rule): accepted when the data classifies that module
+/// itself (the escape rule): accepted when the data classifies that module
 /// as egress or lists an egress entry under it, as the escape rule requires.
 fn escaped_module(rt: &RuntimeData, mechanism: &str) -> bool {
     let Some((_, name)) = mechanism.split_once(':') else {
@@ -579,7 +579,7 @@ fn os_path_is_wholly_inert_and_os_is_not() {
     assert_eq!(py.module("os").map(|m| m.class), Some(ModuleClass::Egress));
 }
 
-/// Covers AE15 (data half).
+/// `os.path.join` is inert and `os.system` is egress.
 #[test]
 fn ae15_os_path_join_is_inert_and_os_system_is_egress() {
     let d = data();
@@ -594,7 +594,7 @@ fn ae15_os_path_join_is_inert_and_os_system_is_egress() {
     }
 }
 
-/// Covers AE16 (data half): bare `fetch` is an ambient egress entry.
+/// Bare `fetch` is an ambient egress entry.
 #[test]
 fn ae16_bare_fetch_is_an_ambient_egress_entry() {
     let d = data();

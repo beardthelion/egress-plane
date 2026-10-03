@@ -1,6 +1,6 @@
-# Python primitive list (KTD6): the builtins ambient module (KTD5), closure
-# sections (KTD15), the classification of every standard library module across
-# CPython 3.8 to 3.13 (KTD20), and member entries. Every wholly inert module and
+# Python primitive list: the builtins ambient module, closure
+# sections, the classification of every standard library module across
+# CPython 3.8 to 3.13, and member entries. Every wholly inert module and
 # every inert pattern carries a justification under the member-inert rule.
 
 language = "python"
@@ -54,7 +54,7 @@ fixture = "python/primitives/must-not-introspection-module"
 
 [[closure.introspection_inert]]
 name = "__class__"
-justification = "The class of an object in hand; a chain through it still trips on its next listed name (KTD15), as ().__class__.__base__ does at __base__."
+justification = "The class of an object in hand; a chain through it still trips on its next listed name, as ().__class__.__base__ does at __base__."
 fixture = "python/primitives/must-not-introspection-class"
 
 [[closure.introspection_inert]]
@@ -72,7 +72,7 @@ name = "__version__"
 justification = "A version string by convention."
 fixture = "python/primitives/must-not-introspection-version"
 
-# Standard library and builtin module classification (KTD6).
+# Standard library and builtin module classification.
 
 [[module]]
 name = "__future__"
@@ -1666,7 +1666,7 @@ class = "egress"
 [[module]]
 name = "traceback"
 class = "inert"
-justification = "Formats tracebacks and stack summaries; frames it yields are reachable only through f_ attributes, which are introspection blind spots (KTD15)."
+justification = "Formats tracebacks and stack summaries; frames it yields are reachable only through f_ attributes, which are introspection blind spots."
 
 [[module]]
 name = "tracemalloc"
@@ -2427,7 +2427,7 @@ fixture = "python/primitives/bdb"
 id = "python:builtins.__import__"
 kind = "blind-spot"
 blind_spot = "dynamic-import"
-reason = "imports a module named by a string; a literal name resolves as an import (KTD15)"
+reason = "imports a module named by a string; a literal name resolves as an import"
 fixture = "python/primitives/builtins-__import__"
 
 [[entry]]
@@ -2448,7 +2448,7 @@ fixture = "python/primitives/builtins-compile"
 id = "python:builtins.delattr"
 kind = "blind-spot"
 blind_spot = "monkeypatch"
-reason = "deletes an attribute named by a string; on a module this is a monkeypatch (KTD15)"
+reason = "deletes an attribute named by a string; on a module this is a monkeypatch"
 fixture = "python/primitives/builtins-delattr"
 
 [[entry]]
@@ -2469,14 +2469,14 @@ fixture = "python/primitives/builtins-exec"
 id = "python:builtins.getattr"
 kind = "blind-spot"
 blind_spot = "reflective-access"
-reason = "reads an attribute named by a string; a call with a literal name resolves as ordinary member access (KTD15)"
+reason = "reads an attribute named by a string; a call with a literal name resolves as ordinary member access"
 fixture = "python/primitives/builtins-getattr"
 
 [[entry]]
 id = "python:builtins.globals"
 kind = "blind-spot"
 blind_spot = "scope-injection"
-reason = "returns the module namespace dictionary (KTD15)"
+reason = "returns the module namespace dictionary"
 fixture = "python/primitives/builtins-globals"
 
 [[entry]]
@@ -2489,21 +2489,21 @@ fixture = "python/primitives/builtins-help"
 id = "python:builtins.locals"
 kind = "blind-spot"
 blind_spot = "scope-injection"
-reason = "returns the local namespace dictionary (KTD15)"
+reason = "returns the local namespace dictionary"
 fixture = "python/primitives/builtins-locals"
 
 [[entry]]
 id = "python:builtins.setattr"
 kind = "blind-spot"
 blind_spot = "monkeypatch"
-reason = "writes an attribute named by a string; on a module this is a monkeypatch (KTD15)"
+reason = "writes an attribute named by a string; on a module this is a monkeypatch"
 fixture = "python/primitives/builtins-setattr"
 
 [[entry]]
 id = "python:builtins.vars"
 kind = "blind-spot"
 blind_spot = "scope-injection"
-reason = "returns a namespace dictionary; with no argument it is the local scope (KTD15)"
+reason = "returns a namespace dictionary; with no argument it is the local scope"
 fixture = "python/primitives/builtins-vars"
 
 [[entry]]
@@ -3198,7 +3198,7 @@ fixture = "python/primitives/importlib-find_loader"
 id = "python:importlib.import_module"
 kind = "blind-spot"
 blind_spot = "dynamic-import"
-reason = "imports a module named by a string; a literal name resolves as an import (KTD15)"
+reason = "imports a module named by a string; a literal name resolves as an import"
 fixture = "python/primitives/importlib-import_module"
 
 [[entry]]
@@ -3401,7 +3401,7 @@ fixture = "python/primitives/importlib-metadata-warnings"
 id = "python:importlib.reload"
 kind = "blind-spot"
 blind_spot = "import-system-mutation"
-reason = "re-executes a module (KTD15)"
+reason = "re-executes a module"
 fixture = "python/primitives/importlib-reload"
 
 [[entry]]

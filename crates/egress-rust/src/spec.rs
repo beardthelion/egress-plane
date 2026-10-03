@@ -13,7 +13,7 @@
 //! - `file:<path>`: an in-root file the frontend already folded, from a
 //!   top-level `#[path]` or an `include!`.
 //! - [`OUTSIDE_ROOT`]: an absolute or root-climbing target. The target itself
-//!   is never written, so no output can print it (KTD12).
+//!   is never written, so no output can print it.
 
 pub const OUTSIDE_ROOT: &str = "<outside-root>";
 pub const MOD: &str = "mod:";

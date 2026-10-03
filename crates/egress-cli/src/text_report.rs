@@ -1,16 +1,16 @@
-//! The human-readable report (R9).
+//! The human-readable report.
 //!
 //! Layout: a header with the tool version, completeness state and exit code,
-//! coverage, exhausted budgets, and the runtime range; then caveats (R23);
+//! coverage, exhausted budgets, and the runtime range; then caveats;
 //! egress sites grouped by destination display; blind spots grouped by kind
 //! with coverage gaps first; unscanned dependencies; and exclusions.
 //!
-//! Every string taken from scanned input passes through [`escape`] (KTD18), so
+//! Every string taken from scanned input passes through [`escape`], so
 //! no rendered line holds a raw control, format, or separator character. Only
 //! section headings start at column zero, and every finding line is indented,
 //! so a crafted string cannot forge report structure. The report is a pure
 //! function of the finalized report, which keeps it as deterministic as the
-//! JSON (R10).
+//! JSON.
 
 use std::collections::BTreeMap;
 use std::fmt::Write;

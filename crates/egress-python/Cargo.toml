@@ -6,7 +6,7 @@ license.workspace = true
 publish.workspace = true
 
 # Astral does not publish ruff's parser as a stable crate, so it is a git
-# dependency pinned by full commit rev (KTD1, KTD21). The rev is the ruff
+# dependency pinned by full commit rev. The rev is the ruff
 # 0.16.9 release commit; bump it only as its own change with the lockfile
 # diff and the corpus green.
 [dependencies]

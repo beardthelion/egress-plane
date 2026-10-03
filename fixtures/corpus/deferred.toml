@@ -1,4 +1,4 @@
-# Fixture cases that data entries name but that are not authored yet (U9).
+# Fixture cases that data entries name but that are not authored yet.
 # Blind-spot and inert entries point here because their fixtures belong to the
 # deferred evasive and closure corpus work. The per-entry fixture guard accepts
 # a case listed here in place of an existing one, and fails on a listed case

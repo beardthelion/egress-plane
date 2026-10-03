@@ -1,4 +1,4 @@
-//! The classification stage in `scan_with` (U4): findings from the lowered
+//! The classification stage in `scan_with`: findings from the lowered
 //! IR reach the report with identities, coverage counts loaded-as-code
 //! files, and the resolver and findings budgets apply after classification.
 

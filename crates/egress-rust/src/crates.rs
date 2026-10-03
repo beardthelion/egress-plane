@@ -1,4 +1,4 @@
-//! Crate module trees and specifier rules (KTD12, KTD16).
+//! Crate module trees and specifier rules.
 //!
 //! The frontend writes module specifiers in a few fixed forms (see
 //! [`crate::spec`]). These rules turn each form into candidate paths in
@@ -376,7 +376,7 @@ impl SpecifierRules for RustRules {
 
 /// Adds the cross-file constructs only the whole program reveals: an import
 /// of a first-party proc-macro crate from another crate names a proc macro,
-/// since such a crate exports nothing else (KTD15).
+/// since such a crate exports nothing else.
 pub fn mark_proc_macros(rules: &RustRules, files: &mut [(&[u8], &mut FileIr)]) {
     for (path, ir) in files.iter_mut() {
         let mut found = Vec::new();

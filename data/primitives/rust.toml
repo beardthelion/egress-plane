@@ -1,6 +1,6 @@
-# Rust primitive list (KTD6): closure sections (KTD15), the classification of
+# Rust primitive list: closure sections, the classification of
 # every std top-level module of the pinned toolchain plus the core and alloc
-# crate roots (KTD20), and member entries, including the egress traits and
+# crate roots, and member entries, including the egress traits and
 # types whose naming in any position is a reference.
 
 language = "rust"
@@ -29,7 +29,7 @@ egress_traits = [
     "rust:std::net::UdpSocket::from_raw_socket",
 ]
 
-# Standard library and builtin module classification (KTD6).
+# Standard library and builtin module classification.
 
 [[module]]
 name = "alloc"
@@ -132,7 +132,7 @@ justification = "Pure computation and data types; no member opens a socket, spaw
 [[module]]
 name = "std::env"
 class = "inert"
-justification = "Environment variables, arguments, and paths; reading or setting them sends nothing (KTD7 makes env reads symbolic destinations)."
+justification = "Environment variables, arguments, and paths; reading or setting them sends nothing; env reads become symbolic destinations."
 
 [[module]]
 name = "std::error"
@@ -162,7 +162,7 @@ justification = "Pure computation and data types; no member opens a socket, spaw
 [[module]]
 name = "std::ffi"
 class = "inert"
-justification = "C string and OS string types; loading foreign code takes extern blocks, which are structural blind spots (KTD15)."
+justification = "C string and OS string types; loading foreign code takes extern blocks, which are structural blind spots."
 
 [[module]]
 name = "std::field"

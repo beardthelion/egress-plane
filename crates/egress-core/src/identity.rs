@@ -1,4 +1,4 @@
-//! Position-free identity (KTD9), path encoding (KTD10), and final ordering.
+//! Position-free identity, path encoding, and final ordering.
 //!
 //! The canonical key of a finding joins its position-free components, each
 //! length-prefixed so no two component lists share a key. The `id` is the
@@ -19,7 +19,7 @@ use crate::model::{BlindSpot, Report, Site, UnscannedDependency};
 /// silently reuse v1 IDs.
 const KEY_VERSION: &[u8] = b"egress-plane/identity/v1";
 
-/// A repo-relative path in output form (KTD10).
+/// A repo-relative path in output form.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct EncodedPath {
     /// `/`-separated display form; each invalid UTF-8 byte appears as
@@ -141,7 +141,7 @@ fn site_components(s: &Site) -> Vec<Vec<u8>> {
 fn blind_spot_components(b: &BlindSpot) -> Vec<Vec<u8>> {
     let file = raw_path(&b.file, b.file_bytes.as_deref());
     if b.whole_file {
-        // Whole-file blind spots key on file and reason (KTD9).
+        // Whole-file blind spots key on file and reason.
         vec![b"blind-spot/file".to_vec(), file, b.kind.as_str().into()]
     } else {
         vec![
@@ -160,18 +160,18 @@ fn with_ordinal(mut c: Vec<Vec<u8>>, ordinal: u32) -> Vec<u8> {
     join(&c)
 }
 
-/// The canonical identity key of a site (KTD9), including its ordinal.
+/// The canonical identity key of a site, including its ordinal.
 pub fn site_key(site: &Site) -> Vec<u8> {
     with_ordinal(site_components(site), site.ordinal)
 }
 
-/// The canonical identity key of a blind spot (KTD9), including its ordinal.
+/// The canonical identity key of a blind spot, including its ordinal.
 pub fn blind_spot_key(spot: &BlindSpot) -> Vec<u8> {
     with_ordinal(blind_spot_components(spot), spot.ordinal)
 }
 
 /// The canonical identity key of an unscanned dependency: language and
-/// package (KTD9).
+/// package.
 pub fn unscanned_dependency_key(dep: &UnscannedDependency) -> Vec<u8> {
     join(&[
         b"unscanned-dependency".to_vec(),
@@ -181,7 +181,7 @@ pub fn unscanned_dependency_key(dep: &UnscannedDependency) -> Vec<u8> {
 }
 
 fn site_sort_key(s: &Site) -> Vec<Vec<u8>> {
-    // Language first, then the remaining identity components in KTD9 order.
+    // Language first, then the remaining identity components in identity order.
     site_components(s).split_off(1)
 }
 
@@ -200,7 +200,7 @@ fn location_key(l: Option<crate::model::Location>) -> (u32, u32) {
 }
 
 /// Assigns ordinals and ids to every finding, then sorts every collection
-/// byte-wise by identity components (KTD9, KTD10). Ordinals among identical
+/// byte-wise by identity components. Ordinals among identical
 /// siblings follow source position; nothing else depends on position or on
 /// insertion order. Idempotent.
 pub fn finalize(report: &mut Report) {

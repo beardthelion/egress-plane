@@ -1,4 +1,4 @@
-//! Comparison of one scan result against its labels (KTD14, R13).
+//! Comparison of one scan result against its labels.
 //!
 //! Matching uses identity components and never `location`. Every labeled
 //! site, blind spot, unscanned dependency, and excluded entry is required, and
@@ -16,7 +16,7 @@ use crate::labels::{Expected, ExpectedSite};
 pub struct CaseOutcome {
     /// Reasons the case fails. Empty means the case passes.
     pub failures: Vec<String>,
-    /// Findings no label claims (R13: counted, not gating).
+    /// Findings no label claims (counted, not gating).
     pub false_positives: Vec<String>,
 }
 

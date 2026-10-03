@@ -1,5 +1,4 @@
-//! Discovery: walk, routing, exclusions, labels, symlinks, and path encoding
-//! (KTD12, R15, R18, R19, R22).
+//! Discovery: walk, routing, exclusions, labels, symlinks, and path encoding.
 
 mod support;
 

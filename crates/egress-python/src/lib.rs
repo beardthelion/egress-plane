@@ -1,6 +1,5 @@
-//! Python frontend (U5): lowers Python source to the shared IR (KTD4) with
-//! `ruff_python_parser`, and supplies Python's module specifier rules
-//! (KTD16).
+//! Python frontend: lowers Python source to the shared IR with
+//! `ruff_python_parser`, and supplies Python's module specifier rules.
 
 mod lower;
 mod packages;

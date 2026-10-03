@@ -1,7 +1,6 @@
-//! End-to-end tests of `egress-plane scan`: exit codes (R17, KTD13), the text
-//! report (R9), JSON on stdout, tool errors on stderr only, caveats (R23),
-//! redaction (R21), and the no-subprocess, no-host-environment rule (KTD1,
-//! KTD7).
+//! End-to-end tests of `egress-plane scan`: exit codes, the text
+//! report, JSON on stdout, tool errors on stderr only, caveats, redaction,
+//! and the no-subprocess, no-host-environment rule.
 
 mod support;
 
@@ -250,7 +249,7 @@ fn text_groups_sites_by_destination_and_lists_dependencies_once() {
 }
 
 /// Every corpus case that lists `absent_text` (redaction, out-of-root paths)
-/// keeps those strings out of both the text report and the JSON (R21, AE14).
+/// keeps those strings out of both the text report and the JSON.
 #[test]
 fn covers_ae14_absent_text_never_appears_in_either_format() {
     let mut checked = 0;
@@ -298,7 +297,7 @@ const SENTINELS: [(&str, &str); 3] = [
     ("WEBHOOK_URL", "sentinel-webhook-7c41"),
 ];
 
-/// KTD1, KTD7: the binary spawns no subprocess and never reads a host
+/// The binary spawns no subprocess and never reads a host
 /// environment value into its output.
 #[test]
 fn must_not_spawn_tools_or_read_host_environment() {
@@ -349,7 +348,7 @@ fn must_not_spawn_tools_or_read_host_environment() {
     assert!(left.is_empty(), "a trap binary ran: {left:?}");
 }
 
-/// KTD13: parser messages never reach output, so a failing token's text does
+/// Parser messages never reach output, so a failing token's text does
 /// not either.
 #[test]
 fn must_not_parse_error_text_reaches_output() {

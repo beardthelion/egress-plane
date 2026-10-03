@@ -150,7 +150,7 @@ pub fn copy_tree(from: &Path, to: &Path) {
     }
 }
 
-/// Characters KTD18 escapes, other than the newline that ends report lines.
+/// Characters the report escapes, other than the newline that ends report lines.
 pub fn raw_unsafe(text: &str) -> Vec<char> {
     text.chars()
         .filter(|&c| c != '\n' && egress_core::escape::needs_escape(c))

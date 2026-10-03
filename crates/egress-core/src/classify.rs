@@ -1,5 +1,5 @@
-//! Member-level classification (KTD5, KTD8, KTD15) and destination
-//! resolution (KTD7) over the IR of every lowered first-party file.
+//! Member-level classification and destination
+//! resolution over the IR of every lowered first-party file.
 //!
 //! Each import and reference is resolved through the first-party alias
 //! chains ([`crate::resolve`]) to a head: an external module plus a literal
@@ -8,7 +8,7 @@
 //! the outcome: an egress site with a destination, a blind spot, an
 //! unscanned-dependency listing, or nothing. Items are visited in byte-wise
 //! file order and source order within a file, which is the order resolver
-//! steps are charged in (KTD19).
+//! steps are charged in.
 //!
 //! Frontend contract points this module relies on:
 //! - A literal-argument loader call (`require("http")`, `__import__("os")`,
@@ -55,11 +55,11 @@ pub struct Classified {
 /// Depth limit for evaluating a destination expression through locals and
 /// constants.
 const MAX_EVAL_DEPTH: u32 = 8;
-/// Local alias hops followed from one reference (KTD8 tracks one hop).
+/// Local alias hops followed from one reference (one hop is tracked).
 const MAX_ALIAS_HOPS: u32 = 2;
 
 /// Reflective builtins whose name argument, when literal, makes the call an
-/// ordinary member access (KTD15): entry ID, target argument, name argument
+/// ordinary member access: entry ID, target argument, name argument
 /// (both 1-based), and whether the access is a write.
 const NAME_TAKING: &[(&str, usize, usize, bool)] = &[
     ("python:builtins.getattr", 1, 2, false),
@@ -72,13 +72,13 @@ const NAME_TAKING: &[(&str, usize, usize, bool)] = &[
 ];
 
 /// Worker constructors: a literal in-root specifier without `eval: true`
-/// resolves; anything else is the entry's blind spot (KTD15).
+/// resolves; anything else is the entry's blind spot.
 const WORKERS: &[&str] = &[
     "javascript:worker_threads.Worker",
     "javascript:globalThis.Worker",
 ];
 
-/// Ambient JS calls that write to their first argument (KTD15): with an
+/// Ambient JS calls that write to their first argument: with an
 /// egress-bucket module as that argument they are a monkeypatch.
 const OBJECT_WRITES: &[&[&str]] = &[
     &["Object", "defineProperty"],
@@ -96,7 +96,7 @@ pub fn special_entry_ids() -> Vec<&'static str> {
 }
 
 /// Classifies every lowered file in `program`, charging resolver steps
-/// against `resolver_steps` (KTD19).
+/// against `resolver_steps`.
 pub fn classify(data: &Data, program: &Program<'_>, resolver_steps: u64) -> Classified {
     let indexes: BTreeMap<&[u8], FileIndex<'_>> = program
         .files
@@ -273,7 +273,7 @@ enum Head {
     Ambient {
         chain: Vec<String>,
     },
-    /// A method chain on a tracked client instance (KTD8): `chain` runs
+    /// A method chain on a tracked client instance: `chain` runs
     /// from `module` to the method; a method entry's ID starts with
     /// `prefix` and differs from the constructor entry `ctor`.
     Tracked {
@@ -582,7 +582,7 @@ impl<'p, 'a> State<'p, 'a> {
                 };
                 if imp.star {
                     // A star or glob import of an external module is an
-                    // escape (KTD5, KTD15).
+                    // escape.
                     self.external(cx, &synthetic, &module, &members, false);
                     return;
                 }
@@ -599,7 +599,7 @@ impl<'p, 'a> State<'p, 'a> {
             s.blind_at(cx, &imp.symbol, imp.location, kind, text, gap)
         };
         match target {
-            // The target path is never printed (KTD12).
+            // The target path is never printed.
             Target::OutsideRoot => at(self, BlindSpotKind::ReferenceOutsideRoot, "", true),
             Target::IntoExcluded => at(self, BlindSpotKind::ReferenceIntoExcluded, "", true),
             Target::Unresolved => at(self, BlindSpotKind::UnresolvedModule, &imp.specifier, false),
@@ -647,7 +647,7 @@ impl<'p, 'a> State<'p, 'a> {
     }
 
     /// A name a star import of this file provides, expanded from the starred
-    /// module's source (KTD16) or from an external module's entries.
+    /// module's source or from an external module's entries.
     fn star_lookup(&mut self, cx: Ctx<'p, 'a>, name: &str) -> Result<Option<Binding>, Limit> {
         for &imp in &cx.ix.stars {
             if let Some(b) = self.r.star_member(cx.path, cx.lang(), imp, name)? {
@@ -779,7 +779,7 @@ impl<'p, 'a> State<'p, 'a> {
     }
 
     /// The head of a method chain on the result of the constructor call
-    /// `h`, or untracked when `h` is not a constructor-style entry (KTD8).
+    /// `h`, or untracked when `h` is not a constructor-style entry.
     fn track(rt: &RuntimeData, lang: Language, h: Head, rest: &[String]) -> Head {
         let (module, chain) = match h {
             Head::Ext { module, chain } => (module, chain),
@@ -869,7 +869,7 @@ impl<'p, 'a> State<'p, 'a> {
         }
     }
 
-    /// A computed member with a non-literal key (KTD15).
+    /// A computed member with a non-literal key.
     fn computed(&mut self, cx: Ctx<'p, 'a>, rf: &Reference, head: &Head) {
         match head {
             Head::Ext { .. } | Head::FirstPartyModule => {
@@ -908,7 +908,7 @@ impl<'p, 'a> State<'p, 'a> {
         }
     }
 
-    /// An assignment to a member chain (KTD15 import-system writes and
+    /// An assignment to a member chain (import-system writes and
     /// monkeypatching).
     fn assign(&mut self, cx: Ctx<'p, 'a>, rf: &Reference, head: &Head) {
         let (module, chain) = match head {
@@ -961,7 +961,7 @@ impl<'p, 'a> State<'p, 'a> {
     }
 
     /// `Object.defineProperty(mod, ...)` and similar writes on an
-    /// egress-bucket module are a monkeypatch (KTD15).
+    /// egress-bucket module are a monkeypatch.
     fn ambient_write(&mut self, cx: Ctx<'p, 'a>, rf: &Reference, chain: &[String]) {
         if cx.lang() != Language::Javascript
             || !is_call(rf.use_kind)
@@ -1010,7 +1010,7 @@ impl<'p, 'a> State<'p, 'a> {
     }
 
     /// Classifies an external module (or the ambient module) plus a member
-    /// chain against the data (KTD5).
+    /// chain against the data.
     fn external(
         &mut self,
         cx: Ctx<'p, 'a>,
@@ -1021,7 +1021,7 @@ impl<'p, 'a> State<'p, 'a> {
     ) {
         let rt = cx.rt;
         let sep = separator(cx.lang());
-        // Require-equivalents (KTD15): a literal specifier is lowered as an
+        // Require-equivalents: a literal specifier is lowered as an
         // import by the frontend; anything else is a dynamic import.
         if is_call(rf.use_kind) {
             let dotted = if ambient {
@@ -1063,7 +1063,7 @@ impl<'p, 'a> State<'p, 'a> {
             }
             Some(Classification::Module(m)) => {
                 // An unknown member, or the module itself, takes the
-                // module's most dangerous entry (R2, KTD5). An unknown
+                // module's most dangerous entry. An unknown
                 // ambient member is not part of the runtime's global object.
                 if m.class == ModuleClass::Inert || ambient {
                     return;
@@ -1072,7 +1072,7 @@ impl<'p, 'a> State<'p, 'a> {
                 self.escape(cx, rf, &name, false);
             }
             Some(Classification::Package(p)) => {
-                // The package itself used as a value escapes (KTD5); a
+                // The package itself used as a value escapes; a
                 // member in neither list lists the package.
                 let name = p.name.clone();
                 if chain.is_empty() && module_segments(cx.lang(), module).len() == 1 {
@@ -1089,7 +1089,7 @@ impl<'p, 'a> State<'p, 'a> {
         }
     }
 
-    /// The escape rule (KTD5): a module used as a value takes its most
+    /// The escape rule: a module used as a value takes its most
     /// dangerous entry.
     fn escape(&mut self, cx: Ctx<'p, 'a>, rf: &Reference, module: &str, ambient: bool) {
         let rt = cx.rt;
@@ -1280,7 +1280,7 @@ impl<'p, 'a> State<'p, 'a> {
             .any(|(k, v)| k == "eval" && eval_true(v))
     }
 
-    // ---- destinations (KTD7) ----------------------------------------------------------
+    // ---- destinations ----------------------------------------------------------
 
     fn destination(
         &mut self,
@@ -1435,7 +1435,7 @@ impl<'p, 'a> State<'p, 'a> {
 
     /// A name: a single-assignment local in the same function, a module
     /// constant in the same file, or a constant imported from a first-party
-    /// module through its alias chain (KTD7).
+    /// module through its alias chain.
     fn eval_name(&mut self, path: &[u8], symbol: &str, name: &str, depth: u32) -> Val {
         let unresolved = || Val::Dest(destination::expr(name));
         let Some(cx) = self.ctx(path) else {
@@ -1484,7 +1484,7 @@ impl<'p, 'a> State<'p, 'a> {
     }
 
     /// An environment read becomes `env:NAME`; the scan never reads the
-    /// host environment (KTD7).
+    /// host environment.
     fn env_read(&mut self, path: &[u8], r: &Reference) -> Option<Destination> {
         let lang = self.ctx(path)?.lang();
         let name_arg = |s: &mut Self, i: usize| -> Option<String> {

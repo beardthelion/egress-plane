@@ -1,6 +1,6 @@
 //! Nesting estimate for constructs the bracket pre-scan does not count.
 //!
-//! The pre-scan (KTD13) bounds bracket depth, but oxc's parser and its
+//! The pre-scan bounds bracket depth, but oxc's parser and its
 //! semantic pass also recurse once per level of nesting that uses no
 //! brackets: ternary and arrow chains, right-associative operators, long
 //! left-associative operator and member chains (a deep AST even when parsed

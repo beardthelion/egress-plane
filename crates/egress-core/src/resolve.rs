@@ -1,8 +1,8 @@
-//! First-party module index and alias resolution (KTD2, KTD16, KTD19).
+//! First-party module index and alias resolution.
 //!
 //! The resolver is language-neutral. Each frontend supplies a
 //! [`SpecifierRules`] that turns a module specifier into candidate paths in
-//! discovery's file index (KTD12) or into an external module name; the core
+//! discovery's file index or into an external module name; the core
 //! then decides what the specifier reaches: a first-party file, an external
 //! module, a shadowed name, a file that is not code, or a coverage gap.
 //! Alias chains across first-party files are followed with a visited set and
@@ -22,7 +22,7 @@ use crate::model::{Label, Language};
 use crate::paths::{dir_of, is_dot_relative};
 
 /// Steps one reference may spend before it is a `resolution-limit` blind
-/// spot (KTD16).
+/// spot.
 pub const PER_REFERENCE_STEPS: u64 = 256;
 
 /// What a frontend's specifier rules make of one specifier.
@@ -44,7 +44,7 @@ pub enum SpecifierKind {
     },
 }
 
-/// Per-language specifier rules (KTD16). Frontends implement these; the core
+/// Per-language specifier rules. Frontends implement these; the core
 /// owns what the result means.
 pub trait SpecifierRules: Send + Sync {
     /// Classifies `specifier` as written in the file at `from`.
@@ -131,7 +131,7 @@ pub enum Target {
     LoadedAsCode(Vec<u8>),
     /// An unsupported code file type; discovery already reported it.
     Unsupported(Vec<u8>),
-    /// JSON loaded by a JS loader: data, exempt (KTD12).
+    /// JSON loaded by a JS loader: data, exempt.
     Data,
 }
 
@@ -408,7 +408,7 @@ impl<'p, 'a> Resolver<'p, 'a> {
     }
 
     /// Whether a first-party module named like `module` shadows a standard
-    /// library module or a catalogued package with egress members (KTD16).
+    /// library module or a catalogued package with egress members.
     fn shadows(&self, language: Language, module: &str) -> bool {
         let rt = self.data.runtime(language);
         let top = package_name(language, module);

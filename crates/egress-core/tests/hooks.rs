@@ -1,4 +1,4 @@
-//! Build and install hook detection (KTD17, R8).
+//! Build and install hook detection.
 
 mod support;
 

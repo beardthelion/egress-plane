@@ -1,4 +1,4 @@
-# Code file types the scanner does not parse (KTD12, R15).
+# Code file types the scanner does not parse.
 #
 # A regular file whose name ends in one of these extensions is a whole-file
 # blind spot `unsupported-file-type`, counted as skipped under `unsupported`,

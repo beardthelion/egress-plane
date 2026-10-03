@@ -1,9 +1,9 @@
-//! Escaping of untrusted strings for every rendered form (KTD18).
+//! Escaping of untrusted strings for every rendered form.
 //!
 //! Every string taken from scanned input passes through [`escape`] before it
 //! reaches the text report or a JSON `display` field, so a crafted file name
 //! or literal cannot emit terminal sequences or forge report structure.
-//! Escaping is presentation only and never enters identity (KTD9).
+//! Escaping is presentation only and never enters identity.
 
 use std::fmt::Write;
 

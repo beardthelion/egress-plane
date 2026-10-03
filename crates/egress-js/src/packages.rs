@@ -1,4 +1,4 @@
-//! JS module specifier rules (KTD16).
+//! JS module specifier rules.
 //!
 //! Relative and `paths` specifiers probe in a fixed order, first match
 //! wins: the exact path; for a `.js`, `.jsx`, `.mjs`, or `.cjs` specifier,
@@ -10,7 +10,7 @@
 //! that package's `main` and index; `tsconfig.json` `paths` and `baseUrl`
 //! apply when a target exists in the index. Everything else is a bare
 //! external module with `node:` stripped. All candidates map only into
-//! discovery's file index (KTD12).
+//! discovery's file index.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -60,7 +60,7 @@ fn with(base: &[u8], suffix: &str) -> Vec<u8> {
     [base, suffix.as_bytes()].concat()
 }
 
-/// Candidate paths for `base` in KTD16 probe order.
+/// Candidate paths for `base` in probe order.
 pub fn probes(base: &[u8]) -> Vec<Vec<u8>> {
     let mut out = vec![base.to_vec()];
     let ts_stems: &[(&str, &[&str])] = &[

@@ -1,4 +1,4 @@
-//! The safe open path (KTD12, R22): lstat first, per-component no-follow
+//! The safe open path: lstat first, per-component no-follow
 //! walk, non-blocking open, handle recheck, bounded read, fail closed.
 
 mod support;

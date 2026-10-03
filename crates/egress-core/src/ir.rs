@@ -1,4 +1,4 @@
-//! Language-neutral intermediate representation (KTD4).
+//! Language-neutral intermediate representation.
 //!
 //! Each frontend lowers one file to a [`FileIr`]. The IR records facts that
 //! syntax and the frontend's own binding rules establish, and no
@@ -24,19 +24,19 @@ pub struct FileIr {
     pub imports: Vec<Import>,
     /// References in every position the runtime evaluates.
     pub references: Vec<Reference>,
-    /// Structural dynamic constructs (KTD15) that no data entry names.
+    /// Structural dynamic constructs that no data entry names.
     pub constructs: Vec<DynamicConstruct>,
-    /// Enclosing symbol spans with parameter lists (KTD9).
+    /// Enclosing symbol spans with parameter lists.
     pub symbols: Vec<SymbolSpan>,
-    /// Module-level single-assignment constants (KTD7).
+    /// Module-level single-assignment constants.
     pub constants: Vec<ModuleConstant>,
-    /// Single-assignment locals inside functions (KTD7, KTD8).
+    /// Single-assignment locals inside functions.
     pub locals: Vec<LocalBinding>,
     /// Attribute assignments on `self` or `this` inside `__init__` or a class
-    /// `constructor` (KTD8).
+    /// `constructor`.
     pub self_attributes: Vec<SelfAttribute>,
     /// Python attribute accesses whose name is a dunder or starts with `tb_`,
-    /// `f_`, `gi_`, `cr_`, or `ag_` (KTD15).
+    /// `f_`, `gi_`, `cr_`, or `ag_`.
     pub introspection: Vec<IntrospectionAccess>,
     /// Symbol paths whose findings take the `test` label: Rust `#[cfg(test)]`
     /// scopes and `#[test]` functions. A finding is in a scope when its symbol
@@ -64,8 +64,7 @@ impl FileIr {
 /// One import, re-export, or `use` binding. A loader call with a literal
 /// specifier (`require("http")`, `__import__("os")`,
 /// `importlib.import_module("json")`, TS `import x = require("net")`) is
-/// lowered as an import too; the core gives the call itself no finding
-/// (KTD15).
+/// lowered as an import too; the core gives the call itself no finding.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Import {
     /// The name bound in this file, or `None` for a star or glob import and a
@@ -118,7 +117,7 @@ pub enum Root {
     Local(String),
     /// An ambient global the runtime provides (`fetch`, `open`, `globalThis`).
     Ambient(String),
-    /// A parameter of the enclosing function, 1-based per KTD7.
+    /// A parameter of the enclosing function, 1-based.
     Param(u32),
     /// `self` or `this` inside a class member.
     SelfValue,
@@ -128,13 +127,13 @@ pub enum Root {
 }
 
 /// Provenance of a receiver used with a computed or reflective non-literal
-/// name (KTD4, KTD5).
+/// name.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Provenance {
     Literal,
     ModuleBinding,
     AmbientModule,
-    /// A tracked constructor result (KTD8).
+    /// A tracked constructor result.
     TrackedConstructor,
     FirstPartyCallResult,
     UnscannedCallResult,
@@ -169,7 +168,7 @@ pub struct Reference {
     pub location: Location,
 }
 
-/// An argument or initializer expression as a small tree (KTD4).
+/// An argument or initializer expression as a small tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
     /// A string literal's runtime value, or a number's source text.
@@ -178,7 +177,7 @@ pub enum Expr {
     Template(Vec<Expr>),
     /// A name the resolver may look up as a local or module constant.
     Name(String),
-    /// A parameter of the enclosing function, 1-based per KTD7.
+    /// A parameter of the enclosing function, 1-based.
     Param(u32),
     /// A nested reference, for example an environment read.
     Reference(Box<Reference>),
@@ -196,18 +195,18 @@ pub enum Expr {
     Opaque(String),
 }
 
-/// A structural dynamic construct (KTD15).
+/// A structural dynamic construct.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DynamicConstruct {
     pub kind: ConstructKind,
-    /// Source text, redacted and truncated before output (KTD11).
+    /// Source text, redacted and truncated before output.
     pub text: String,
     pub symbol: String,
     pub span: Span,
     pub location: Location,
 }
 
-/// The structural families from KTD15.
+/// The structural dynamic families.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ConstructKind {
     /// `import()` or `require()` or a loader with a non-literal specifier.
@@ -241,10 +240,10 @@ pub enum SymbolKind {
     Module,
 }
 
-/// An enclosing symbol and its parameter list (KTD9).
+/// An enclosing symbol and its parameter list.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SymbolSpan {
-    /// Symbol path per KTD9, for example `Client.send`, `api.post`,
+    /// Symbol path, for example `Client.send`, `api.post`,
     /// `<impl Api>::get`, or `outer.<locals>.inner`.
     pub path: String,
     pub kind: SymbolKind,
@@ -255,7 +254,7 @@ pub struct SymbolSpan {
     pub span: Span,
 }
 
-/// A module-level single-assignment constant (KTD7).
+/// A module-level single-assignment constant.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleConstant {
     pub name: String,
@@ -264,7 +263,7 @@ pub struct ModuleConstant {
     pub span: Span,
 }
 
-/// A single-assignment local inside a function (KTD7, KTD8).
+/// A single-assignment local inside a function.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocalBinding {
     pub symbol: String,
@@ -283,7 +282,7 @@ pub struct SelfAttribute {
     pub span: Span,
 }
 
-/// A Python introspection attribute access (KTD15).
+/// A Python introspection attribute access.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct IntrospectionAccess {
     pub attribute: String,
@@ -294,7 +293,7 @@ pub struct IntrospectionAccess {
     pub location: Location,
 }
 
-/// Maps byte offsets to 1-based [`Location`]s (KTD10). Lines count `\n` only,
+/// Maps byte offsets to 1-based [`Location`]s. Lines count `\n` only,
 /// so a CRLF file reports the same lines as its LF form; columns count
 /// Unicode scalar values from the start of the line.
 #[derive(Debug, Clone)]

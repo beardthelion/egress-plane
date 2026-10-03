@@ -1,5 +1,5 @@
-# Python egress catalog (KTD6). A member matching neither an egress nor an
-# inert pattern lists its package as an unscanned dependency (KTD5).
+# Python egress catalog. A member matching neither an egress nor an
+# inert pattern lists its package as an unscanned dependency.
 
 language = "python"
 

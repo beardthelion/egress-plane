@@ -1,4 +1,4 @@
-//! File labels from `data/labels.toml` (KTD12, R18). Labels never change what
+//! File labels from `data/labels.toml`. Labels never change what
 //! is scanned.
 
 use std::sync::OnceLock;

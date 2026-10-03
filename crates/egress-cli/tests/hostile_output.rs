@@ -1,4 +1,4 @@
-//! Hostile input never reaches the terminal raw (KTD18, R22, AE24).
+//! Hostile input never reaches the terminal raw.
 
 mod support;
 
@@ -42,7 +42,7 @@ fn assert_clean_json(j: &str) {
     }
 }
 
-/// KTD18 evasive cases: a file named with ESC and a newline, destinations
+/// Evasive cases: a file named with ESC and a newline, destinations
 /// holding U+202E and U+2028, a literal that tries to forge a section line,
 /// construct text with a bidi override, and a package name with one.
 #[test]
@@ -88,7 +88,7 @@ fn evasive_strings_are_escaped_in_the_text_report() {
     }
 }
 
-/// AE24: a FIFO, a 100,000-deep nested file, a file whose name holds ESC, and
+/// A FIFO, a 100,000-deep nested file, a file whose name holds ESC, and
 /// a symlink into an unsearchable outside directory. The scan finishes, exits
 /// 2, and the text report holds no raw control character.
 #[test]

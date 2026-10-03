@@ -1,5 +1,5 @@
 //! A second nesting pre-scan for the nesting the bracket pre-scan does not
-//! count (KTD13).
+//! count.
 //!
 //! `syn` recurses once per prefix operator (`- - x`), closure (`|| || x`),
 //! right-associative assignment (`a = b = c`), `return`/`break` chain,

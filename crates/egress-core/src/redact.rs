@@ -1,4 +1,4 @@
-//! Credential redaction (KTD11, R21).
+//! Credential redaction.
 //!
 //! Rules come from `data/redaction.toml`; the classes are fixed here and the
 //! keys, prefixes, and provider patterns are data. [`redact`] runs during
@@ -365,7 +365,7 @@ fn userinfo_spans(url_re: &Regex, text: &str) -> Vec<(usize, usize)> {
     spans
 }
 
-/// The last `@` before the first `/` (KTD11 fail-closed rule).
+/// The last `@` before the first `/` (fail-closed rule).
 fn fail_closed_at(rest: &str) -> Option<usize> {
     let end = rest.find('/').unwrap_or(rest.len());
     rest[..end].rfind('@')

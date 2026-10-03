@@ -1,5 +1,5 @@
 //! Module index, alias resolution, budgets, and specifier targets on
-//! hand-built IR (U4: KTD2, KTD12, KTD16, KTD19, AE7, AE18).
+//! hand-built IR.
 
 mod classify_support;
 

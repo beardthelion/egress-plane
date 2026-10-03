@@ -1,4 +1,4 @@
-//! The one open path for in-root content (KTD12).
+//! The one open path for in-root content.
 //!
 //! Every path is a raw repo-relative byte string with `/` separators, resolved
 //! from a handle on the canonical root one component at a time. Each

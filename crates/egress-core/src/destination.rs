@@ -1,4 +1,4 @@
-//! Destination normalization (KTD7) with redaction applied inside (KTD11).
+//! Destination normalization with redaction applied inside.
 
 use crate::model::{Destination, DestinationKind};
 use crate::redact::redact;
@@ -52,13 +52,13 @@ pub fn literal(text: &str) -> Destination {
     make(DestinationKind::Literal, redact(text), None)
 }
 
-/// An environment read `env:NAME` with an optional literal default (KTD7).
+/// An environment read `env:NAME` with an optional literal default.
 pub fn env(name: &str, default: Option<&str>) -> Destination {
     make(DestinationKind::Env, redact(name), default.map(redact))
 }
 
 /// Parameter `index` (1-based, excluding `self`, `cls`, and Rust receivers)
-/// of the function at symbol path `function`: `param:N:<function>` (R20).
+/// of the function at symbol path `function`: `param:N:<function>`.
 pub fn param(index: u32, function: &str) -> Destination {
     make(
         DestinationKind::Param,
@@ -84,7 +84,7 @@ pub fn expr(source: &str) -> Destination {
 }
 
 /// A template with symbolic holes, redacted in its rendered form so a secret
-/// split between literal parts and holes is caught (KTD11). A template with
+/// split between literal parts and holes is caught. A template with
 /// no hole is a literal, and a template that is one hole is that hole.
 pub fn template(parts: &[TemplatePart]) -> Destination {
     let holes = parts
@@ -114,7 +114,7 @@ pub fn template(parts: &[TemplatePart]) -> Destination {
 }
 
 /// Blind-spot construct text: whitespace-collapsed, redacted, then truncated
-/// to [`MAX_TEXT_CHARS`] (KTD11). KTD18 escaping happens at output.
+/// to [`MAX_TEXT_CHARS`]. Escaping happens at output.
 pub fn construct_text(source: &str) -> String {
     normalize_text(source)
 }

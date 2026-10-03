@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate data/inventory/python.toml (KTD6, KTD20).
+"""Generate data/inventory/python.toml.
 
 Usage:
     python3 scripts/inventory/python.py --python /path/to/python3.11 \
@@ -15,7 +15,7 @@ results are merged as a union:
   before 3.11. Those names come from the CPython "What's New" removal notes,
   not from probing, and the output header says so.
 - `members`: the full `dir()` of every module classified `egress` in
-  data/primitives/python.toml and of every deny-list module (KTD6), minus the
+  data/primitives/python.toml and of every deny-list module, minus the
   standard module metadata dunders, plus the immediate submodules of packages.
   A module covered wholly by an `egress` or `blind-spot` entry whose ID is the
   module itself is skipped, since that entry classifies every member.
@@ -24,7 +24,7 @@ Versions of the declared range (3.8 to 3.13) without a `--python` are listed in
 `not_generated`. With `--check`, the script exits 1 if the output would differ
 from the checked-in file instead of writing it.
 
-This is a development tool run outside the scanner binary (KTD1).
+This is a development tool run outside the scanner binary.
 """
 
 import argparse
@@ -40,7 +40,7 @@ OUT = REPO / "data" / "inventory" / "python.toml"
 
 RANGE = ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
-# KTD6 deny list. A module here may never be wholly inert and always gets an
+# Deny list. A module here may never be wholly inert and always gets an
 # inventory. The data guard test holds its own copy.
 DENY = [
     "asyncio", "logging.config", "logging.handlers", "multiprocessing",

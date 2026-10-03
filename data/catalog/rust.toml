@@ -1,5 +1,5 @@
-# Rust egress catalog (KTD6). A member matching neither an egress nor an
-# inert pattern lists its crate as an unscanned dependency (KTD5).
+# Rust egress catalog. A member matching neither an egress nor an
+# inert pattern lists its crate as an unscanned dependency.
 
 language = "rust"
 

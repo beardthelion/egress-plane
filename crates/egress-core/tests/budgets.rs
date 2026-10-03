@@ -1,4 +1,4 @@
-//! Global resource budgets (KTD19, AE26).
+//! Global resource budgets.
 
 mod support;
 

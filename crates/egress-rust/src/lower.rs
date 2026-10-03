@@ -1,4 +1,4 @@
-//! Lowering one Rust file to the IR (KTD4, KTD7, KTD9, KTD15).
+//! Lowering one Rust file to the IR.
 //!
 //! Name binding follows Rust's own rules closely enough for egress
 //! accounting: items and `use` declarations are order-independent per
@@ -29,7 +29,7 @@ use egress_core::paths::dir_of;
 use crate::spec;
 
 /// Nesting depth the lowering walk accepts before it gives up on a file
-/// (KTD13's second line behind the pre-scan).
+/// (a second line of defense behind the bracket pre-scan).
 pub const MAX_LOWER_DEPTH: u32 = 1024;
 
 /// Alias hops followed through `use` declarations.
@@ -362,7 +362,7 @@ impl<'a> Lowerer<'a> {
             .unwrap_or_else(|| self.module_symbol())
     }
 
-    /// The symbol path of a new item named `name` (KTD9).
+    /// The symbol path of a new item named `name`.
     fn child_symbol(&self, name: &str) -> String {
         match self.symbols.last() {
             Some(s) => format!("{s}::{name}"),
@@ -1241,7 +1241,7 @@ impl<'a> Lowerer<'a> {
             symbol.to_string(),
             span,
         );
-        // The path a `use` names is a reference too (KTD4).
+        // The path a `use` names is a reference too.
         let kind = if pub_use {
             UseKind::ValueEscape
         } else {
@@ -1510,7 +1510,7 @@ impl<'a> Lowerer<'a> {
             strict: None,
             span: self.span_of(sig.ident.span()),
         });
-        // Paths in the signature belong to the function (KTD9).
+        // Paths in the signature belong to the function.
         self.symbols.push(symbol.clone());
         self.signature(sig);
         self.fns.push(FnFrame {
@@ -1601,7 +1601,7 @@ impl<'a> Lowerer<'a> {
     }
 
     /// Finds paths in a token stream that does not parse as expressions: a
-    /// `macro_rules!` body or an unusual invocation (KTD15).
+    /// `macro_rules!` body or an unusual invocation.
     fn token_scan(&mut self, ts: TokenStream) {
         if !self.enter() {
             return;
@@ -1673,7 +1673,7 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    // ---- expressions as values (KTD7) ------------------------------------------------------
+    // ---- expressions as values ------------------------------------------------------
 
     fn lower_expr(&mut self, e: &SExpr, depth: u32) -> Expr {
         if depth > 32 {
@@ -1817,7 +1817,7 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    /// A `format!` string with its arguments as a template (KTD7).
+    /// A `format!` string with its arguments as a template.
     fn format_template(&mut self, fmt: &str, args: &[&SExpr], depth: u32) -> Expr {
         let mut named: HashMap<String, &SExpr> = HashMap::new();
         let mut positional: Vec<&SExpr> = Vec::new();
@@ -2098,7 +2098,7 @@ fn is_keyword(s: &str) -> bool {
     )
 }
 
-/// A path rendered without generic arguments (KTD9).
+/// A path rendered without generic arguments.
 fn path_name(p: &Path) -> String {
     let mut s = String::new();
     if p.leading_colon.is_some() {
@@ -2109,7 +2109,7 @@ fn path_name(p: &Path) -> String {
 }
 
 impl Lowerer<'_> {
-    /// A type rendered for an impl symbol, generics stripped (KTD9).
+    /// A type rendered for an impl symbol, generics stripped.
     fn type_name(&self, t: &Type) -> String {
         match t {
             Type::Path(tp) if tp.qself.is_none() => path_name(&tp.path),

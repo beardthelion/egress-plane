@@ -1,4 +1,4 @@
-//! `expected.toml` sidecar labels (KTD14).
+//! `expected.toml` sidecar labels.
 //!
 //! A label file names what a correct scan of the case's `tree/` must report.
 //! Unknown keys, unknown enum values, and an exit code that disagrees with the
@@ -222,7 +222,7 @@ fn check_nonempty(what: &str, value: &str) -> Result<(), String> {
     }
 }
 
-/// Labels use repo-relative `/`-separated paths, as the report does (KTD10).
+/// Labels use repo-relative `/`-separated paths, as the report does.
 fn check_path(path: &str) -> Result<(), String> {
     check_nonempty("path", path)?;
     if path.starts_with('/')

@@ -1,4 +1,4 @@
-//! Build and install hook detection by presence (KTD17, R8). Contents are
+//! Build and install hook detection by presence. Contents are
 //! never analyzed; a hook file in a supported language is also scanned as
 //! ordinary source with the `build-hook` label.
 

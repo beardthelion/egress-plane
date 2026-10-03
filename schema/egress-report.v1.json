@@ -313,7 +313,7 @@
         },
         "display": {
           "type": "string",
-          "description": "Rendered form, escaped per KTD18."
+          "description": "Rendered form, escaped."
         }
       }
     },
@@ -459,7 +459,7 @@
         },
         "construct": {
           "type": "string",
-          "description": "Redacted, truncated to 120 characters, then escaped per KTD18; empty for whole-file reasons."
+          "description": "Redacted, truncated to 120 characters, then escaped; empty for whole-file reasons."
         },
         "ordinal": {
           "type": "integer",

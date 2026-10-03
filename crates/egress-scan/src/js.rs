@@ -1,4 +1,4 @@
-//! Adapter for the JS/TS frontend (U6).
+//! Adapter for the JS/TS frontend.
 
 use egress_core::discover::Discovery;
 use egress_core::ir::FileIr;

@@ -1,4 +1,4 @@
-//! Bracket-depth pre-scan (KTD13).
+//! Bracket-depth pre-scan.
 
 use egress_core::model::Language::{self, Javascript, Python, Rust};
 use egress_core::prescan::{MAX_DEPTH, too_deep, too_deep_with_cap};

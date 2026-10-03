@@ -1,5 +1,5 @@
-//! Rust frontend (U7): lowers Rust source to the shared IR with `syn` and
-//! maps crate module trees for the core's resolver (KTD1, KTD4, KTD16).
+//! Rust frontend: lowers Rust source to the shared IR with `syn` and
+//! maps crate module trees for the core's resolver.
 //!
 //! [`lower`] handles one file and needs nothing beyond it. [`link`] runs
 //! once over every lowered Rust file and returns the [`RustRules`] the
@@ -32,7 +32,7 @@ pub enum LowerError {
 
 /// Clears this thread's span data when dropped. proc-macro2's span map
 /// otherwise grows for the life of the worker thread, one entry per parsed
-/// file, until its 32-bit offsets run out (KTD13).
+/// file, until its 32-bit offsets run out.
 struct SpanReset;
 
 impl Drop for SpanReset {

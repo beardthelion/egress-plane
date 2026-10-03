@@ -1,4 +1,4 @@
-//! Self-tests for the corpus harness (U1). Each error-path test drives a
+//! Self-tests for the corpus harness. Each error-path test drives a
 //! synthetic report that must fail, so the comparison rules are load-bearing.
 
 use std::collections::BTreeMap;
@@ -603,7 +603,7 @@ fn pending_ledger_rejects_duplicates_and_unknown_keys() {
 
 // Integration with the real corpus and a tool-error stub. The real scanner
 // runs against the real ledger in `tests/corpus.rs`; these tests pin the
-// harness behavior itself, so they keep the U1 stub as the scan and a ledger
+// harness behavior itself, so they keep a stub as the scan and a ledger
 // that lists every case.
 
 fn stub(_: &Path) -> Result<Report, ToolError> {

@@ -1,4 +1,4 @@
-# File labels (KTD12, R18). Labels mark vendored, generated, minified, and
+# File labels. Labels mark vendored, generated, minified, and
 # test code. They never change what is scanned.
 #
 # - `dirs`: the label applies when any directory component of the

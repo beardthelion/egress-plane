@@ -1,9 +1,9 @@
-//! Python module specifier rules (KTD16).
+//! Python module specifier rules.
 //!
 //! A relative specifier (`.net`, `..a.b`, `.`) resolves against the
 //! importing file's package directory. An absolute specifier probes each
 //! package root: the scan root, `src/`, and every directory that contains
-//! the importing file. KTD16 names the scan root, `src/`, and any directory
+//! the importing file. Package roots are the scan root, `src/`, and any directory
 //! holding `pyproject.toml`, `setup.py`, or `setup.cfg`; the rules cannot see
 //! the file index, so they probe every ancestor of the importing file
 //! instead, which covers the roots of the project the file belongs to (and

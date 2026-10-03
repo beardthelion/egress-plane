@@ -1,4 +1,4 @@
-//! Global resource budgets (KTD19).
+//! Global resource budgets.
 
 use serde::Deserialize;
 
@@ -32,7 +32,7 @@ impl Budgets {
     }
 }
 
-/// Charges files and bytes in byte-wise path order (KTD19). Once either
+/// Charges files and bytes in byte-wise path order. Once either
 /// budget is exhausted, every later file is refused.
 #[derive(Debug)]
 pub struct Charger {

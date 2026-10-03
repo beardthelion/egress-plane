@@ -1,9 +1,9 @@
-//! Deterministic JSON output (KTD10).
+//! Deterministic JSON output.
 //!
 //! Output structs mirror the model in a fixed field order. Determinism comes
 //! from [`finalize`] on a copy of the report, never from scan order. Display
 //! fields (`destination.display`, `construct`, and the display form of a
-//! non-UTF-8 path) pass through [`escape`] (KTD18); structured fields carry
+//! non-UTF-8 path) pass through [`escape`]; structured fields carry
 //! exact strings under standard JSON escaping. Nothing time- or
 //! host-dependent is written.
 
@@ -148,7 +148,7 @@ struct JExcluded<'a> {
 }
 
 /// A path field: exact when the path is valid UTF-8, and the escaped display
-/// form when raw bytes accompany it (KTD10, KTD18).
+/// form when raw bytes accompany it.
 fn path_field(display: &str, bytes: Option<&str>) -> String {
     match bytes {
         Some(_) => escape(display),

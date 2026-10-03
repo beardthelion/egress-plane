@@ -1,4 +1,4 @@
-//! Deterministic JSON and the v1 schema (KTD10, R10, R14, R16, R23).
+//! Deterministic JSON and the v1 schema.
 
 mod common;
 

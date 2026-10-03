@@ -1,5 +1,5 @@
 //! Member-level classification, destinations, and instance tracking on
-//! hand-built IR (U4: KTD5, KTD7, KTD8, R2, R3, R5, R6, R20).
+//! hand-built IR.
 
 mod classify_support;
 
@@ -196,7 +196,7 @@ fn must_not_a_first_party_function_call_is_no_site() {
     assert!(c.unscanned_dependencies.is_empty());
 }
 
-// ---- destinations (KTD7) ----------------------------------------------------
+// ---- destinations ----------------------------------------------------
 
 fn post_with(arg: Expr) -> Ir {
     py().import(import_module("requests")).r(r(
@@ -487,7 +487,7 @@ fn literal_destination_is_redacted() {
     );
 }
 
-// ---- wrappers (R20) ----------------------------------------------------------
+// ---- wrappers ----------------------------------------------------------
 
 #[test]
 fn covers_ae13_wrapper_param_is_one_site_and_callers_add_none() {
@@ -545,7 +545,7 @@ fn covers_ae13_wrapper_param_is_one_site_and_callers_add_none() {
 
 #[test]
 fn method_wrapper_numbers_parameters_without_self() {
-    // The frontend numbers parameters without `self` (KTD7); the core names
+    // The frontend numbers parameters without `self`; the core names
     // the method's symbol path.
     let c = fx()
         .file(
@@ -566,7 +566,7 @@ fn method_wrapper_numbers_parameters_without_self() {
     );
 }
 
-// ---- instances (KTD8) ---------------------------------------------------------
+// ---- instances ---------------------------------------------------------
 
 #[test]
 fn session_local_yields_constructor_and_method_sites() {

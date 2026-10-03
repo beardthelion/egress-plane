@@ -1,6 +1,5 @@
-//! Python lowering tests (U5): IR facts per KTD4, KTD9, KTD10, and KTD15,
-//! specifier rules per KTD16, and end-to-end scans of small trees through
-//! the real classifier.
+//! Python lowering tests: IR facts, specifier rules, and end-to-end scans of small
+//! trees through the real classifier.
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -133,7 +132,7 @@ fn pair(a: &str, b: &str) -> (String, String) {
     (s(a), s(b))
 }
 
-// ---- references and arguments (KTD4) --------------------------------------------
+// ---- references and arguments --------------------------------------------
 
 #[test]
 fn covers_ae1_requests_post_with_an_env_read_argument() {
@@ -611,7 +610,7 @@ fn asyncio_loop_methods_are_sites() {
     );
 }
 
-// ---- specifier rules (KTD16) ------------------------------------------------------
+// ---- specifier rules ------------------------------------------------------
 
 fn probes(k: SpecifierKind) -> Vec<String> {
     match k {

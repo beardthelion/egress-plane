@@ -1,4 +1,4 @@
-//! Completeness state, coverage, and caveats (KTD13, R16, R17, R23).
+//! Completeness state, coverage, and caveats.
 
 use std::collections::BTreeSet;
 

@@ -1,4 +1,4 @@
-//! Python source to IR (KTD4).
+//! Python source to IR.
 //!
 //! The file is parsed with `ruff_python_parser`, which NFKC-normalizes every
 //! identifier as PEP 3131 requires, so names reach the IR as the runtime sees
@@ -14,10 +14,9 @@
 //! 3. Emission: imports, references in every position the runtime evaluates
 //!    (calls, values, decorators, default arguments, base classes and
 //!    keywords, eagerly evaluated annotations, f-string format specs),
-//!    argument trees, symbols in qualname style (KTD9), single-assignment
-//!    constants and locals (KTD7), `self` attributes assigned in `__init__`
-//!    (KTD8), receiver provenance for reflective builtins, and introspection
-//!    attribute accesses (KTD15).
+//!    argument trees, symbols in qualname style, single-assignment
+//!    constants and locals, `self` attributes assigned in `__init__`, receiver
+//!    provenance for reflective builtins, and introspection attribute accesses.
 //!
 //! A name is resolved the way Python resolves it: the scope's own bindings,
 //! then enclosing function scopes (class scopes are skipped), then the
@@ -41,12 +40,12 @@ use ruff_python_parser::parse_unchecked_source;
 use ruff_text_size::{Ranged, TextRange};
 
 /// Deepest statement, expression, or pattern nesting the frontend walks.
-/// The bracket pre-scan (KTD13) stops most deep files before parsing; this
+/// The bracket pre-scan stops most deep files before parsing; this
 /// catches nesting without brackets, such as a long `a + b + ...` chain.
 pub const MAX_DEPTH: u32 = 1000;
 
 /// Why a file could not be lowered. Each maps to a fixed whole-file blind
-/// spot reason; parser messages never reach output (KTD13).
+/// spot reason; parser messages never reach output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LowerError {
     /// The parser rejected the file: `parse-error`.
@@ -56,7 +55,7 @@ pub enum LowerError {
 }
 
 /// Attribute name prefixes that reach frames, tracebacks, generators,
-/// coroutines, and async generators (KTD15).
+/// coroutines, and async generators.
 const INTROSPECTION_PREFIXES: [&str; 5] = ["tb_", "f_", "gi_", "cr_", "ag_"];
 
 /// Lowers one Python file.
@@ -164,7 +163,7 @@ struct Binding {
 struct Scope {
     kind: ScopeKind,
     parent: Option<usize>,
-    /// Symbol path of code running in this scope (KTD9).
+    /// Symbol path of code running in this scope.
     symbol: String,
     /// For a method scope: the owning class path.
     class: Option<String>,
@@ -366,7 +365,7 @@ impl<'s> Walker<'s> {
     // ---- scope entry ------------------------------------------------------------
 
     /// The qualname prefix for a definition named `name` in the current
-    /// scope (KTD9). Comprehensions are transparent, as CPython 3.12 inlines
+    /// scope. Comprehensions are transparent, as CPython 3.12 inlines
     /// them.
     fn qualname(&self, name: &str) -> String {
         let mut s = self.cur;
@@ -932,7 +931,7 @@ impl<'s> Walker<'s> {
 
     // ---- provenance ---------------------------------------------------------------------
 
-    /// Provenance of a receiver handed to a reflective builtin (KTD4).
+    /// Provenance of a receiver handed to a reflective builtin.
     /// `None` leaves the decision to the core, which resolves the target
     /// expression itself (a tracked client, a catalogued call result).
     fn provenance(&self, e: &Expr) -> Option<Provenance> {
@@ -1250,7 +1249,7 @@ impl<'s> Walker<'s> {
             && self.resolve("__builtins__") == NameRef::Ambient
         {
             // `__builtins__` is the builtins namespace: a literal key is a
-            // member, any other key is scope injection (KTD15).
+            // member, any other key is scope injection.
             let root = Root::Ambient("__builtins__".into());
             let r = match string_literal(&s.slice) {
                 Some(k) => self.reference(root, vec![k], UseKind::ValueEscape, s.range()),

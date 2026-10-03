@@ -1,4 +1,4 @@
-//! Rust frontend tests (U7): lowering to the IR, crate module mapping, and
+//! Rust frontend tests: lowering to the IR, crate module mapping, and
 //! classification of the lowered program through the core.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -97,7 +97,7 @@ const CARGO: &str = "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition
 
 // ---- resolution ------------------------------------------------------------
 
-/// Covers AE7.
+/// A local re-export of a primitive resolves to the primitive.
 #[test]
 fn ae7_local_reexport_resolves_to_the_primitive() {
     let c = scan(&[
@@ -614,7 +614,7 @@ fn imported_egress_traits_are_sites_at_the_use() {
     assert_eq!(c.sites.len(), 2, "{}", dump(&c));
 }
 
-/// Each path naming an item is a reference, whatever its position (KTD4).
+/// Each path naming an item is a reference, whatever its position.
 #[test]
 fn type_positions_bounds_return_types_and_ufcs_paths_are_references() {
     let src = "use std::net::{TcpStream, UdpSocket, ToSocketAddrs};\nuse std::io::Read;\nuse std::os::fd::FromRawFd;\npub fn a(fd: std::os::fd::OwnedFd) {\n    let s: TcpStream = fd.into();\n    let _ = s;\n}\npub unsafe fn b() {\n    let _ = TcpStream::from_raw_fd(3);\n}\npub fn c<T: ToSocketAddrs>(t: T) -> T { t }\npub fn d() -> Option<UdpSocket> { None }\npub fn e(s: &mut TcpStream, buf: &mut [u8]) {\n    let _ = <TcpStream as Read>::read(s, buf);\n}\n";
@@ -691,7 +691,7 @@ fn type_positions_bounds_return_types_and_ufcs_paths_are_references() {
 
 // ---- paths, includes, and native code --------------------------------------
 
-/// Covers AE17.
+/// An absolute `#[path]` target is outside the root and never printed.
 #[test]
 fn ae17_absolute_path_attribute_is_outside_root_and_never_printed() {
     let c = scan(&[

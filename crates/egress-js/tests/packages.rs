@@ -1,4 +1,4 @@
-//! JS specifier rules (KTD16): probing order, NodeNext `.js` to `.ts`,
+//! JS specifier rules: probing order, NodeNext `.js` to `.ts`,
 //! `.d.ts` exclusion, package `imports`, workspace package names, and
 //! tsconfig `paths` and `baseUrl`.
 

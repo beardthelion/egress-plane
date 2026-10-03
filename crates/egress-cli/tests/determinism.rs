@@ -1,4 +1,4 @@
-//! End-to-end determinism (R10, KTD10, AE6).
+//! End-to-end determinism.
 
 mod support;
 
@@ -61,7 +61,7 @@ fn is_location_line(l: &str) -> bool {
     l.starts_with("\"line\": ") || l.starts_with("\"column\": ")
 }
 
-/// AE6: a blank line above an egress call changes only `location` lines.
+/// A blank line above an egress call changes only `location` lines.
 #[test]
 fn covers_ae6_blank_line_changes_only_location() {
     let t = Temp::new("ae6");

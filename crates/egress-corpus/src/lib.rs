@@ -1,4 +1,4 @@
-//! Fixture corpus harness (R12, R13, KTD14).
+//! Fixture corpus harness.
 //!
 //! Each case lives at `fixtures/corpus/<language>/<category>/<case>/` with a
 //! `tree/` scan root and an `expected.toml` (see [`labels`]). A run scans every
@@ -13,7 +13,7 @@
 //!
 //! - `file` is repo-relative to `tree/` with `/` separators. A whole-file blind
 //!   spot, a hook, and a non-construct gap use symbol `<module>`.
-//! - `symbol` follows KTD9: Python qualname (`Api.fetch`), JS function, class
+//! - `symbol` is the enclosing symbol path: Python qualname (`Api.fetch`), JS function, class
 //!   member (`Api.list`, `Api.constructor`), `const` binding, or object key
 //!   (`api.post`), Rust free function or `<impl Type>::method`; `<module>` at
 //!   top level.
@@ -22,12 +22,12 @@
 //!   `javascript:https.get`, with `node:` stripped); JS ambient globals are
 //!   members of `globalThis` (`javascript:globalThis.fetch`); Rust uses its own
 //!   path syntax (`rust:std::net::TcpStream::connect`). A method on a tracked
-//!   client instance (KTD8) appends the method to the constructor entry in
+//!   client instance appends the method to the constructor entry in
 //!   Python and JS (`python:requests.Session.get`, `javascript:axios.create.get`)
 //!   and to the type in Rust (`rust:reqwest::blocking::Client::get`). A module
 //!   used as a value is a site whose mechanism is the module itself
 //!   (`python:socket`) with destination `expr:<module>`.
-//! - `destination` is the display form from KTD7: a literal, `env:NAME`,
+//! - `destination` is the display form of the destination: a literal, `env:NAME`,
 //!   `param:N:<symbol>`, a template with holes (`{env:BASE}/v1`),
 //!   `exec:<program>`, `lib:<library>`, `host:port` for sockets, or
 //!   `expr:<rendered source>`. A reference that is not itself called (a value
@@ -56,7 +56,7 @@
 //! - Case directory names starting with `must-not-` hold constructs that must
 //!   produce no finding beyond their labels; any extra finding there shows up
 //!   as a false positive in `target/corpus-report.json`.
-//! - Every labeled finding is required in every category. KTD14 makes missed
+//! - Every labeled finding is required in every category. Missed
 //!   blind spots fail only `evasive` and `closure` cases; this harness also
 //!   requires the blind spots a `completeness` or other case labels, since an
 //!   unenforced label would assert nothing.
@@ -75,7 +75,7 @@ use crate::compare::CaseOutcome;
 /// Language directories under the corpus root.
 pub const LANGUAGES: [&str; 4] = ["python", "javascript", "rust", "mixed"];
 
-/// Category directories (KTD14). `primitives` holds U9's one-per-entry cases.
+/// Category directories. `primitives` holds the one-per-entry cases.
 pub const CATEGORIES: [&str; 6] = [
     "ordinary",
     "tricky",

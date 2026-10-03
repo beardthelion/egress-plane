@@ -1,9 +1,9 @@
-//! Embedded primitive lists, catalog, and member inventory (KTD6, KTD20).
+//! Embedded primitive lists, catalog, and member inventory.
 //!
 //! Each runtime has three data files, embedded at compile time:
 //!
 //! - `data/primitives/<runtime>.toml`: the ambient module and its aliases, the
-//!   closure sections (KTD5, KTD15), the classification of every standard
+//!   closure sections, the classification of every standard
 //!   library or builtin module as `inert` or `egress`, and the member entries.
 //! - `data/catalog/<runtime>.toml`: catalogued third-party packages and their
 //!   member entries.
@@ -21,7 +21,7 @@
 //! segment may hold one. A catalog package name may end in `/*` to cover a
 //! whole npm scope (`@aws-sdk/*`).
 //!
-//! Lookup is longest-prefix over member paths (KTD5): the entry whose member
+//! Lookup is longest-prefix over member paths: the entry whose member
 //! path is the longest prefix of the reference wins, and at equal length an
 //! exact segment beats a glob.
 
@@ -148,7 +148,7 @@ pub struct RuntimeData {
     pub inventory: Inventory,
 }
 
-/// The runtime's global object as a module (KTD5).
+/// The runtime's global object as a module.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Ambient {
     /// `builtins` or `globalThis`; empty for Rust.
@@ -161,7 +161,7 @@ pub struct Ambient {
     pub module_members: BTreeMap<String, String>,
 }
 
-/// Closure data sections (KTD5, KTD6, KTD15).
+/// Closure data sections.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Closure {
     /// Member chains that load a module named by their argument, such as
@@ -252,7 +252,7 @@ impl EntryKind {
 pub struct Egress {
     pub mechanism: MechanismClass,
     pub destination: Option<DestinationSpec>,
-    /// Constructor-style (KTD8): the call returns an object with egress
+    /// Constructor-style: the call returns an object with egress
     /// methods, so the call is a site and its result is tracked one hop.
     pub constructor: bool,
 }
@@ -282,7 +282,7 @@ impl MechanismClass {
     }
 }
 
-/// Where the destination argument sits (KTD7).
+/// Where the destination argument sits.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DestinationSpec {
     /// 1-based positional index, excluding a bound receiver.
@@ -334,7 +334,7 @@ impl DestinationForm {
     }
 }
 
-/// The generated member inventory (KTD6).
+/// The generated member inventory.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Inventory {
     /// Runtime versions the inventory was generated from.
@@ -355,7 +355,7 @@ pub enum Classification<'a> {
     /// No entry matched; the reference is inside this classified module.
     Module(&'a Module),
     /// No entry matched; the reference is inside a catalogued package and
-    /// matches neither its egress nor its inert patterns (KTD5).
+    /// matches neither its egress nor its inert patterns.
     Package(&'a Package),
 }
 
@@ -400,7 +400,7 @@ impl RuntimeData {
             .chain(std::iter::once(self.ambient.module.as_str()).filter(|s| !s.is_empty()))
     }
 
-    /// Classifies `module` plus a literal member chain (KTD5). The module is
+    /// Classifies `module` plus a literal member chain. The module is
     /// first extended into the longest declared submodule (`os` plus `path` is
     /// `os.path`), then entries are matched longest-prefix.
     pub fn lookup(&self, module: &str, members: &[&str]) -> Option<Classification<'_>> {
@@ -462,7 +462,7 @@ impl RuntimeData {
         self.package_for(&module_name).map(Classification::Package)
     }
 
-    /// Classifies a reference rooted at an ambient global (KTD5): a bare
+    /// Classifies a reference rooted at an ambient global: a bare
     /// global (`fetch`), the ambient module itself (`globalThis.fetch`), or
     /// an alias (`window.fetch`, `document.defaultView.fetch`,
     /// `__builtins__.eval`). Ambient members that are modules (JS
@@ -1015,7 +1015,7 @@ fn build_entry(rt: &RuntimeData, e: RawEntry, origin: Origin, path: &str) -> Res
 }
 
 // ---------------------------------------------------------------------------
-// Data guards (KTD6). Each returns the list of violations; empty means pass.
+// Data guards. Each returns the list of violations; empty means pass.
 // ---------------------------------------------------------------------------
 
 pub mod guards {

@@ -1,4 +1,4 @@
-# Credential redaction rules (KTD11, R21).
+# Credential redaction rules.
 #
 # These classes are the whole set. A new class, key, prefix, or pattern lands
 # here only together with a test fixture that exercises it

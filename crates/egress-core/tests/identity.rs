@@ -1,4 +1,4 @@
-//! Position-free identity (KTD9) and path and line encoding (KTD10).
+//! Position-free identity and path and line encoding.
 
 mod common;
 
@@ -291,7 +291,7 @@ fn windows_paths_use_slash_separators() {
 #[test]
 fn a_backslash_in_a_unix_file_name_is_not_a_separator() {
     // On Linux and macOS `\` is an ordinary file-name byte; folding it into
-    // `/` would make `a\b.py` and `a/b.py` collide (KTD10).
+    // `/` would make `a\b.py` and `a/b.py` collide.
     let a = encode_rel_path(Path::new("/r"), Path::new("/r/a\\b.py")).unwrap();
     let b = encode_rel_path(Path::new("/r"), Path::new("/r/a/b.py")).unwrap();
     assert_eq!(a.display, "a\\b.py");

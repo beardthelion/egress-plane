@@ -1,14 +1,13 @@
 //! Report model shared by the scanner, the CLI, and the corpus harness.
 //!
-//! The field set follows KTD10. Collections are sorted by identity components
-//! before output (U2 and U3); serialization arrives in U2. `location` is the
-//! only position-bearing field.
+//! Collections are sorted by identity components before output. `location` is
+//! the only position-bearing field.
 
 /// Version of the JSON report format. Bumped only on a removal, rename, or
-/// change of meaning (KTD10).
+/// change of meaning.
 pub const SCHEMA_VERSION: u32 = 1;
 
-/// Exit code for a tool error (R17). A tool error writes no JSON.
+/// Exit code for a tool error. A tool error writes no JSON.
 pub const EXIT_TOOL_ERROR: i32 = 1;
 
 /// A complete scan result.
@@ -25,7 +24,7 @@ pub struct Report {
 }
 
 impl Report {
-    /// The process exit code this report maps to (R17, KTD13).
+    /// The process exit code this report maps to.
     pub fn exit_code(&self) -> i32 {
         self.completeness.state.exit_code()
     }
@@ -35,12 +34,12 @@ impl Report {
 pub struct Tool {
     pub name: String,
     pub version: String,
-    /// `sha256:<hex>` over all embedded data files (KTD6).
+    /// `sha256:<hex>` over all embedded data files.
     pub data_digest: String,
     pub runtime_range: RuntimeRange,
 }
 
-/// Declared supported runtime range (KTD20).
+/// Declared supported runtime range.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeRange {
     pub python: String,
@@ -51,7 +50,7 @@ pub struct RuntimeRange {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Completeness {
     pub state: CompletenessState,
-    /// Each exhausted global budget (KTD19), sorted.
+    /// Each exhausted global budget, sorted.
     pub budget_exceeded: Vec<BudgetReason>,
     pub coverage: Coverage,
 }
@@ -79,7 +78,7 @@ impl CompletenessState {
         Self::ALL.into_iter().find(|v| v.as_str() == s)
     }
 
-    /// R17: 0 complete, 2 incomplete, 3 empty.
+    /// 0 complete, 2 incomplete, 3 empty.
     pub fn exit_code(self) -> i32 {
         match self {
             Self::Complete => 0,
@@ -89,7 +88,7 @@ impl CompletenessState {
     }
 }
 
-/// Fixed reasons for an exhausted global budget (KTD19).
+/// Fixed reasons for an exhausted global budget.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BudgetReason {
     Files,
@@ -120,13 +119,13 @@ impl BudgetReason {
     }
 }
 
-/// Per-language coverage counts (R16).
+/// Per-language coverage counts.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Coverage {
     pub python: CoverageCounts,
     pub javascript: CoverageCounts,
     pub rust: CoverageCounts,
-    /// Unsupported code file types and files loaded as code (KTD12).
+    /// Unsupported code file types and files loaded as code.
     pub unsupported: CoverageCounts,
 }
 
@@ -159,7 +158,7 @@ impl Language {
     }
 }
 
-/// A fixed caveat entry from `data/caveats.toml` (R23).
+/// A fixed caveat entry from `data/caveats.toml`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Caveat {
     /// Stable identifier, for example `browser-dom`.
@@ -167,7 +166,7 @@ pub struct Caveat {
     pub text: String,
 }
 
-/// 1-based line and column; the column counts Unicode scalar values (KTD10).
+/// 1-based line and column; the column counts Unicode scalar values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Location {
     pub line: u32,
@@ -191,7 +190,7 @@ impl Bucket {
     }
 }
 
-/// Labels from `data/labels.toml` plus `build-hook` (KTD12, KTD17).
+/// Labels from `data/labels.toml` plus `build-hook`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Label {
     Vendored,
@@ -225,7 +224,7 @@ impl Label {
     }
 }
 
-/// Kind of a resolved or symbolic destination (KTD7).
+/// Kind of a resolved or symbolic destination.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum DestinationKind {
     /// A literal URL, host, or `host:port`.
@@ -249,14 +248,14 @@ pub struct Destination {
     pub kind: DestinationKind,
     /// Normalized, redacted value without the kind prefix.
     pub value: String,
-    /// Literal default recorded on an environment read (KTD7).
+    /// Literal default recorded on an environment read.
     pub default: Option<String>,
-    /// Rendered form, for example `env:WEBHOOK_URL`. Escaped per KTD18 at
+    /// Rendered form, for example `env:WEBHOOK_URL`. Escaped at
     /// output time.
     pub display: String,
 }
 
-/// One egress site (R5).
+/// One egress site.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Site {
     pub id: String,
@@ -265,7 +264,7 @@ pub struct Site {
     /// display form and `file_bytes` holds the raw bytes as lowercase hex.
     pub file: String,
     pub file_bytes: Option<String>,
-    /// Enclosing symbol path (KTD9); `<module>` at top level.
+    /// Enclosing symbol path; `<module>` at top level.
     pub symbol: String,
     pub bucket: Bucket,
     /// Data entry ID, for example `python:requests.post`.
@@ -276,11 +275,11 @@ pub struct Site {
     pub location: Option<Location>,
 }
 
-/// Fixed blind-spot reasons (KTD13: parser messages and I/O error text never
+/// Fixed blind-spot reasons (parser messages and I/O error text never
 /// reach output).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BlindSpotKind {
-    // Whole-file reasons (KTD12, KTD13). Each is a coverage gap.
+    // Whole-file reasons. Each is a coverage gap.
     ParseError,
     UnsupportedFileType,
     LoadedAsCode,
@@ -294,11 +293,11 @@ pub enum BlindSpotKind {
     TooDeeplyNested,
     FrontendFailure,
     ManifestParseError,
-    // Coverage gaps that are not whole-file (KTD12).
+    // Coverage gaps that are not whole-file.
     ReferenceOutsideRoot,
     ReferenceIntoExcluded,
     UnconfirmedExclusion,
-    // Construct-level blind spots (KTD5, KTD15, KTD16, KTD17).
+    // Construct-level blind spots.
     /// eval, exec, compile, Function, vm, pickle.loads, string timers.
     DynamicCode,
     /// Non-literal specifier to a loader or require-equivalent, or `require`
@@ -430,7 +429,7 @@ impl BlindSpotKind {
     }
 }
 
-/// One blind spot (R7, R8, R15).
+/// One blind spot.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlindSpot {
     pub id: String,
@@ -442,7 +441,7 @@ pub struct BlindSpot {
     pub symbol: String,
     pub kind: BlindSpotKind,
     pub whole_file: bool,
-    /// True when this blind spot makes the account incomplete (KTD13). A
+    /// True when this blind spot makes the account incomplete. A
     /// code-loading `reference-outside-root` is a gap; a non-loading one is not.
     pub coverage_gap: bool,
     /// Redacted, truncated source text of the construct; empty for whole-file
@@ -453,7 +452,7 @@ pub struct BlindSpot {
     pub location: Option<Location>,
 }
 
-/// An imported package that is not in the egress catalog, listed once (R3).
+/// An imported package that is not in the egress catalog, listed once.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnscannedDependency {
     pub id: String,
@@ -504,7 +503,7 @@ impl ExcludedReason {
     }
 }
 
-/// A path the scan did not enter, with the reason (KTD12).
+/// A path the scan did not enter, with the reason.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Excluded {
     pub path: String,

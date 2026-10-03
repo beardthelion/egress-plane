@@ -1,4 +1,4 @@
-//! Redaction (KTD11, R21). Every class runs before identity and truncation.
+//! Redaction. Every class runs before identity and truncation.
 
 mod common;
 

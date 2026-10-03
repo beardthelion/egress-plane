@@ -1,5 +1,5 @@
 //! The JS frontend through the real scan: lowering plus the core's
-//! resolution and classification (U6 test scenarios that depend on both).
+//! resolution and classification (scenarios that depend on both).
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};

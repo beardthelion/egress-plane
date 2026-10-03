@@ -1,12 +1,12 @@
-//! Scan orchestration behind one `scan(root)` entry point (KTD3).
+//! Scan orchestration behind one `scan(root)` entry point.
 //!
 //! `scan` runs discovery, then reads, pre-scans, and lowers every admitted
 //! source file on worker threads with 64 MiB stacks, catching a frontend
-//! panic per file and capping the source bytes in flight (KTD13). It then
-//! classifies the lowered files (U4: alias resolution, member-level
+//! panic per file and capping the source bytes in flight. It then
+//! classifies the lowered files (alias resolution, member-level
 //! classification, destinations, and the resolver budget) and assembles the
-//! report: completeness and coverage, caveats (R23), identity and ordering,
-//! and the findings budget (KTD19), which applies after classification so it
+//! report: completeness and coverage, caveats, identity and ordering,
+//! and the findings budget, which applies after classification so it
 //! counts every finding.
 
 mod js;
@@ -144,7 +144,7 @@ fn process(registry: &Registry, f: &SourceFile, text: &str) -> Outcome {
     Outcome::Failed { kind, labels }
 }
 
-/// Bounds the source bytes held by workers at once (KTD13).
+/// Bounds the source bytes held by workers at once.
 struct Gate {
     used: Mutex<u64>,
     freed: Condvar,

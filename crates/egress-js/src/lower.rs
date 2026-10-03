@@ -1,9 +1,9 @@
-//! Lowering of one JS or TS file to the IR (KTD4, KTD9, KTD15).
+//! Lowering of one JS or TS file to the IR.
 //!
 //! The file is parsed with `oxc_parser` and scoped with `oxc_semantic`; a
 //! non-empty error list from either, or a parse that gave up, is a
 //! `parse-error` with no partial IR. Identifiers the semantic model leaves
-//! unresolved are ambient globals (KTD5). Names come from oxc already
+//! unresolved are ambient globals. Names come from oxc already
 //! decoded, so identifier escapes such as `fetch` reach the IR as the
 //! runtime sees them.
 //!
@@ -54,7 +54,7 @@ pub enum LowerError {
 /// second guard for the walk itself.
 const MAX_WALK_DEPTH: u32 = nesting::LIMIT as u32 + 1024;
 
-/// Names that denote the global object itself (KTD5 aliases).
+/// Names that denote the global object itself.
 const GLOBAL_NAMES: &[&str] = &[
     "globalThis",
     "window",
@@ -72,7 +72,7 @@ enum FileKind {
     Dts,
 }
 
-/// The source type per extension (U6 approach step 1): `.mjs` and `.mts`
+/// The source type per extension: `.mjs` and `.mts`
 /// are modules, `.cjs` and `.cts` CommonJS, and everything else a module
 /// when it contains ESM syntax and a script otherwise. JS files accept JSX.
 fn source_type(path: &[u8]) -> (SourceType, FileKind) {
@@ -611,7 +611,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         }
     }
 
-    /// Recognizes `require(...)` and its equivalents (KTD15), including a
+    /// Recognizes `require(...)` and its equivalents, including a
     /// loader reached through `(0, require)`, `c && require`,
     /// `c ? require : x`, `require.call(this, spec)`, and
     /// `require.apply(this, [spec])`.
@@ -837,7 +837,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         }
     }
 
-    // ---- expressions as small trees (KTD4) ----------------------------------------------
+    // ---- expressions as small trees ----------------------------------------------
 
     fn lower_expr(&mut self, e: &Expression<'a>) -> Expr {
         let e = e.get_inner_expression();
@@ -953,7 +953,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
     /// A binding's value: a bare name of the global object or of an
     /// external module stays a reference, so the binding is an alias the
     /// core can follow (`const g = globalThis; g.fetch(u)`); a first-party
-    /// or local name stays a name, so constants still evaluate (KTD7).
+    /// or local name stays a name, so constants still evaluate.
     fn binding_value(&mut self, init: &Expression<'a>) -> Expr {
         if let Expression::Identifier(id) = init.get_inner_expression() {
             let root = self.ident_root(id);
@@ -1619,7 +1619,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
     }
 
     /// `x.constructor` on a receiver that is not `this` or a fresh
-    /// instance (KTD15 constructor chains).
+    /// instance.
     fn is_ctor_access(&self, e: &Expression<'a>) -> bool {
         let Some(m) = e.get_inner_expression().get_member_expr() else {
             return false;
@@ -2042,7 +2042,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                         let local = self.import_expression_synthetic(i, &spec);
                         // A loaded module whose value flows (returned,
                         // assigned, passed, or a `.then` receiver) escapes,
-                        // as for a literal `require()` (KTD5).
+                        // as for a literal `require()`.
                         if flow {
                             let r = self.reference(
                                 Root::Import(local),
@@ -2301,7 +2301,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                     let local = self.synthetic_import(c, &spec);
                     // A loaded module whose value flows (passed, stored,
                     // returned, or exported through `module.exports`) is a
-                    // module used as a value: an escape (KTD5).
+                    // module used as a value: an escape.
                     if flow {
                         let r = self.reference(
                             Root::Import(local),
@@ -2462,7 +2462,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
     }
 
     /// CommonJS exports at module level lowered as re-exports, so importers
-    /// resolve through them as through ESM `export ... from` (KTD5, KTD16):
+    /// resolve through them as through ESM `export ... from`:
     /// `module.exports = X` re-exports `X` as `default`, and
     /// `exports.n = X`, `module.exports.n = X`, and each literal key of
     /// `module.exports = { n: X }` re-export `X` as `n`. The value is still
@@ -2539,8 +2539,8 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         }
     }
 
-    /// A write to a member: `this.attr` facts (KTD8), import-system writes
-    /// (KTD15), and assignment-target references.
+    /// A write to a member: `this.attr` facts, import-system writes,
+    /// and assignment-target references.
     fn member_write(
         &mut self,
         m: &MemberExpression<'a>,

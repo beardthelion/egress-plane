@@ -1,4 +1,4 @@
-//! Completeness state, coverage, and caveats (KTD13, R16, R17, R23).
+//! Completeness state, coverage, and caveats.
 
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
@@ -30,7 +30,7 @@ pub fn supported_total(c: &Coverage) -> u64 {
         .sum()
 }
 
-/// The completeness state with KTD13's precedence: empty outranks incomplete,
+/// The completeness state with this precedence: empty outranks incomplete,
 /// which outranks complete. A tool error produces no report at all.
 pub fn state(
     coverage: &Coverage,
@@ -85,7 +85,7 @@ fn table() -> &'static [(Caveat, Vec<Language>)] {
 }
 
 /// The fixed caveats that apply to a tree holding these languages, sorted by
-/// ID. Caveats never change the state (R23).
+/// ID. Caveats never change the state.
 pub fn caveats(languages: &BTreeSet<Language>) -> Vec<Caveat> {
     let mut out: Vec<Caveat> = table()
         .iter()

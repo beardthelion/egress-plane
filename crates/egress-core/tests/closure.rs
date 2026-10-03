@@ -1,5 +1,5 @@
-//! Closure rules on hand-built IR (U4: KTD5 escape, value-use, and ambient
-//! module rules; KTD15 structural families; AE20, AE21 at IR level, AE27).
+//! Closure rules on hand-built IR (escape, value-use, and ambient
+//! module rules; structural families).
 
 mod classify_support;
 
@@ -71,7 +71,7 @@ fn escape_of_a_module_holding_a_blind_spot_entry_is_module_escape() {
 #[test]
 fn with_embedded_data_os_holds_blind_spot_entries_so_its_escape_is_module_escape() {
     // The embedded list classifies `os.sys` (a re-exported module object)
-    // and `os.add_dll_directory` as blind-spot entries, so KTD5's escape
+    // and `os.add_dll_directory` as blind-spot entries, so the escape
     // rule makes an `os` escape a `module-escape` blind spot.
     let embedded = Data::embedded().unwrap();
     let c = fx()
@@ -119,7 +119,7 @@ fn unknown_member_of_an_egress_module_takes_the_module_bucket() {
     );
 }
 
-// ---- value-use rule (AE20) --------------------------------------------------------
+// ---- value-use rule --------------------------------------------------------
 
 #[test]
 fn covers_ae20_value_uses_of_egress_members_are_expr_sites() {
@@ -335,7 +335,7 @@ fn python_builtins_subscript_with_a_non_literal_key_is_scope_injection() {
     assert_eq!(kinds(&c), vec![s("scope-injection")]);
 }
 
-// ---- reflective access (KTD15, AE22, AE27) ------------------------------------------
+// ---- reflective access ------------------------------------------
 
 #[test]
 fn covers_ae22_getattr_with_a_non_literal_name_on_a_module_is_a_blind_spot() {

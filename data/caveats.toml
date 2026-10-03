@@ -1,4 +1,4 @@
-# Fixed caveats (R23). A caveat names a known uncovered route. It is printed in
+# Fixed caveats. A caveat names a known uncovered route. It is printed in
 # the JSON `caveats` list and the text report whenever a file of one of its
 # languages is in the scanned tree, and it never changes the completeness state
 # or the exit code.

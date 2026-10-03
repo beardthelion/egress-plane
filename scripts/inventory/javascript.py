@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate data/inventory/javascript.toml (KTD6, KTD20).
+"""Generate data/inventory/javascript.toml.
 
 Usage:
     python3 scripts/inventory/javascript.py --node /path/to/node [--node ...] [--check]
@@ -9,7 +9,7 @@ is probed in a subprocess and the results are merged as a union:
 
 - `stdlib_modules`: `require("module").builtinModules`, plus the prefix-only
   builtins (`node:test`, `node:test/reporters`, `node:sea`, `node:sqlite`) that
-  load under the `node:` scheme, plus `globalThis`, the ambient module (KTD5).
+  load under the `node:` scheme, plus `globalThis`, the ambient module.
 - `members`: `Object.getOwnPropertyNames` of the exports of every module
   classified `egress` in data/primitives/javascript.toml and of every deny-list
   module, and of `globalThis` (its own properties, which are the Node ambient
@@ -18,7 +18,7 @@ is probed in a subprocess and the results are merged as a union:
 
 Versions of the declared range (Node 18 to 22) without a `--node` are listed in
 `not_generated`. With `--check`, exits 1 if the output would differ from the
-checked-in file. A development tool run outside the scanner binary (KTD1).
+checked-in file. A development tool run outside the scanner binary.
 """
 
 import argparse
@@ -34,7 +34,7 @@ PRIMITIVES = REPO / "data" / "primitives" / "javascript.toml"
 OUT = REPO / "data" / "inventory" / "javascript.toml"
 RANGE = ["18", "19", "20", "21", "22"]
 
-# KTD6 deny list; the data guard test holds its own copy.
+# Deny list; the data guard test holds its own copy.
 DENY = ["module", "inspector", "dns", "repl", "wasi"]
 PREFIX_ONLY = ["test", "test/reporters", "sea", "sqlite"]
 
@@ -106,7 +106,7 @@ def render(results, modules):
         f"# Probed Node versions: {', '.join(versions)}.",
         "# Versions of the declared range 18 to 22 without a binary are listed in",
         "# not_generated; their builtin modules and members are not inventoried.",
-        "# globalThis is the ambient module (KTD5); its members are Node's own globals.",
+        "# globalThis is the ambient module; its members are Node's own globals.",
         "",
         'language = "javascript"',
         f"generated_from = [{', '.join(q(v) for v in versions)}]",

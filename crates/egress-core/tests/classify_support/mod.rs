@@ -1,5 +1,5 @@
 //! Hand-built IR and small hand-built data tables for the classifier,
-//! resolver, and closure tests (U4). The tables load through the same
+//! resolver, and closure tests. The tables load through the same
 //! `load_runtime` loader as the embedded data.
 #![allow(dead_code)]
 

@@ -1,4 +1,4 @@
-//! Scan wiring (U3): discovery, pre-scan, frontend registry, per-file fault
+//! Scan wiring: discovery, pre-scan, frontend registry, per-file fault
 //! isolation, worker stacks, the in-flight byte cap, completeness, caveats,
 //! and budgets.
 

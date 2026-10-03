@@ -1,4 +1,4 @@
-//! Escaping of untrusted strings (KTD18).
+//! Escaping of untrusted strings.
 
 mod common;
 

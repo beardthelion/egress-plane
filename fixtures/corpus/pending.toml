@@ -1,4 +1,4 @@
-# Cases not yet expected to pass (KTD14). A pending case that passes fails
+# Cases not yet expected to pass. A pending case that passes fails
 # the run, so each unit removes its slice as its detectors land.
 cases = [
 ]
