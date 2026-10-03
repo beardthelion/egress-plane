@@ -1,0 +1,108 @@
+state = "complete"
+exit_code = 0
+absent_text = [
+  "LEAKCONCATFAKE",
+  "LEAKGETENVFAKE",
+  "LEAKIMPLICITFAKE",
+  "LEAKBYTESFAKE",
+  "LEAKRAWFAKE",
+  "LEAKFSTRINGFAKE",
+  "LEAKTRIPLEFAKE",
+  "LEAKBASICAUTHFAKE",
+  "LEAKCURLTOKENFAKE",
+  "LEAKORFAKE",
+  "LEAKBUFFERFAKE",
+  "LEAKBOTFAKE",
+  "LEAKTOKENSTRFAKE",
+  "LEAKDIGESTFAKE",
+]
+
+[[sites]]
+file = "client.js"
+symbol = "orDefault"
+mechanism = "javascript:https.request"
+destination = "expr:https.request({ hostname: h, auth: <redacted> })"
+
+[[sites]]
+file = "client.js"
+symbol = "bufferAuth"
+mechanism = "javascript:https.request"
+destination = "expr:https.request({ hostname: h, headers: { Authorization: <redacted> } })"
+
+[[sites]]
+file = "client.js"
+symbol = "botHeader"
+mechanism = "javascript:globalThis.fetch"
+destination = "expr:mk(u, \"Authorization: <redacted>\")"
+
+[[sites]]
+file = "client.js"
+symbol = "tokenString"
+mechanism = "javascript:https.request"
+destination = "expr:https.request({ hostname: h, headers: [\"Authorization: <redacted>\"] })"
+
+[[sites]]
+file = "client.js"
+symbol = "digestLower"
+mechanism = "javascript:https.request"
+destination = "expr:https.request({ hostname: h, headers: { authorization: <redacted> } })"
+
+[[sites]]
+file = "db.py"
+symbol = "concat"
+mechanism = "python:psycopg2.connect"
+destination = "expr:psycopg2.connect(host=h, password=<redacted>)"
+
+[[sites]]
+file = "db.py"
+symbol = "getenv_default"
+mechanism = "python:psycopg2.connect"
+destination = "expr:psycopg2.connect(host=h, password=<redacted>)"
+
+[[sites]]
+file = "db.py"
+symbol = "implicit_concat"
+mechanism = "python:psycopg2.connect"
+destination = "expr:psycopg2.connect(host=h, password=<redacted>)"
+
+[[sites]]
+file = "db.py"
+symbol = "bytes_prefix"
+mechanism = "python:psycopg2.connect"
+destination = "expr:psycopg2.connect(host=h, password=<redacted>)"
+
+[[sites]]
+file = "db.py"
+symbol = "raw_prefix"
+mechanism = "python:psycopg2.connect"
+destination = "expr:psycopg2.connect(host=h, password=<redacted>)"
+
+[[sites]]
+file = "db.py"
+symbol = "f_prefix"
+mechanism = "python:psycopg2.connect"
+destination = "expr:psycopg2.connect(host=h, password=<redacted>)"
+
+[[sites]]
+file = "db.py"
+symbol = "triple_quoted"
+mechanism = "python:psycopg2.connect"
+destination = "expr:psycopg2.connect(host=h, password=<redacted>)"
+
+[[sites]]
+file = "db.py"
+symbol = "basic_auth"
+mechanism = "python:requests.get"
+destination = "expr:requests.get(**kw, auth=<redacted>)"
+
+[[sites]]
+file = "db.py"
+symbol = "bare_then_host"
+mechanism = "python:psycopg2.connect"
+destination = "expr:psycopg2.connect(password=<redacted>,host=\"evil.example.com\")"
+
+[[sites]]
+file = "db.py"
+symbol = "curl_token"
+mechanism = "python:os.system"
+destination = "{param:1:curl_token} -H 'Authorization: <redacted>'"

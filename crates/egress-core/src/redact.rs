@@ -98,9 +98,11 @@ fn patterns() -> &'static Patterns {
         // A keyed entry: a libpq or call keyword pair (`key=value`) or a
         // dict or object entry (`key: value`, the key bare or quoted), at the
         // start of the text or after whitespace, `(`, `[`, `{`, `,`, or `;`.
-        // The match ends where the value starts; see [`value_end`].
+        // The match ends where the value starts; see [`value_end`]. A key
+        // with an opening quote and no closing one (`"Authorization: x"`)
+        // sits inside a string literal, and its value ends at that quote.
         keyed: Regex::new(
-            r#"(?:^|[\s(\[{,;])["'`]?(?P<key>[A-Za-z_][A-Za-z0-9_-]*)["'`]?\s*(?P<sep>[=:])\s*"#,
+            r#"(?:^|[\s(\[{,;])(?P<open>["'`])?(?P<key>[A-Za-z_][A-Za-z0-9_-]*)(?P<close>["'`])?\s*(?P<sep>[=:])\s*"#,
         )
         .expect("keyed pattern"),
     })
@@ -138,9 +140,15 @@ pub fn redact_with(rules: &Rules, text: &str) -> String {
 
 /// Value spans of keyed entries whose key is listed. A `==`, `=>`, or `::`
 /// after the key is a comparison, an arrow, or a path, not an entry.
+///
+/// A match whose value starts inside the previous span is skipped: that text
+/// is already redacted, and scanning it again would make the pass quadratic
+/// on unbalanced input. Every scan then covers text after the last one, so
+/// the pass is linear.
 fn keyed_spans(keyed: &Regex, rules: &Rules, text: &str) -> Vec<(usize, usize)> {
     let bytes = text.as_bytes();
     let mut spans = Vec::new();
+    let mut covered = 0usize;
     for c in keyed.captures_iter(text) {
         let sep = c.name("sep").expect("sep group");
         let follow = bytes.get(sep.end()).copied();
@@ -152,71 +160,118 @@ fn keyed_spans(keyed: &Regex, rules: &Rules, text: &str) -> Vec<(usize, usize)> 
             continue;
         }
         let start = c.get(0).expect("whole match").end();
-        // An already redacted value stays as is, so redaction is idempotent.
-        if text[start..].starts_with(REDACTED) {
+        if start < covered {
             continue;
         }
-        let end = value_end(bytes, start);
+        // A key opened by a quote that is not closed before the separator
+        // lies inside a string literal; its value ends at that quote.
+        let in_string = match (c.name("open"), c.name("close")) {
+            (Some(q), None) => Some(q.as_str().as_bytes()[0]),
+            _ => None,
+        };
+        // An already redacted value is redacted again to the same text, so
+        // redaction is idempotent and a literal `<redacted>` in the source
+        // cannot hide the rest of the value.
+        let end = value_end(bytes, start, in_string);
         if end > start {
             spans.push((start, end));
+            covered = end;
         }
     }
     spans
 }
 
-/// The end of the value that starts at `start`. A quoted value runs through
-/// its closing quote, and a bracketed one (`(`, `[`, `{`) through its
-/// matching close, skipping quoted text inside; either one left open runs to
-/// the end of the text (fail closed). Any other value runs to the next
-/// whitespace.
-fn value_end(bytes: &[u8], start: usize) -> usize {
-    let Some(&first) = bytes.get(start) else {
-        return start;
-    };
-    match first {
-        b'\'' | b'"' | b'`' => quoted_end(bytes, start),
-        b'(' | b'[' | b'{' => {
-            let mut depth = 0usize;
-            let mut i = start;
-            while i < bytes.len() {
-                match bytes[i] {
-                    b'\'' | b'"' | b'`' => {
-                        i = quoted_end(bytes, i);
-                        continue;
-                    }
-                    b'(' | b'[' | b'{' => depth += 1,
-                    b')' | b']' | b'}' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            return i + 1;
-                        }
-                    }
-                    _ => {}
+/// The end of the value that starts at `start`: the value runs to the end
+/// of its entry. Quoted runs are skipped whole (`'`, `"`, `` ` ``, and
+/// Python triple quotes; a string prefix such as `b`, `r`, or `f` is
+/// ordinary text before the quote), and brackets nest. At bracket depth 0
+/// the value stops before a `,`, `;`, newline, an unmatched closing bracket,
+/// the `in_string` quote that encloses the entry, or whitespace followed by
+/// another `key=` (libpq DSN text such as `host=db password=x port=5`).
+/// Unbalanced input runs to the end of the text (fail closed). Trailing
+/// whitespace is not part of the value.
+fn value_end(bytes: &[u8], start: usize, in_string: Option<u8>) -> usize {
+    let mut depth = 0usize;
+    let mut i = start;
+    let mut end = start;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if depth == 0 {
+            if Some(b) == in_string || matches!(b, b',' | b';' | b'\n') {
+                return end;
+            }
+            if b.is_ascii_whitespace() {
+                // Skip the whole run so a long one is scanned once.
+                while i < bytes.len() && bytes[i].is_ascii_whitespace() && bytes[i] != b'\n' {
+                    i += 1;
                 }
-                i += 1;
+                if starts_keyword_pair(bytes, i) {
+                    return end;
+                }
+                continue;
             }
-            bytes.len()
         }
-        _ => {
-            let mut i = start;
-            while i < bytes.len() && !bytes[i].is_ascii_whitespace() {
-                i += 1;
+        match b {
+            b'\\' if in_string.is_some() => {
+                i = (i + 2).min(bytes.len());
+                end = i;
+                continue;
             }
-            i
+            b'\'' | b'"' | b'`' => {
+                i = quoted_end(bytes, i);
+                end = i;
+                continue;
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => {
+                if depth == 0 {
+                    return end;
+                }
+                depth -= 1;
+            }
+            _ => {}
+        }
+        i += 1;
+        if !b.is_ascii_whitespace() {
+            end = i;
         }
     }
+    if depth > 0 { bytes.len() } else { end }
+}
+
+/// Whether a `key=` pair (not `==` or `=>`) starts at `i`.
+fn starts_keyword_pair(bytes: &[u8], mut i: usize) -> bool {
+    if !bytes
+        .get(i)
+        .is_some_and(|b| b.is_ascii_alphabetic() || *b == b'_')
+    {
+        return false;
+    }
+    while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || matches!(bytes[i], b'_' | b'-')) {
+        i += 1;
+    }
+    bytes.get(i) == Some(&b'=') && !matches!(bytes.get(i + 1), Some(b'=' | b'>'))
 }
 
 /// The end of the quoted run that starts at `start`, through its closing
-/// quote, or the end of the text when it is unterminated.
+/// quote (three quotes for a triple-quoted string), or the end of the text
+/// when it is unterminated.
 fn quoted_end(bytes: &[u8], start: usize) -> usize {
     let quote = bytes[start];
-    let mut i = start + 1;
+    let triple = [quote; 3];
+    let closing: &[u8] = if bytes[start..].starts_with(&triple) {
+        &triple
+    } else {
+        &triple[..1]
+    };
+    let mut i = start + closing.len();
     while i < bytes.len() {
-        match bytes[i] {
-            b'\\' => i += 2,
-            b if b == quote => return i + 1,
-            _ => i += 1,
+        if bytes[i] == b'\\' {
+            i += 2;
+        } else if bytes[i..].starts_with(closing) {
+            return i + closing.len();
+        } else {
+            i += 1;
         }
     }
     bytes.len()
@@ -346,7 +401,8 @@ mod tests {
                 "telegram-bot-token",
                 "slack-webhook",
                 "discord-webhook",
-                "authorization-scheme"
+                "authorization-scheme",
+                "authorization-header"
             ]
         );
     }

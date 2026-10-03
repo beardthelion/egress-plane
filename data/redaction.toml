@@ -22,12 +22,17 @@
 #   a `key: value` entry (dict and object entries, the key bare or quoted,
 #   such as `{"X-Api-Key": "x"}` or `{ Authorization: "Bearer x" }`) is
 #   redacted when its key matches `keys`. The key starts the text or follows
-#   whitespace, `(`, `[`, `{`, `,`, or `;`. A quoted value is redacted
-#   through its closing quote, a bracketed value (a tuple such as
-#   `auth=("user", "pw")`, a list, or an object) through its matching
-#   close; either one left open runs to the end of the text (fail closed).
-#   Any other value runs to the next whitespace. `==`, `=>`, and `::` after
-#   the key are a comparison, an arrow, and a path, not entries.
+#   whitespace, `(`, `[`, `{`, `,`, or `;`. The value runs to the end of
+#   its entry: quoted runs (including Python prefixed and triple-quoted
+#   strings) are skipped whole and brackets nest, so `password="a" + "b"`,
+#   `password=os.getenv("X", "b")`, and `auth=HTTPBasicAuth("u", "p")` are
+#   redacted whole. At bracket depth 0 the value stops before `,`, `;`, a
+#   newline, an unmatched closing bracket, whitespace followed by another
+#   `key=` (libpq DSN text), or, for a key opened by a quote that is not
+#   closed before the separator (`"Authorization: Token x"`), that quote.
+#   Unbalanced input runs to the end of the text (fail closed). `==`, `=>`,
+#   and `::` after the key are a comparison, an arrow, and a path, not
+#   entries.
 # - Token runs: see `token_prefixes`.
 # - Provider path secrets: see `path_secrets`.
 
@@ -104,3 +109,13 @@ pattern = '''/api/(?:v[0-9]+/)?webhooks/[0-9]+/(?P<secret>[^/?#\s"'`{}<>]+)'''
 [[path_secrets]]
 name = "authorization-scheme"
 pattern = '''(?:^|[^A-Za-z0-9_])(?i:bearer|basic)\s+(?P<secret>[A-Za-z0-9._~+/=-]+)'''
+
+# Authorization headers with any scheme (`Token`, `Bot`, `Digest`, ...): the
+# credential after the scheme word that follows a header name such as
+# `Authorization: Token x`, `"Authorization": "token x"`, or
+# `-HAuthorization=Bot x`, matched case-insensitively and anywhere in the
+# text (so `Proxy-Authorization` and `-HAuthorization` count). The header
+# name and scheme word are kept.
+[[path_secrets]]
+name = "authorization-header"
+pattern = '''(?i:authorization)["'`]?[ \t]*[:=][ \t]*["'`]?[A-Za-z][A-Za-z0-9_-]*[ \t]+(?P<secret>[^\s"'`{}<>]+)'''
