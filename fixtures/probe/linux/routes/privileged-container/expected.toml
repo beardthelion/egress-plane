@@ -1,0 +1,87 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "escape"
+kind = "privileged-mode"
+rule = "linux.privileged"
+
+[[routes]]
+class = "escape"
+kind = "dangerous-capability"
+rule = "linux.cap.escape"
+member = "cap_sys_admin"
+
+[[routes]]
+class = "escape"
+kind = "dangerous-capability"
+rule = "linux.cap.escape"
+member = "cap_sys_module"
+
+[[routes]]
+class = "escape"
+kind = "dangerous-capability"
+rule = "linux.cap.escape"
+member = "cap_sys_ptrace"
+
+[[routes]]
+class = "escape"
+kind = "dangerous-capability"
+rule = "linux.cap.escape"
+member = "cap_dac_read_search"
+
+[[routes]]
+class = "escape"
+kind = "dangerous-capability"
+rule = "linux.cap.escape"
+member = "cap_sys_rawio"
+
+[[routes]]
+class = "escape"
+kind = "dangerous-capability"
+rule = "linux.cap.escape"
+member = "cap_bpf"
+
+[[routes]]
+class = "escape"
+kind = "dangerous-capability"
+rule = "linux.cap.escape"
+member = "cap_net_admin"
+
+[[routes]]
+class = "escape"
+kind = "dangerous-capability"
+rule = "linux.cap.escape"
+member = "cap_sys_boot"
+
+[[routes]]
+class = "escape"
+kind = "dangerous-capability"
+rule = "linux.cap.escape"
+member = "cap_syslog"
+
+[[routes]]
+class = "escape"
+kind = "dangerous-capability"
+rule = "linux.cap.escape"
+member = "cap_perfmon"
+
+[[routes]]
+class = "egress"
+kind = "raw-network"
+rule = "linux.cap.raw-network"
+member = "cap_net_raw"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+

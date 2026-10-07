@@ -13,3 +13,4 @@ toml.workspace = true
 
 [dev-dependencies]
 egress-scan.workspace = true
+egress-probe = { workspace = true, features = ["snapshot"] }

@@ -1,0 +1,35 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "host"
+kind = "unrecognized"
+
+[[routes]]
+class = "escape"
+kind = "runtime-api-listener"
+rule = "listener.runtime-api"
+member = "tcp 127.0.0.1:10255"
+
+[[routes]]
+class = "escape"
+kind = "runtime-api-listener"
+rule = "listener.runtime-api"
+member = "tcp 127.0.0.1:2379"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/dev"
+

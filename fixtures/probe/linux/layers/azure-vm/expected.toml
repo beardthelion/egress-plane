@@ -1,0 +1,42 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "cloud"
+kind = "azure"
+evidence_classes = ["firmware"]
+
+[[routes]]
+class = "egress"
+kind = "metadata-endpoint"
+signal = "cloud.metadata-endpoint"
+member = "168.63.129.16"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[routes]]
+class = "egress"
+kind = "network-interface"
+rule = "linux.iface.non-loopback"
+member = "eth0"
+
+[[routes]]
+class = "egress"
+kind = "default-route"
+rule = "route.any"
+member = "0.0.0.0/0 via 10.0.0.1 dev eth0"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/dev"
+

@@ -1,0 +1,74 @@
+platform = "macos"
+
+[process]
+state = "read"
+pid = 900
+
+[env_names]
+state = "read"
+names = [
+    { name = "PATH" },
+    { name = "HOME" },
+    { name = "USER" },
+    { name = "SHELL" },
+    { name = "LANG" },
+]
+
+[fds]
+state = "read"
+entries = [
+    { fd = 0, target = "/dev/null" },
+    { fd = 1, target = "pipe:[55001]" },
+    { fd = 2, target = "pipe:[55001]" },
+    { fd = 3, target = "KQUEUE", probe_own = true },
+]
+
+[mounts]
+state = "read"
+entries = [
+    { path = "/", fstype = "apfs", source = "/dev/disk1s1", readonly = false },
+    { path = "/dev", fstype = "devfs", source = "devfs", readonly = false },
+    { path = "/System/Volumes/Data", fstype = "apfs", source = "/dev/disk1s5", readonly = false },
+]
+
+[unix_sockets]
+state = "read"
+entries = [
+
+]
+
+[listeners]
+state = "read"
+entries = [
+
+]
+
+[routes]
+state = "read"
+entries = [
+    { family = "inet", destination = "0.0.0.0/0", gateway = "192.168.64.1", interface = "en0" },
+]
+
+[interfaces]
+state = "read"
+entries = [
+    { name = "lo0" },
+    { name = "en0" },
+]
+
+[sandbox_check]
+state = "read"
+result = 1
+
+[hv_vmm_present]
+state = "read"
+present = true
+
+[identity]
+state = "read"
+euid = 501
+egid = 20
+
+[traced]
+state = "read"
+traced = false

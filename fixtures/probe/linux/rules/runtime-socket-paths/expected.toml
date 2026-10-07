@@ -1,0 +1,46 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "escape"
+kind = "runtime-socket"
+signal = "linux.socket.docker"
+member = "/run/podman/podman.sock"
+
+[[routes]]
+class = "escape"
+kind = "runtime-socket"
+signal = "linux.socket.docker"
+member = "/run/containerd/containerd.sock"
+
+[[routes]]
+class = "escape"
+kind = "runtime-socket"
+signal = "linux.socket.docker"
+member = "/run/k3s/containerd/containerd.sock"
+
+[[routes]]
+class = "escape"
+kind = "runtime-socket"
+signal = "linux.socket.docker"
+member = "/var/run/crio/crio.sock"
+
+[[routes]]
+class = "escape"
+kind = "runtime-socket"
+signal = "linux.socket.docker"
+member = "/var/run/cri-dockerd.sock"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+

@@ -1,0 +1,40 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "egress"
+kind = "proxy-configured"
+rule = "env.proxy"
+member = "HTTP_PROXY"
+
+[[routes]]
+class = "egress"
+kind = "proxy-configured"
+rule = "env.proxy"
+member = "HTTPS_PROXY"
+
+[[routes]]
+class = "egress"
+kind = "proxy-configured"
+rule = "env.proxy"
+member = "ALL_PROXY"
+
+[[routes]]
+class = "egress"
+kind = "proxy-configured"
+rule = "env.proxy"
+member = "http_proxy"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+

@@ -1,0 +1,21 @@
+state = "complete"
+exit_code = 0
+
+absent_text = ["SENTINEL_RAW_ENV_ENTRY"]
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[unclassified]]
+universe = "linux.env-names"
+member = "<no-separator>"
+

@@ -1,0 +1,68 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "ci"
+kind = "github-actions"
+evidence_classes = ["environment-name"]
+
+[[routes]]
+class = "escape"
+kind = "credential-env"
+rule = "env.credential"
+member = "GITHUB_TOKEN"
+
+[[routes]]
+class = "escape"
+kind = "credential-env"
+rule = "env.credential"
+member = "ACTIONS_RUNTIME_TOKEN"
+
+[[routes]]
+class = "escape"
+kind = "credential-env"
+rule = "env.credential"
+member = "ACTIONS_ID_TOKEN_REQUEST_TOKEN"
+
+[[routes]]
+class = "egress"
+kind = "credential-endpoint-env"
+rule = "env.oidc-endpoint"
+member = "ACTIONS_ID_TOKEN_REQUEST_URL"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[routes]]
+class = "egress"
+kind = "network-interface"
+rule = "linux.iface.non-loopback"
+member = "eth0"
+
+[[routes]]
+class = "egress"
+kind = "default-route"
+rule = "route.any"
+member = "0.0.0.0/0 via 10.100.1.1 dev eth0"
+
+[[unclassified]]
+universe = "linux.env-names"
+member = "GITHUB_ACTIONS"
+
+[[unclassified]]
+universe = "linux.env-names"
+member = "RUNNER_ENVIRONMENT"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/dev"
+

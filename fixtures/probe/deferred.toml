@@ -1,0 +1,5 @@
+# Data entries (rules, signals, layers) whose fixture is not
+# authored yet. A stale entry fails the data guards. Must
+# be empty at Definition of Done.
+cases = [
+]

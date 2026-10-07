@@ -1,0 +1,21 @@
+state = "incomplete"
+exit_code = 2
+
+absent_text = ["SENTINEL-redirected-token"]
+
+[[layers]]
+order = 1
+family = "container"
+kind = "kubernetes"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "escape"
+kind = "orchestrator-credential"
+signal = "linux.cred.k8s-sa-token"
+member = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+
+[[unknowns]]
+source = "linux.resolvers"
+reason = "link-policy"
+

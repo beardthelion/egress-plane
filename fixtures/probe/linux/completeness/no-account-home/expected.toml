@@ -1,0 +1,51 @@
+state = "incomplete"
+exit_code = 2
+
+
+[[layers]]
+order = 1
+family = "host"
+kind = "unrecognized"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[unknowns]]
+source = "cred.aws-shared"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "cred.gcloud-adc"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "cred.azure-dir"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "cred.docker-config"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "cred.kubeconfig"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "cred.ssh-keys"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "proxy.config-files"
+reason = "no-account-home"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/dev"
+

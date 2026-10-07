@@ -1,0 +1,20 @@
+state = "incomplete"
+exit_code = 2
+
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[unknowns]]
+source = "linux.unix-sockets"
+reason = "masked-or-truncated"
+

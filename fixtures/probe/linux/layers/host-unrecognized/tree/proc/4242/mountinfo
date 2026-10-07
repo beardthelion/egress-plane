@@ -1,0 +1,9 @@
+22 0 259:1 / / rw,relatime - ext4 /dev/sda1 rw
+24 22 0:24 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
+25 22 0:25 / /sys rw,nosuid,nodev,noexec,relatime - sysfs sysfs rw
+26 22 0:26 / /dev rw,nosuid - devtmpfs devtmpfs rw
+27 26 0:27 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw
+28 26 0:28 / /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw
+29 26 0:29 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw
+30 22 0:30 / /run rw,nosuid,nodev - tmpfs tmpfs rw
+31 25 0:31 / /sys/fs/cgroup ro,nosuid,nodev,noexec - cgroup2 cgroup2 ro

@@ -1,0 +1,12 @@
+24 1 0:24 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
+25 1 0:25 / /sys ro,nosuid,nodev,noexec,relatime - sysfs sysfs ro
+26 1 0:26 / /dev rw,nosuid - tmpfs tmpfs rw
+27 1 0:27 / /dev/pts rw,nosuid,noexec,relatime - devpts devpts rw
+28 1 0:28 / /dev/shm rw,nosuid,nodev - tmpfs tmpfs rw
+29 1 0:29 / /dev/mqueue rw,nosuid,nodev,noexec,relatime - mqueue mqueue rw
+30 1 0:30 / /run rw,nosuid,nodev - tmpfs tmpfs rw
+31 25 0:31 / /sys/fs/cgroup ro,nosuid,nodev,noexec - cgroup2 cgroup2 ro
+23 0 259:1 / / rw,relatime - overlay overlay rw
+32 23 259:2 /containers/x/resolv.conf /etc/resolv.conf rw,relatime - ext4 /dev/sda1 rw
+33 23 259:2 /containers/x/hostname /etc/hostname rw,relatime - ext4 /dev/sda1 rw
+34 23 259:2 /containers/x/hosts /etc/hosts rw,relatime - ext4 /dev/sda1 rw

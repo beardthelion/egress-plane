@@ -1,0 +1,47 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "cloud"
+kind = "gcp"
+evidence_classes = ["firmware", "resolver-config"]
+
+[[routes]]
+class = "egress"
+kind = "metadata-endpoint"
+signal = "cloud.metadata-endpoint"
+member = "169.254.169.254"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 169.254.169.254"
+
+[[routes]]
+class = "egress"
+kind = "network-interface"
+rule = "linux.iface.non-loopback"
+member = "eth0"
+
+[[routes]]
+class = "egress"
+kind = "default-route"
+rule = "route.any"
+member = "0.0.0.0/0 via 169.254.0.1 dev eth0"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/dev"
+
+[[inert]]
+universe = "linux.resolvers"
+rule = "resolver.directive"
+member = "search c.proj.internal google.internal"
+

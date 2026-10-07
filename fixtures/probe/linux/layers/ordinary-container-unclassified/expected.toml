@@ -1,0 +1,28 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[unclassified]]
+universe = "linux.env-names"
+member = "WEIRD_THING"
+
+[[unclassified]]
+universe = "linux.env-names"
+member = "X_CUSTOM_FLAG"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/odd"
+

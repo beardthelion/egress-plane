@@ -1,0 +1,84 @@
+[[node]]
+path = "dev/null"
+type = "char"
+major = 1
+minor = 3
+access = "write"
+[[node]]
+path = "dev/zero"
+type = "char"
+major = 1
+minor = 5
+access = "write"
+[[node]]
+path = "dev/full"
+type = "char"
+major = 1
+minor = 7
+access = "write"
+[[node]]
+path = "dev/random"
+type = "char"
+major = 1
+minor = 8
+access = "read"
+[[node]]
+path = "dev/urandom"
+type = "char"
+major = 1
+minor = 9
+access = "write"
+[[node]]
+path = "dev/tty"
+type = "char"
+major = 5
+minor = 0
+access = "write"
+[[node]]
+path = "dev/console"
+type = "char"
+major = 5
+minor = 1
+access = "write"
+[[node]]
+path = "dev/ptmx"
+type = "char"
+major = 5
+minor = 2
+access = "write"
+[[node]]
+path = "dev/mem"
+type = "char"
+major = 1
+minor = 1
+access = "write"
+[[node]]
+path = "dev/fuse"
+type = "char"
+major = 10
+minor = 229
+access = "write"
+[[node]]
+path = "dev/net/tun"
+type = "char"
+major = 10
+minor = 200
+access = "write"
+[[node]]
+path = "dev/sda"
+type = "block"
+major = 8
+minor = 0
+access = "write"
+[[node]]
+path = "dev/dri/card0"
+type = "char"
+major = 226
+minor = 0
+access = "write"
+[[node]]
+path = "dev/sdb"
+type = "block"
+major = 8
+minor = 16
+access = "none"

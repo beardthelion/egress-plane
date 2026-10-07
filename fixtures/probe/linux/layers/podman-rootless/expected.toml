@@ -1,0 +1,26 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "container"
+kind = "podman"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "escape"
+kind = "runtime-socket"
+signal = "linux.socket.docker"
+member = "/run/user/1000/podman/podman.sock"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[unclassified]]
+universe = "linux.env-names"
+member = "HOSTNAME"
+

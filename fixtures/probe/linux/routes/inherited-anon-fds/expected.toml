@@ -1,0 +1,34 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "escape"
+kind = "inherited-io-uring"
+rule = "fd.inherited-io-uring"
+member = "fd 5: anon_inode:[io_uring]"
+
+[[routes]]
+class = "escape"
+kind = "inherited-bpf-object"
+rule = "fd.inherited-bpf"
+member = "fd 6: anon_inode:bpf-map"
+
+[[routes]]
+class = "escape"
+kind = "inherited-pidfd"
+rule = "fd.inherited-pidfd"
+member = "fd 7: anon_inode:[pidfd]"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+

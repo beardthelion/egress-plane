@@ -306,6 +306,7 @@ name = "egress-corpus"
 version = "0.1.0"
 dependencies = [
  "egress-core",
+ "egress-probe",
  "egress-scan",
  "serde",
  "serde_json",
@@ -325,6 +326,18 @@ dependencies = [
  "oxc_semantic",
  "oxc_span",
  "oxc_syntax",
+]
+
+[[package]]
+name = "egress-probe"
+version = "0.1.0"
+dependencies = [
+ "boon",
+ "egress-core",
+ "libc",
+ "serde",
+ "serde_json",
+ "toml",
 ]
 
 [[package]]

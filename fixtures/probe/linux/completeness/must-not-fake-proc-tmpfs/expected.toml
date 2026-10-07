@@ -1,0 +1,158 @@
+state = "incomplete"
+exit_code = 2
+
+absent_text = ["SENTINEL-fake-proc-mount"]
+
+[[layers]]
+order = 1
+family = "host"
+kind = "unrecognized"
+
+[[unknowns]]
+source = "linux.mounts"
+reason = "fs-type-mismatch"
+
+[[unknowns]]
+source = "linux.unix-sockets"
+reason = "fs-type-mismatch"
+
+[[unknowns]]
+source = "linux.listeners"
+reason = "fs-type-mismatch"
+
+[[unknowns]]
+source = "linux.capabilities"
+reason = "fs-type-mismatch"
+
+[[unknowns]]
+source = "linux.routes"
+reason = "fs-type-mismatch"
+
+[[unknowns]]
+source = "linux.interfaces"
+reason = "fs-type-mismatch"
+
+[[unknowns]]
+source = "linux.attr.status"
+reason = "fs-type-mismatch"
+
+[[unknowns]]
+source = "linux.attr.cgroup"
+reason = "fs-type-mismatch"
+
+[[unknowns]]
+source = "linux.attr.id-maps"
+reason = "fs-type-mismatch"
+
+[[unknowns]]
+source = "linux.attr.namespaces"
+reason = "fs-type-mismatch"
+
+[[unknowns]]
+source = "linux.attr.ptrace-scope"
+reason = "fs-type-mismatch"
+
+[[unknowns]]
+source = "linux.sysctl.userns"
+reason = "fs-type-mismatch"
+
+[[unknowns]]
+source = "linux.shared-pid-namespace"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.shared-ipc-namespace"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.shared-net-namespace"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.proc-sys-writable"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.socket-files"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.devices"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.resolvers"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.marker.dockerenv"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.marker.containerenv"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.marker.toolboxenv"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.marker.flatpak-info"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.cred.k8s-sa-token"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.cred.run-secrets"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "cred.aws-shared"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "cred.gcloud-adc"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "cred.azure-dir"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "cred.docker-config"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "cred.kubeconfig"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "cred.ssh-keys"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.socket.docker"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.socket.host-ipc"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.socket.agent"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "linux.loader.preload"
+reason = "depends-on-unknown"
+
+[[unknowns]]
+source = "proxy.config-files"
+reason = "depends-on-unknown"
+
+[[tamper]]
+indicator = "fs-type-mismatch"
+strength = "strong"
+

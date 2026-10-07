@@ -1,0 +1,54 @@
+[[node]]
+path = "dev/null"
+type = "char"
+major = 1
+minor = 3
+access = "write"
+[[node]]
+path = "dev/zero"
+type = "char"
+major = 1
+minor = 5
+access = "write"
+[[node]]
+path = "dev/full"
+type = "char"
+major = 1
+minor = 7
+access = "write"
+[[node]]
+path = "dev/random"
+type = "char"
+major = 1
+minor = 8
+access = "read"
+[[node]]
+path = "dev/urandom"
+type = "char"
+major = 1
+minor = 9
+access = "write"
+[[node]]
+path = "dev/tty"
+type = "char"
+major = 5
+minor = 0
+access = "write"
+[[node]]
+path = "dev/console"
+type = "char"
+major = 5
+minor = 1
+access = "write"
+[[node]]
+path = "dev/ptmx"
+type = "char"
+major = 5
+minor = 2
+access = "write"
+[[node]]
+path = "dev/odd"
+type = "char"
+major = 10
+minor = 232
+access = "write"

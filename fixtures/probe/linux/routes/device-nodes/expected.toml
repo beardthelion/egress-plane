@@ -1,0 +1,56 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "escape"
+kind = "mem-access"
+rule = "linux.dev.mem"
+member = "/dev/mem"
+
+[[routes]]
+class = "escape"
+kind = "fuse-device"
+rule = "linux.dev.fuse"
+member = "/dev/fuse"
+
+[[routes]]
+class = "egress"
+kind = "tun-device"
+rule = "linux.dev.tun"
+member = "/dev/net/tun"
+
+[[routes]]
+class = "escape"
+kind = "raw-disk"
+rule = "linux.dev.raw-disk"
+member = "/dev/sda"
+
+[[routes]]
+class = "escape"
+kind = "gpu-device"
+rule = "linux.dev.gpu"
+member = "/dev/dri/card0"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[inert]]
+universe = "linux.devices"
+rule = "linux.dev.inaccessible"
+member = "/dev/sdb"
+
+[[inert]]
+universe = "linux.devices"
+rule = "linux.dev.standard"
+member = "/dev/null"
+

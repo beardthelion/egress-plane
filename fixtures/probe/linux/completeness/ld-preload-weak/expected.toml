@@ -1,0 +1,36 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "host"
+kind = "unrecognized"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[tamper]]
+indicator = "loader-env"
+strength = "weak"
+
+[[tamper]]
+indicator = "loader-preload-file"
+strength = "weak"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/dev"
+
+[[inert]]
+universe = "linux.env-names"
+rule = "env.loader-variables"
+member = "LD_PRELOAD"
+

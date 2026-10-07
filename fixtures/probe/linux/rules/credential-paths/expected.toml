@@ -1,0 +1,47 @@
+state = "complete"
+exit_code = 0
+
+absent_text = ["SENTINEL-adc", "SENTINEL-azure-cache", "SENTINEL-docker-config", "SENTINEL-kubeconfig", "SENTINEL-private-key"]
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "escape"
+kind = "cloud-credential"
+signal = "cred.gcloud-adc"
+member = "/root/.config/gcloud/application_default_credentials.json"
+
+[[routes]]
+class = "escape"
+kind = "cloud-credential"
+signal = "cred.azure-dir"
+member = "/root/.azure/msal_token_cache.json"
+
+[[routes]]
+class = "escape"
+kind = "registry-credential"
+signal = "cred.docker-config"
+member = "/root/.docker/config.json"
+
+[[routes]]
+class = "escape"
+kind = "orchestrator-credential"
+signal = "cred.kubeconfig"
+member = "/root/.kube/config"
+
+[[routes]]
+class = "escape"
+kind = "ssh-key"
+signal = "cred.ssh-keys"
+member = "/root/.ssh/id_rsa"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+

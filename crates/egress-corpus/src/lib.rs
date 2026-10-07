@@ -63,6 +63,7 @@
 
 pub mod compare;
 pub mod labels;
+pub mod probe;
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};

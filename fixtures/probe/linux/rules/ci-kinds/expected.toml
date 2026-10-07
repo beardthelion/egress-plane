@@ -1,0 +1,38 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "ci"
+kind = "circleci"
+evidence_classes = ["environment-name"]
+
+[[layers]]
+order = 2
+family = "ci"
+kind = "buildkite"
+evidence_classes = ["environment-name"]
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[unclassified]]
+universe = "linux.env-names"
+member = "CIRCLECI"
+
+[[unclassified]]
+universe = "linux.env-names"
+member = "BUILDKITE"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/dev"
+

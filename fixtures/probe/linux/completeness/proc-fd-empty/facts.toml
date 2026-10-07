@@ -1,0 +1,22 @@
+platform = "linux"
+
+[process]
+state = "read"
+pid = 4242
+
+[env_names]
+state = "read"
+names = [
+    { name = "PATH" },
+    { name = "HOME" },
+    { name = "HOSTNAME" },
+]
+
+[fds]
+state = "read"
+entries = [
+
+]
+
+[landlock_abi]
+state = "not-built"

@@ -1,0 +1,40 @@
+state = "complete"
+exit_code = 0
+
+absent_text = ["SENTINEL-proxy-url", "SENTINEL-pip-proxy", "SENTINEL-npm-proxy"]
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "egress"
+kind = "proxy-config-file"
+signal = "proxy.config-files"
+member = "/etc/apt/apt.conf.d/99proxy"
+
+[[routes]]
+class = "egress"
+kind = "proxy-config-file"
+signal = "proxy.config-files"
+member = "/etc/pip.conf"
+
+[[routes]]
+class = "egress"
+kind = "proxy-config-file"
+signal = "proxy.config-files"
+member = "/root/.npmrc"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[inert]]
+universe = "linux.listeners"
+rule = "listener.loopback"
+member = "tcp 127.0.0.1:9090"
+

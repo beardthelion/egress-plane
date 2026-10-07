@@ -1,0 +1,25 @@
+platform = "linux"
+
+[process]
+state = "read"
+pid = 4242
+
+[env_names]
+state = "read"
+names = [
+    { name = "PATH" },
+    { name = "CIRCLECI" },
+    { name = "BUILDKITE" },
+]
+
+[fds]
+state = "read"
+entries = [
+    { fd = 0, target = "/dev/null" },
+    { fd = 1, target = "pipe:[66001]" },
+    { fd = 2, target = "pipe:[66001]" },
+    { fd = 3, target = "/proc/4242/fd", probe_own = true },
+]
+
+[landlock_abi]
+state = "not-built"

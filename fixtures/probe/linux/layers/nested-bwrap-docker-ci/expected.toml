@@ -1,0 +1,32 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "ci"
+kind = "github-actions"
+evidence_classes = ["environment-name"]
+
+[[layers]]
+order = 2
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel", "resolver-config"]
+
+[[layers]]
+order = 3
+family = "sandbox"
+kind = "bubblewrap"
+evidence_classes = ["kernel"]
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 127.0.0.11"
+
+[[unclassified]]
+universe = "linux.env-names"
+member = "GITHUB_ACTIONS"
+

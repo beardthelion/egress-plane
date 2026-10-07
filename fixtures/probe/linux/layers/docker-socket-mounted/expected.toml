@@ -1,0 +1,78 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel", "resolver-config"]
+
+[[layers]]
+order = 2
+family = "sandbox"
+kind = "seccomp-filter"
+evidence_classes = ["kernel"]
+
+[[routes]]
+class = "escape"
+kind = "runtime-socket"
+rule = "linux.socket.runtime"
+member = "/var/run/docker.sock"
+
+[[routes]]
+class = "escape"
+kind = "runtime-socket"
+signal = "linux.socket.docker"
+member = "/var/run/docker.sock"
+
+[[routes]]
+class = "escape"
+kind = "writable-host-mount"
+rule = "linux.mount.writable-host-bind"
+member = "/var/run/docker.sock"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 127.0.0.11"
+
+[[routes]]
+class = "egress"
+kind = "network-interface"
+rule = "linux.iface.non-loopback"
+member = "eth0"
+
+[[routes]]
+class = "egress"
+kind = "default-route"
+rule = "route.any"
+member = "0.0.0.0/0 via 172.17.0.1 dev eth0"
+
+[[routes]]
+class = "egress"
+kind = "raw-network"
+rule = "linux.cap.raw-network"
+member = "cap_net_raw"
+
+[[inert]]
+universe = "linux.interfaces"
+rule = "linux.iface.loopback"
+member = "lo"
+
+[[inert]]
+universe = "linux.mounts"
+rule = "linux.mount.pseudo"
+member = "/proc"
+
+[[inert]]
+universe = "linux.fds"
+rule = "fd.standard-and-own"
+member = "fd 0: /dev/null"
+
+[[inert]]
+universe = "linux.mounts"
+rule = "linux.mount.runtime-managed-files"
+member = "/etc/hosts"
+

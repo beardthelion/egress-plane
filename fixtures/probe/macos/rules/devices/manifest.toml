@@ -1,0 +1,42 @@
+[[node]]
+path = "dev/null"
+type = "char"
+major = 3
+minor = 2
+access = "write"
+[[node]]
+path = "dev/zero"
+type = "char"
+major = 3
+minor = 3
+access = "write"
+[[node]]
+path = "dev/tty"
+type = "char"
+major = 0
+minor = 0
+access = "none"
+[[node]]
+path = "dev/ptmx"
+type = "char"
+major = 7
+minor = 1
+access = "write"
+[[node]]
+path = "dev/ttys000"
+type = "char"
+major = 12
+minor = 0
+access = "none"
+[[node]]
+path = "dev/bpf0"
+type = "char"
+major = 23
+minor = 0
+access = "write"
+[[node]]
+path = "dev/disk0"
+type = "block"
+major = 14
+minor = 0
+access = "none"

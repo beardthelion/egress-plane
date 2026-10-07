@@ -4,6 +4,7 @@ members = [
     "crates/egress-core",
     "crates/egress-scan",
     "crates/egress-corpus",
+    "crates/egress-probe",
     "crates/egress-python",
     "crates/egress-js",
     "crates/egress-rust",
@@ -23,6 +24,7 @@ publish = false
 [workspace.dependencies]
 egress-core = { path = "crates/egress-core" }
 egress-scan = { path = "crates/egress-scan" }
+egress-probe = { path = "crates/egress-probe" }
 egress-js = { path = "crates/egress-js" }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.151"

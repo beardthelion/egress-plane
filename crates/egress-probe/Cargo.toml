@@ -1,0 +1,23 @@
+[package]
+name = "egress-probe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[features]
+# Snapshot replay exists only for the corpus harness and the probe's own
+# tests. The release binary never enables it, so a shipped probe cannot
+# replay a fixture tree (KTD4).
+snapshot = []
+
+# Every external dependency is pinned to an exact version.
+[dependencies]
+egress-core.workspace = true
+libc = "=0.2.189"
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+boon = "=0.6.1"

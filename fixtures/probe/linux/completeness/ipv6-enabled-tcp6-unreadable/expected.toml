@@ -1,0 +1,39 @@
+state = "incomplete"
+exit_code = 2
+
+
+[[layers]]
+order = 1
+family = "host"
+kind = "unrecognized"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[routes]]
+class = "egress"
+kind = "network-interface"
+rule = "linux.iface.non-loopback"
+member = "eth0"
+
+[[routes]]
+class = "egress"
+kind = "routed-network"
+rule = "route.any"
+member = "fe80::/64 dev eth0"
+
+[[unknowns]]
+source = "linux.listeners"
+reason = "unreadable"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/dev"
+

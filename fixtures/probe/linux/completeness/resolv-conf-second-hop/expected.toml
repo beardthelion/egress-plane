@@ -1,0 +1,14 @@
+state = "incomplete"
+exit_code = 2
+
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[unknowns]]
+source = "linux.resolvers"
+reason = "link-policy"
+

@@ -1,0 +1,58 @@
+state = "incomplete"
+exit_code = 2
+
+absent_text = ["SENTINEL-nfs-home-token"]
+
+[[layers]]
+order = 1
+family = "host"
+kind = "unrecognized"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[routes]]
+class = "egress"
+kind = "shared-mount"
+rule = "linux.mount.shared-fs"
+member = "/home"
+
+[[unknowns]]
+source = "cred.aws-shared"
+reason = "network-filesystem-not-touched"
+
+[[unknowns]]
+source = "cred.gcloud-adc"
+reason = "network-filesystem-not-touched"
+
+[[unknowns]]
+source = "cred.azure-dir"
+reason = "network-filesystem-not-touched"
+
+[[unknowns]]
+source = "cred.docker-config"
+reason = "network-filesystem-not-touched"
+
+[[unknowns]]
+source = "cred.kubeconfig"
+reason = "network-filesystem-not-touched"
+
+[[unknowns]]
+source = "cred.ssh-keys"
+reason = "network-filesystem-not-touched"
+
+[[unknowns]]
+source = "proxy.config-files"
+reason = "network-filesystem-not-touched"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/dev"
+

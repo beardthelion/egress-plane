@@ -1,0 +1,34 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "ci"
+kind = "gitlab-ci"
+evidence_classes = ["environment-name"]
+
+[[routes]]
+class = "escape"
+kind = "credential-env"
+rule = "env.credential"
+member = "CI_JOB_TOKEN"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+
+[[unclassified]]
+universe = "linux.env-names"
+member = "GITLAB_CI"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/"
+
+[[unclassified]]
+universe = "linux.mounts"
+member = "/dev"
+

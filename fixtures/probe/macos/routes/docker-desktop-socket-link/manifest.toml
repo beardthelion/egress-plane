@@ -1,0 +1,37 @@
+[[node]]
+path = "dev/null"
+type = "char"
+major = 3
+minor = 2
+access = "write"
+[[node]]
+path = "dev/zero"
+type = "char"
+major = 3
+minor = 3
+access = "write"
+[[node]]
+path = "dev/tty"
+type = "char"
+major = 0
+minor = 0
+access = "none"
+[[node]]
+path = "dev/ptmx"
+type = "char"
+major = 7
+minor = 1
+access = "write"
+[[node]]
+path = "dev/ttys000"
+type = "char"
+major = 12
+minor = 0
+access = "none"
+[[node]]
+path = "Users/dev/.docker/run/docker.sock"
+type = "socket"
+mode = 384
+uid = 501
+gid = 20
+access = "write"

@@ -1,0 +1,16 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "sandbox"
+kind = "bubblewrap"
+evidence_classes = ["kernel"]
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+

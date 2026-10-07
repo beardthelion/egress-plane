@@ -1,0 +1,43 @@
+state = "complete"
+exit_code = 0
+
+
+[[layers]]
+order = 1
+family = "container"
+kind = "docker"
+evidence_classes = ["filesystem-marker", "kernel"]
+
+[[routes]]
+class = "escape"
+kind = "shared-pid-namespace"
+signal = "linux.shared-pid-namespace"
+
+[[routes]]
+class = "escape"
+kind = "shared-ipc-namespace"
+signal = "linux.shared-ipc-namespace"
+
+[[routes]]
+class = "escape"
+kind = "shared-net-namespace"
+signal = "linux.shared-net-namespace"
+
+[[routes]]
+class = "egress"
+kind = "network-interface"
+rule = "linux.iface.non-loopback"
+member = "eth0"
+
+[[routes]]
+class = "egress"
+kind = "network-interface"
+rule = "linux.iface.non-loopback"
+member = "docker0"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 8.8.8.8"
+

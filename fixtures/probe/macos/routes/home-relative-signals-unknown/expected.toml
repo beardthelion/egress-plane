@@ -1,0 +1,67 @@
+state = "incomplete"
+exit_code = 2
+
+absent_routes = ["runtime-socket", "keychain", "cloud-credential", "ssh-key", "orchestrator-credential", "registry-credential", "synced-path"]
+not_applicable = ["linux.unix-sockets", "linux.capabilities", "linux.devices", "linux.attr.status", "linux.attr.namespaces", "linux.attr.cgroup", "linux.attr.id-maps", "linux.attr.ptrace-scope", "linux.attr.landlock-abi"]
+
+[[layers]]
+order = 1
+family = "host"
+kind = "unrecognized"
+
+[[routes]]
+class = "egress"
+kind = "dns-resolver"
+rule = "resolver.nameserver"
+member = "nameserver 192.168.64.1"
+
+[[routes]]
+class = "egress"
+kind = "default-route"
+rule = "route.any"
+member = "0.0.0.0/0 via 192.168.64.1 dev en0"
+
+[[unknowns]]
+source = "cred.aws-shared"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "cred.gcloud-adc"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "cred.azure-dir"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "cred.docker-config"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "cred.kubeconfig"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "cred.ssh-keys"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "macos.socket.docker"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "macos.cred.login-keychain"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "macos.synced.icloud"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "macos.synced.cloudstorage"
+reason = "no-account-home"
+
+[[unknowns]]
+source = "proxy.config-files"
+reason = "no-account-home"
+
