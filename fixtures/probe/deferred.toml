@@ -2,4 +2,7 @@
 # authored yet. A stale entry fails the data guards. Must
 # be empty at Definition of Done.
 cases = [
+    # macos.dev.raw-disk needs a case with an accessible /dev/disk*
+    # node; macos/rules/devices covers only the inaccessible form.
+    "macos/rules/raw-disk",
 ]

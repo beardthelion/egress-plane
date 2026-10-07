@@ -1,0 +1,487 @@
+# Classification rules (KTD6). Every enumerated member is matched against
+# the rules of its universe; a member matched by rules of more than one
+# class takes the highest class (escape over egress over inert) and
+# records every matching rule id. An inert rule requires a non-empty
+# justification; escape and egress rules must not carry one. Every rule
+# names one fixture case that labels it (a route for escape and egress
+# rules, an [[inert]] entry for inert rules), unless the fixture is listed
+# in fixtures/probe/deferred.toml.
+#
+# Match clauses: `match` is one clause, `[[rule.any]]` adds more; a rule
+# applies when any clause matches. Inside a clause every named member
+# field's predicate must hold. `except` is one clause: when every one of
+# its predicates holds, the rule does not apply. Because precedence lets
+# no inert rule override an escape or egress rule, route rules that would
+# swallow a benign case carry the exclusion in `except`.
+#
+# Predicates on a field (a value is the field's canonical string form; a
+# field absent from the member never matches):
+# - `equals`, `in`, `prefix`, `suffix`, `under` (path equal to or below a
+#   component boundary), `basename-in` (last path component), `device`
+#   (`major:minor`), `member-of` (the field equals a member's path in the
+#   named universe) are positive tests; a field with any positive tests
+#   must match at least one of them.
+# - `not-in`, `not-prefix` are negative tests; every one must hold.
+# - `flag = true|false` tests a boolean attribute field.
+# Path values may use `<euid>`.
+
+[[rule]]
+id = "linux.socket.runtime"
+universes = ["linux.socket-files", "linux.unix-sockets"]
+class = "escape"
+kind = "runtime-socket"
+fixture = "linux/layers/docker-socket-mounted"
+match = { path = { in = ["/var/run/docker.sock", "/run/docker.sock", "/run/podman/podman.sock", "/run/user/<euid>/podman/podman.sock", "/run/containerd/containerd.sock", "/var/run/crio/crio.sock", "/var/run/cri-dockerd.sock", "/run/k3s/containerd/containerd.sock"], basename-in = ["docker.sock", "podman.sock", "containerd.sock", "crio.sock", "cri-dockerd.sock"] } }
+
+[[rule]]
+id = "linux.unix.containerd-shim-abstract"
+universes = ["linux.unix-sockets"]
+class = "escape"
+kind = "runtime-socket"
+fixture = "linux/routes/containerd-shim-abstract-socket"
+match = { path = { prefix = ["@/containerd-shim/"] } }
+
+[[rule]]
+id = "linux.socket.host-ipc"
+universes = ["linux.socket-files", "linux.unix-sockets"]
+class = "escape"
+kind = "host-ipc-socket"
+fixture = "linux/routes/host-ipc-sockets"
+match = { path = { in = ["/run/dbus/system_bus_socket", "/var/run/dbus/system_bus_socket", "/run/pcscd/pcscd.comm", "/run/user/<euid>/bus"], prefix = ["/tmp/.X11-unix/X", "/run/user/<euid>/wayland-", "@/tmp/.X11-unix/", "@/tmp/dbus-"] } }
+
+[[rule]]
+id = "linux.mount.socket-bind"
+universes = ["linux.mounts"]
+class = "egress"
+kind = "host-ipc"
+fixture = "linux/routes/must-not-odd-path-runtime-socket"
+match = { mount-point = { member-of = "linux.socket-files" } }
+except = { mount-point = { in = ["/var/run/docker.sock", "/run/docker.sock", "/run/podman/podman.sock", "/run/user/<euid>/podman/podman.sock", "/run/containerd/containerd.sock", "/var/run/crio/crio.sock", "/var/run/cri-dockerd.sock", "/run/k3s/containerd/containerd.sock", "/run/dbus/system_bus_socket", "/var/run/dbus/system_bus_socket", "/run/pcscd/pcscd.comm"] } }
+
+[[rule]]
+id = "linux.mount.writable-host-bind"
+universes = ["linux.mounts"]
+class = "escape"
+kind = "writable-host-mount"
+fixture = "linux/routes/host-root-rw-bind"
+match = { writable = { flag = true }, fstype = { in = ["ext4", "xfs", "btrfs", "zfs", "f2fs"] } }
+except = { mount-point = { in = ["/", "/etc/hosts", "/etc/hostname", "/etc/resolv.conf", "/dev/termination-log"] } }
+
+[[rule]]
+id = "linux.mount.runtime-managed-files"
+universes = ["linux.mounts"]
+class = "inert"
+justification = "Per-container files written by the runtime; the last is the Kubernetes termination message file."
+fixture = "linux/layers/kubernetes-pod-sa-token"
+match = { mount-point = { in = ["/etc/hosts", "/etc/hostname", "/etc/resolv.conf", "/dev/termination-log"] } }
+
+[[rule]]
+id = "linux.mount.shared-fs"
+universes = ["linux.mounts"]
+class = "egress"
+kind = "shared-mount"
+fixture = "linux/routes/shared-mounts"
+match = { fstype = { in = ["nfs", "nfs4", "cifs", "smb3", "9p", "virtiofs", "fakeowner", "ceph", "glusterfs", "lustre", "afs", "autofs", "fuse"], prefix = ["fuse."] } }
+
+# Kernel or per-container filesystems at their usual place: proc, sysfs,
+# and cgroups only at canonical points with mount root /; tmpfs and
+# overlay only at their canonical points with mount root /; devpts and
+# mqueue anywhere; devtmpfs, securityfs, and debugfs only when not
+# writable. The same fstypes elsewhere (a host proc at /host/proc, a
+# tmpfs at /host/run) stay unclassified. Writability is not tested for
+# proc, sysfs, cgroup, cgroup2, devpts, mqueue, tmpfs, and overlay, so a
+# read-write overlay root or a read-write proc is inert at its canonical
+# point; writable kernel interfaces are caught by the escape rules, which
+# win by precedence.
+[[rule]]
+id = "linux.mount.pseudo"
+universes = ["linux.mounts"]
+class = "inert"
+justification = "Kernel or per-container filesystems at their usual place."
+fixture = "linux/layers/docker-socket-mounted"
+
+[[rule.any]]
+fstype = { in = ["proc", "sysfs", "cgroup", "cgroup2"] }
+mount-point = { under = ["/proc", "/sys"] }
+mount-root = { in = ["/"] }
+
+[[rule.any]]
+fstype = { in = ["tmpfs", "overlay"] }
+mount-point = { in = ["/dev", "/dev/shm", "/run", "/tmp", "/run/lock", "/sys/fs/cgroup", "/"] }
+mount-root = { in = ["/"] }
+
+[[rule.any]]
+fstype = { in = ["devpts", "mqueue"] }
+
+[[rule.any]]
+fstype = { in = ["devtmpfs", "securityfs", "debugfs"] }
+writable = { flag = false }
+
+[[rule]]
+id = "linux.mount.writable-sysfs-or-proc"
+universes = ["linux.mounts"]
+class = "escape"
+kind = "writable-kernel-interface"
+fixture = "linux/routes/writable-cgroup-and-proc-sys"
+match = { fstype = { in = ["sysfs", "proc"] }, writable = { flag = true }, mount-point = { under = ["/sys", "/proc/sys"] } }
+
+[[rule]]
+id = "linux.mount.writable-cgroup"
+universes = ["linux.mounts"]
+class = "escape"
+kind = "writable-kernel-interface"
+fixture = "linux/routes/writable-cgroup-and-proc-sys"
+match = { fstype = { in = ["cgroup", "cgroup2"] }, writable = { flag = true } }
+
+[[rule]]
+id = "linux.cap.escape"
+universes = ["linux.capabilities"]
+class = "escape"
+kind = "dangerous-capability"
+fixture = "linux/routes/privileged-container"
+match = { name = { in = ["cap_sys_admin", "cap_sys_module", "cap_sys_ptrace", "cap_dac_read_search", "cap_sys_rawio", "cap_bpf", "cap_net_admin", "cap_sys_boot", "cap_syslog", "cap_perfmon"] } }
+
+[[rule]]
+id = "linux.cap.raw-network"
+universes = ["linux.capabilities"]
+class = "egress"
+kind = "raw-network"
+fixture = "linux/layers/docker-socket-mounted"
+match = { name = { in = ["cap_net_raw"] }, set = { in = ["effective"] } }
+
+[[rule]]
+id = "linux.cap.default-container"
+universes = ["linux.capabilities"]
+class = "inert"
+justification = "Default container set acting only inside mounts and namespaces already reported."
+fixture = "linux/routes/host-ipc-sockets"
+match = { name = { in = ["cap_chown", "cap_dac_override", "cap_fowner", "cap_fsetid", "cap_kill", "cap_setgid", "cap_setuid", "cap_setpcap", "cap_net_bind_service", "cap_sys_chroot", "cap_mknod", "cap_audit_write", "cap_setfcap", "cap_net_raw"] }, set = { not-in = ["effective"] } }
+
+[[rule]]
+id = "linux.dev.mem"
+universes = ["linux.devices"]
+class = "escape"
+kind = "mem-access"
+fixture = "linux/routes/device-nodes"
+
+[[rule.any]]
+accessible = { flag = true }
+path = { in = ["/dev/mem", "/dev/kmem", "/dev/port"] }
+
+[[rule.any]]
+accessible = { flag = true }
+node-type = { in = ["char"] }
+device = { device = ["1:1", "1:2", "1:4"] }
+
+[[rule]]
+id = "linux.dev.kvm"
+universes = ["linux.devices"]
+class = "escape"
+kind = "hypervisor-device"
+fixture = "linux/routes/dev-kvm-exposed"
+
+[[rule.any]]
+accessible = { flag = true }
+path = { in = ["/dev/kvm"] }
+
+[[rule.any]]
+accessible = { flag = true }
+node-type = { in = ["char"] }
+device = { device = ["10:232"] }
+
+[[rule]]
+id = "linux.dev.fuse"
+universes = ["linux.devices"]
+class = "escape"
+kind = "fuse-device"
+fixture = "linux/routes/device-nodes"
+
+[[rule.any]]
+accessible = { flag = true }
+path = { in = ["/dev/fuse"] }
+
+[[rule.any]]
+accessible = { flag = true }
+node-type = { in = ["char"] }
+device = { device = ["10:229"] }
+
+[[rule]]
+id = "linux.dev.tun"
+universes = ["linux.devices"]
+class = "egress"
+kind = "tun-device"
+fixture = "linux/routes/device-nodes"
+
+[[rule.any]]
+accessible = { flag = true }
+path = { in = ["/dev/net/tun"] }
+
+[[rule.any]]
+accessible = { flag = true }
+node-type = { in = ["char"] }
+device = { device = ["10:200"] }
+
+[[rule]]
+id = "linux.dev.raw-disk"
+universes = ["linux.devices"]
+class = "escape"
+kind = "raw-disk"
+fixture = "linux/routes/device-nodes"
+match = { accessible = { flag = true }, node-type = { in = ["block"] } }
+
+[[rule]]
+id = "linux.dev.gpu"
+universes = ["linux.devices"]
+class = "escape"
+kind = "gpu-device"
+fixture = "linux/routes/device-nodes"
+match = { accessible = { flag = true }, path = { prefix = ["/dev/nvidia", "/dev/dri/"] } }
+
+[[rule]]
+id = "linux.dev.standard"
+universes = ["linux.devices"]
+class = "inert"
+justification = "Standard devices present in every container."
+fixture = "linux/routes/device-nodes"
+
+[[rule.any]]
+path = { in = ["/dev/null", "/dev/zero", "/dev/full", "/dev/random", "/dev/urandom", "/dev/tty", "/dev/console", "/dev/ptmx"], prefix = ["/dev/pts/"] }
+
+[[rule.any]]
+node-type = { in = ["char"] }
+device = { device = ["1:3", "1:5", "1:7", "1:8", "1:9", "5:0", "5:1", "5:2"] }
+
+[[rule]]
+id = "linux.dev.inaccessible"
+universes = ["linux.devices"]
+class = "inert"
+justification = "The probe's credentials can neither read nor write it."
+fixture = "linux/routes/device-nodes"
+match = { accessible = { flag = false } }
+
+[[rule]]
+id = "linux.iface.non-loopback"
+universes = ["linux.interfaces"]
+class = "egress"
+kind = "network-interface"
+fixture = "linux/layers/docker-socket-mounted"
+match = { name = { not-in = ["lo"] } }
+
+[[rule]]
+id = "linux.iface.loopback"
+universes = ["linux.interfaces"]
+class = "inert"
+justification = "Loopback stays inside this network namespace; listeners on it are reported separately."
+fixture = "linux/layers/docker-socket-mounted"
+match = { name = { in = ["lo"] } }
+
+# `default-route-kind` applies instead of `kind` when the member's
+# destination prefix length is zero.
+[[rule]]
+id = "route.any"
+universes = ["linux.routes", "macos.routes"]
+class = "egress"
+kind = "routed-network"
+default-route-kind = "default-route"
+fixture = "linux/layers/docker-socket-mounted"
+match = { interface = { not-in = ["lo", "lo0"] } }
+
+[[rule]]
+id = "resolver.nameserver"
+universes = ["linux.resolvers", "macos.resolvers"]
+class = "egress"
+kind = "dns-resolver"
+fixture = "linux/layers/docker-socket-mounted"
+match = { directive = { in = ["nameserver"] } }
+
+[[rule]]
+id = "resolver.directive"
+universes = ["linux.resolvers", "macos.resolvers"]
+class = "inert"
+justification = "Changes lookup behavior but sends nothing by itself."
+fixture = "linux/layers/kubernetes-pod-sa-token"
+match = { directive = { in = ["search", "domain", "options"] } }
+
+[[rule]]
+id = "listener.runtime-api"
+universes = ["linux.listeners", "macos.listeners"]
+class = "escape"
+kind = "runtime-api-listener"
+fixture = "linux/routes/runtime-api-ports"
+match = { protocol = { in = ["tcp", "tcp6"] }, port = { in = ["2375", "2376", "2379", "10250", "10255"] } }
+
+[[rule]]
+id = "listener.exposed"
+universes = ["linux.listeners", "macos.listeners"]
+class = "egress"
+kind = "exposed-listener"
+fixture = "linux/layers/host-unrecognized"
+match = { protocol = { in = ["tcp", "tcp6"] }, local-address = { not-in = ["::1"], not-prefix = ["127.", "::ffff:127."] } }
+
+[[rule]]
+id = "listener.loopback"
+universes = ["linux.listeners", "macos.listeners"]
+class = "inert"
+justification = "Reachable only inside this network namespace, unless linux.shared-net-namespace is reported."
+fixture = "linux/routes/proxy-config-files"
+match = { local-address = { in = ["::1"], prefix = ["127.", "::ffff:127."] } }
+
+[[rule]]
+id = "fd.inherited-socket"
+universes = ["linux.fds", "macos.fds"]
+class = "egress"
+kind = "inherited-socket"
+fixture = "linux/routes/inherited-socket-fd"
+match = { label = { in = ["inherited"] }, kind = { in = ["socket"] } }
+
+[[rule]]
+id = "fd.inherited-io-uring"
+universes = ["linux.fds"]
+class = "escape"
+kind = "inherited-io-uring"
+fixture = "linux/routes/inherited-anon-fds"
+match = { label = { in = ["inherited"] }, kind = { in = ["anon"] }, anon-name = { in = ["[io_uring]", "io_uring"] } }
+
+[[rule]]
+id = "fd.inherited-bpf"
+universes = ["linux.fds"]
+class = "escape"
+kind = "inherited-bpf-object"
+fixture = "linux/routes/inherited-anon-fds"
+match = { label = { in = ["inherited"] }, kind = { in = ["anon"] }, anon-name = { prefix = ["bpf"] } }
+
+[[rule]]
+id = "fd.inherited-pidfd"
+universes = ["linux.fds"]
+class = "escape"
+kind = "inherited-pidfd"
+fixture = "linux/routes/inherited-anon-fds"
+match = { label = { in = ["inherited"] }, kind = { in = ["anon"] }, anon-name = { in = ["[pidfd]", "pidfd"] } }
+
+[[rule]]
+id = "fd.standard-and-own"
+universes = ["linux.fds", "macos.fds"]
+class = "inert"
+justification = "The probe's own streams and handles."
+fixture = "linux/layers/docker-socket-mounted"
+match = { label = { in = ["stdin", "stdout", "stderr", "probe-own"] } }
+
+# `redacted` is a boolean member attribute the enumerator sets when KTD14
+# redaction changed the name.
+[[rule]]
+id = "env.credential"
+universes = ["linux.env-names", "macos.env-names"]
+class = "escape"
+kind = "credential-env"
+fixture = "linux/layers/github-actions-runner"
+
+[[rule.any]]
+name = { in = ["GITHUB_TOKEN", "ACTIONS_ID_TOKEN_REQUEST_TOKEN", "ACTIONS_RUNTIME_TOKEN", "CI_JOB_TOKEN", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_WEB_IDENTITY_TOKEN_FILE", "GOOGLE_APPLICATION_CREDENTIALS", "AZURE_CLIENT_SECRET", "NPM_TOKEN"] }
+
+[[rule.any]]
+name = { suffix = ["_TOKEN", "_SECRET", "_PASSWORD", "_API_KEY"] }
+
+[[rule.any]]
+redacted = { flag = true }
+
+[[rule]]
+id = "env.runtime-endpoint"
+universes = ["linux.env-names", "macos.env-names"]
+class = "escape"
+kind = "runtime-endpoint-env"
+fixture = "linux/routes/agent-sockets"
+match = { name = { in = ["DOCKER_HOST", "CONTAINER_HOST", "KUBECONFIG"] } }
+
+[[rule]]
+id = "env.oidc-endpoint"
+universes = ["linux.env-names", "macos.env-names"]
+class = "egress"
+kind = "credential-endpoint-env"
+fixture = "linux/layers/github-actions-runner"
+match = { name = { in = ["ACTIONS_ID_TOKEN_REQUEST_URL", "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "AWS_CONTAINER_CREDENTIALS_FULL_URI"] } }
+
+[[rule]]
+id = "env.proxy"
+universes = ["linux.env-names", "macos.env-names"]
+class = "egress"
+kind = "proxy-configured"
+fixture = "linux/routes/proxy-env-names"
+match = { name = { in = ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"] } }
+
+[[rule]]
+id = "env.agent-socket"
+universes = ["linux.env-names", "macos.env-names"]
+class = "egress"
+kind = "agent-socket"
+fixture = "linux/routes/agent-sockets"
+match = { name = { in = ["SSH_AUTH_SOCK"] } }
+
+[[rule]]
+id = "env.loader-variables"
+universes = ["linux.env-names", "macos.env-names"]
+class = "inert"
+justification = "Reported under tamper indicators (KTD25)."
+fixture = "linux/completeness/ld-preload-weak"
+match = { name = { in = ["LD_PRELOAD", "LD_AUDIT", "LD_LIBRARY_PATH"], prefix = ["DYLD_"] } }
+
+[[rule]]
+id = "env.ordinary"
+universes = ["linux.env-names", "macos.env-names"]
+class = "inert"
+justification = "Process conventions with no route."
+fixture = "linux/layers/host-unrecognized"
+match = { name = { in = ["PATH", "HOME", "PWD", "SHELL", "USER", "LOGNAME", "LANG", "TERM", "TZ", "HOSTNAME", "SHLVL", "NO_PROXY", "no_proxy", "_"], prefix = ["LC_"] } }
+
+[[rule]]
+id = "macos.mount.shared-fs"
+universes = ["macos.mounts"]
+class = "egress"
+kind = "shared-mount"
+fixture = "macos/rules/mounts"
+match = { fstype = { in = ["smbfs", "nfs", "afpfs", "webdav", "osxfuse", "macfuse"] } }
+
+[[rule]]
+id = "macos.mount.system"
+universes = ["macos.mounts"]
+class = "inert"
+justification = "System volumes of the host itself."
+fixture = "macos/rules/mounts"
+
+[[rule.any]]
+fstype = { in = ["apfs"] }
+mount-point = { in = ["/"], under = ["/System/Volumes"] }
+
+[[rule.any]]
+fstype = { in = ["devfs", "autofs"] }
+
+[[rule]]
+id = "macos.dev.bpf"
+universes = ["macos.devices"]
+class = "egress"
+kind = "raw-network"
+fixture = "macos/rules/devices"
+match = { accessible = { flag = true }, path = { prefix = ["/dev/bpf"] } }
+
+[[rule]]
+id = "macos.dev.raw-disk"
+universes = ["macos.devices"]
+class = "escape"
+kind = "raw-disk"
+fixture = "macos/rules/raw-disk"
+match = { accessible = { flag = true }, path = { prefix = ["/dev/disk", "/dev/rdisk"] } }
+
+[[rule]]
+id = "macos.dev.standard"
+universes = ["macos.devices"]
+class = "inert"
+justification = "Standard devices on every macOS host."
+fixture = "macos/rules/devices"
+match = { path = { in = ["/dev/null", "/dev/zero", "/dev/random", "/dev/urandom", "/dev/tty", "/dev/ptmx"], prefix = ["/dev/ttys"] } }
+
+[[rule]]
+id = "macos.dev.inaccessible"
+universes = ["macos.devices"]
+class = "inert"
+justification = "The probe's credentials can neither read nor write it."
+fixture = "macos/rules/devices"
+match = { accessible = { flag = false } }

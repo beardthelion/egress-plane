@@ -9,6 +9,7 @@
 //! and the snapshot reader, which exists only behind the `snapshot`
 //! feature so the released binary cannot replay a snapshot.
 
+pub mod data;
 pub mod facts;
 pub mod identity;
 pub mod integrity;

@@ -1,0 +1,383 @@
+# Universe table (KTD3): every finite set the probe enumerates, per
+# platform. Each universe reports either all members or an unknown with a
+# fixed reason; there is no partial success.
+#
+# Fields of a [[universe]] entry:
+#
+# - `id`, `platform` (linux | macos).
+# - `set`: the R9 finite-set name this universe answers for, when it is one
+#   (mounts, unix-sockets, listeners, fds, env-names, capabilities,
+#   routes, resolvers). Universes beyond R9 carry no `set`.
+# - `source`: the source and how it is read (documentation for the
+#   enumerator).
+# - `absent`: the declared absent-signature id; omit it when a missing
+#   source is always an unknown.
+# - `min_members`: an enumerated set with fewer members is implausibly
+#   empty and becomes unknown.
+# - `masked`: for header-bearing proc tables, each listed file's first
+#   lines must match these prefixes in order; a zero-byte file or a
+#   mismatched first line is unknown `masked-or-truncated`.
+# - `identity` / `display`: member field names. Only identity fields enter
+#   identity (KTD5); display fields are display-only or classification
+#   attributes.
+# - `unknowns`: notable unknown reasons this source can produce beyond
+#   the generic ones every source can hit (unreadable, partial,
+#   budget-exceeded, link-policy, internal-failure, fs-type-mismatch,
+#   proc-self-mismatch, network-filesystem-not-touched, descriptor-limit).
+#   Every entry must be in the KTD3 reason enum.
+#
+# [[attribute_source]] entries are the R12 confinement sources. They
+# produce layer attributes, never members; an unreadable one is an
+# unknown that makes the run incomplete.
+#
+# [[not_applicable]] entries declare the R24 list: sources declared for
+# the other platform that are reported not-applicable here. `id` must
+# name a universe or attribute source declared for a different platform;
+# `set` is the R9 set the entry covers, when it covers one.
+
+[[universe]]
+id = "linux.mounts"
+platform = "linux"
+set = "mounts"
+source = "proc/self/mountinfo via the proc/self hop; bounded read, one member per line, octal escapes decoded to bytes; read first after the descriptor inventory"
+min_members = 1
+identity = ["mount-point", "fstype", "mount-root"]
+display = ["mount-id", "parent-id", "major-minor", "mount-source", "options", "writable"]
+unknowns = ["proc-not-mounted", "implausibly-empty"]
+
+[[universe]]
+id = "linux.unix-sockets"
+platform = "linux"
+set = "unix-sockets"
+source = "proc/net/unix via the proc/net hop; listening flag 0x10000; unnamed sockets fold into one member per type"
+identity = ["path", "socket-type", "listening"]
+display = ["inode", "refcount", "state", "unnamed-count"]
+masked = { "proc/net/unix" = ["Num"] }
+unknowns = ["proc-not-mounted", "masked-or-truncated"]
+
+[[universe]]
+id = "linux.socket-files"
+platform = "linux"
+source = "lstat of every non-directory mount point from linux.mounts, plus depth-1 listings of run, var/run (hop), tmp, tmp/.X11-unix, run/user/<euid>, and every non-canonical directory mount point (KTD30); socket entries only; access check per member"
+absent = "listed-directory-missing"
+identity = ["path"]
+display = ["mode", "uid", "gid", "size", "writable"]
+unknowns = ["network-filesystem-not-touched", "depends-on-unknown"]
+
+[[universe]]
+id = "linux.listeners"
+platform = "linux"
+set = "listeners"
+source = "proc/net/tcp, tcp6, udp, udp6; TCP rows with state 0A, UDP rows with an unspecified remote"
+absent = "ipv6-disabled"
+identity = ["protocol", "local-address"]
+display = ["port", "inode", "uid"]
+masked = { "proc/net/tcp" = ["sl"], "proc/net/tcp6" = ["sl"], "proc/net/udp" = ["sl"], "proc/net/udp6" = ["sl"] }
+unknowns = ["proc-not-mounted", "masked-or-truncated"]
+
+[[universe]]
+id = "linux.fds"
+platform = "linux"
+set = "fds"
+source = "fact fds; the live adapter lists /proc/self/fd second, after PR_SET_DUMPABLE, with the fstatfs and proc/self checks of KTD8"
+min_members = 1
+identity = ["label", "kind", "path", "anon-name"]
+display = ["fd", "inode"]
+unknowns = ["implausibly-empty", "fs-type-mismatch", "proc-self-mismatch"]
+
+[[universe]]
+id = "linux.env-names"
+platform = "linux"
+set = "env-names"
+source = "fact env_names; the in-memory environ array, bytes before the first = only; an entry with no = becomes the placeholder member <no-separator>"
+identity = ["name"]
+display = ["redacted"]
+unknowns = []
+
+[[universe]]
+id = "linux.capabilities"
+platform = "linux"
+set = "capabilities"
+source = "proc/self/status lines CapInh, CapPrm, CapEff, CapBnd, CapAmb; bits beyond the name table become cap_<n>; one member per (set, name) pair, so the same name in two sets yields identical siblings (KTD5)"
+identity = ["name"]
+display = ["set", "raw-masks"]
+unknowns = ["proc-not-mounted", "proc-self-mismatch", "fs-type-mismatch"]
+
+[[universe]]
+id = "linux.routes"
+platform = "linux"
+set = "routes"
+source = "proc/net/route and proc/net/ipv6_route"
+absent = "ipv6-disabled"
+identity = ["family", "destination-prefix", "gateway", "interface"]
+display = ["metric", "flags", "use", "refcount"]
+masked = { "proc/net/route" = ["Iface"] }
+unknowns = ["proc-not-mounted", "masked-or-truncated"]
+
+[[universe]]
+id = "linux.resolvers"
+platform = "linux"
+set = "resolvers"
+source = "etc/resolv.conf through its one allowlisted hop (KTD11); nameserver values parse as IP literals, search/domain as hostname characters, options as [a-z0-9:._-]; comments skipped, other lines counted and never echoed"
+absent = "missing"
+identity = ["directive", "value"]
+display = ["line-order", "unrecognized-count"]
+unknowns = ["link-policy", "depends-on-unknown"]
+
+[[universe]]
+id = "linux.interfaces"
+platform = "linux"
+source = "proc/net/dev; counters are never emitted"
+identity = ["name"]
+display = []
+masked = { "proc/net/dev" = ["Inter-|", " face |"] }
+unknowns = ["proc-not-mounted", "masked-or-truncated"]
+
+[[universe]]
+id = "linux.devices"
+platform = "linux"
+source = "bounded recursive listing of dev (depth at most 4, no symlink following) plus depth-1 listings of every non-canonical directory mount point (KTD30); character and block nodes only; access check per member"
+min_members = 1
+identity = ["path", "node-type"]
+display = ["mode", "uid", "gid", "device", "accessible"]
+unknowns = ["implausibly-empty", "network-filesystem-not-touched", "depends-on-unknown"]
+
+[[universe]]
+id = "macos.mounts"
+platform = "macos"
+set = "mounts"
+source = "fact mounts; live getfsstat with MNT_NOWAIT, which contacts no server"
+min_members = 1
+identity = ["mount-point", "fstype"]
+display = ["mount-source", "flags", "writable"]
+unknowns = ["implausibly-empty"]
+
+[[universe]]
+id = "macos.socket-files"
+platform = "macos"
+source = "lstat of non-directory mount points and depth-1 listings of private/var/run and private/tmp; access check per member"
+absent = "listed-directory-missing"
+identity = ["path"]
+display = ["mode", "uid", "gid", "writable"]
+unknowns = ["network-filesystem-not-touched"]
+
+[[universe]]
+id = "macos.unix-sockets"
+platform = "macos"
+set = "unix-sockets"
+source = "fact unix_sockets; live net.local.stream.pcblist_n and net.local.dgram.pcblist_n; unnamed sockets fold into one member per type"
+identity = ["path", "socket-type", "listening"]
+display = ["unnamed-count"]
+unknowns = ["unsupported-layout"]
+
+[[universe]]
+id = "macos.listeners"
+platform = "macos"
+set = "listeners"
+source = "fact listeners; live net.inet.tcp.pcblist_n and net.inet.udp.pcblist_n, both families"
+identity = ["protocol", "local-address"]
+display = ["port"]
+unknowns = ["unsupported-layout"]
+
+[[universe]]
+id = "macos.fds"
+platform = "macos"
+set = "fds"
+source = "fact fds; live proc_pidinfo(PROC_PIDLISTFDS) on the probe's own pid, vnode paths via proc_pidfdinfo; taken first"
+min_members = 1
+identity = ["label", "kind", "path"]
+display = ["fd"]
+unknowns = ["implausibly-empty"]
+
+[[universe]]
+id = "macos.env-names"
+platform = "macos"
+set = "env-names"
+source = "fact env_names; the array from _NSGetEnviron, same rules as Linux"
+identity = ["name"]
+display = ["redacted"]
+unknowns = []
+
+[[universe]]
+id = "macos.routes"
+platform = "macos"
+set = "routes"
+source = "fact routes; live sysctl NET_RT_DUMP rt_msghdr records"
+identity = ["family", "destination-prefix", "gateway", "interface"]
+display = ["flags"]
+unknowns = ["unsupported-layout"]
+
+[[universe]]
+id = "macos.resolvers"
+platform = "macos"
+set = "resolvers"
+source = "private/etc/resolv.conf (hop to private/var/run/resolv.conf) and every file in private/etc/resolver/; value checks as on Linux"
+absent = "resolv-conf-and-resolver-dir-missing"
+identity = ["directive", "value", "file"]
+display = ["line-order"]
+unknowns = ["link-policy"]
+
+[[universe]]
+id = "macos.interfaces"
+platform = "macos"
+source = "fact interfaces; live getifaddrs, names deduplicated"
+identity = ["name"]
+display = ["families"]
+unknowns = []
+
+[[universe]]
+id = "macos.devices"
+platform = "macos"
+source = "depth-1 listing of dev, lstat per entry; character and block nodes only; access check per member"
+min_members = 1
+identity = ["path", "node-type"]
+display = ["mode", "uid", "gid", "accessible"]
+unknowns = ["implausibly-empty"]
+
+# Linux attribute sources (R12). Each unreadable source is an unknown.
+
+[[attribute_source]]
+id = "linux.attr.status"
+platform = "linux"
+source = "proc/self/status fields NoNewPrivs, Seccomp, Seccomp_filters, NSpid, Uid, Gid, TracerPid"
+
+[[attribute_source]]
+id = "linux.attr.namespaces"
+platform = "linux"
+source = "proc/self/ns link names and inode numbers (display-only, KTD23)"
+
+[[attribute_source]]
+id = "linux.attr.cgroup"
+platform = "linux"
+source = "proc/self/cgroup lines"
+
+[[attribute_source]]
+id = "linux.attr.id-maps"
+platform = "linux"
+source = "proc/self/uid_map and proc/self/gid_map"
+
+[[attribute_source]]
+id = "linux.attr.ptrace-scope"
+platform = "linux"
+source = "proc/sys/kernel/yama/ptrace_scope; absent when proc/sys/kernel/yama is missing"
+
+[[attribute_source]]
+id = "linux.attr.landlock-abi"
+platform = "linux"
+source = "fact landlock_abi; landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION): ENOSYS is not-built, EOPNOTSUPP is disabled, both read states"
+
+[[attribute_source]]
+id = "macos.attr.sandbox-check"
+platform = "macos"
+source = "fact sandbox_check; live sandbox_check(getpid(), NULL, 0)"
+
+[[attribute_source]]
+id = "macos.attr.hv-vmm"
+platform = "macos"
+source = "fact hv_vmm_present; live sysctl kern.hv_vmm_present"
+
+[[attribute_source]]
+id = "macos.attr.identity"
+platform = "macos"
+source = "fact identity; numeric euid and egid only (geteuid, getegid); no name lookup (KTD15)"
+
+[[attribute_source]]
+id = "macos.attr.traced"
+platform = "macos"
+source = "fact traced; live P_TRACED flag from sysctl KERN_PROC_PID on the probe's own pid, read at start and again at finalize (KTD25)"
+
+# Not applicable (R24): sources declared for the other platform that a
+# report on this platform lists as not applicable, never as unknown.
+
+[[not_applicable]]
+id = "linux.unix-sockets"
+platform = "macos"
+
+[[not_applicable]]
+id = "linux.capabilities"
+platform = "macos"
+set = "capabilities"
+
+[[not_applicable]]
+id = "linux.devices"
+platform = "macos"
+
+[[not_applicable]]
+id = "linux.attr.status"
+platform = "macos"
+
+[[not_applicable]]
+id = "linux.attr.namespaces"
+platform = "macos"
+
+[[not_applicable]]
+id = "linux.attr.cgroup"
+platform = "macos"
+
+[[not_applicable]]
+id = "linux.attr.id-maps"
+platform = "macos"
+
+[[not_applicable]]
+id = "linux.attr.ptrace-scope"
+platform = "macos"
+
+[[not_applicable]]
+id = "linux.attr.landlock-abi"
+platform = "macos"
+
+[[not_applicable]]
+id = "macos.mounts"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.socket-files"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.unix-sockets"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.listeners"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.fds"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.env-names"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.routes"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.resolvers"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.interfaces"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.devices"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.attr.sandbox-check"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.attr.hv-vmm"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.attr.identity"
+platform = "linux"
+
+[[not_applicable]]
+id = "macos.attr.traced"
+platform = "linux"

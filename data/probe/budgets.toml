@@ -1,0 +1,27 @@
+# Deterministic budgets (KTD18). Counts decide every passive outcome; the
+# run deadline is the one wall-clock rule and it never yields a report.
+# An exhausted per-universe budget, or a member string over the per-string
+# limit, makes that universe unknown `budget-exceeded`. The report budget
+# is charged in declared universe order during finalize; a universe whose
+# rendered members would push the total over the cap is replaced by an
+# unknown `budget-exceeded` and charging continues, so output is never
+# truncated.
+
+# Members per universe.
+members-per-universe = 200000
+# Bytes per file read.
+bytes-per-file = 16777216
+# Entries per directory listing.
+entries-per-listing = 100000
+# Depth of the recursive dev listing.
+dev-listing-depth = 4
+# Bytes per member string; a longer one makes the universe unknown.
+bytes-per-member-string = 4096
+# Bytes per rendered report (64 MiB).
+report-bytes = 67108864
+# Active-mode allowlist entries.
+active-targets = 16
+# Per-check TCP connect timeout, milliseconds.
+connect-timeout-ms = 3000
+# Whole-run deadline, milliseconds; on expiry the run is a tool error.
+run-deadline-ms = 60000

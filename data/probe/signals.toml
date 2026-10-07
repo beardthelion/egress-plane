@@ -1,0 +1,358 @@
+# Named signals (v1). A signal is a declared source that is not a finite
+# set (R11): it is reported read, absent, or unreadable. Signal kinds:
+#
+# - `path-marker`: lstat each path (and, when `dir` is set, the entries of
+#   that directory whose name contains `name-contains`, case-insensitive).
+# - `credential-path`: lstat, size, mode, owner, and access only; never a
+#   content read (enforced by type and by the harness read log, KTD13).
+# - `credential-dir`: a depth-1 listing of `dir`; names redacted per
+#   KTD14; each entry stat only. `entry-prefix` / `entry-exclude-suffix`
+#   filter which entries produce routes.
+# - `dmi-value`: a bounded read of a non-secret firmware string; matched,
+#   never emitted. `[[signal.values]]` entries are OR'd across `group`
+#   numbers and AND'd within one group.
+# - `sysctl-value`: a bounded read of each `proc/sys` integer file;
+#   parsed as decimal, anything else is unknown `partial`; emitted as
+#   integer attributes named by `attributes`, producing no route (KTD28).
+# - `derived`: a declared conjunction over already-read members,
+#   attributes, and, when `after-layers` is set, detected layers.
+# - `integrity`: produced by the KTD8/KTD24/KTD25 checks, never by member
+#   evaluation; used here to declare the tamper indicator and its
+#   strength.
+#
+# `route` (class escape|egress plus kind) and `tamper` (indicator plus
+# strength per KTD25) are both optional and mutually exclusive. `<home>`
+# and `<euid>` are substituted before lookup; `<home>` signals are
+# unknown `no-account-home` on macOS (KTD15) and gated by KTD26 on Linux.
+# A credential-path or socket path-marker path that is a symlink is
+# resolved for metadata only (KTD31). Every signal names one fixture
+# case that labels it, unless listed in fixtures/probe/deferred.toml.
+#
+# Conditions (for `derived` signals and for layer conditions in
+# layers.toml): an `all` entry is a conjunction that must hold; an `any`
+# entry is one of several sufficient conditions. A signal or layer fires
+# when every `all` condition holds or any `any` condition holds. One
+# condition table holds: `signal` (signal ids that fired), `env` or
+# `env-prefix` (env-names members), `cgroup-contains`, `resolver` (a
+# nameserver value), `resolver-search` or `resolver-search-suffix`
+# (search/domain values), `attr` plus `equals` (an attribute), `interface`
+# or `interface-prefix`, `mount` or `no-mount` (a mount member matching
+# fstype/point/under/writable), `root-fstype`, `fact` (a boolean or
+# numeric fact nonzero), `capabilities` (`all-effective`: every known
+# capability in the effective set), or `layer-family`; `evidence` names
+# the KTD16 evidence class the condition contributes.
+
+[[signal]]
+id = "linux.marker.dockerenv"
+platform = "linux"
+kind = "path-marker"
+paths = ["/.dockerenv"]
+fixture = "linux/layers/docker-socket-mounted"
+
+[[signal]]
+id = "linux.marker.containerenv"
+platform = "linux"
+kind = "path-marker"
+paths = ["/run/.containerenv"]
+fixture = "linux/layers/podman-rootless"
+
+[[signal]]
+id = "linux.marker.toolboxenv"
+platform = "linux"
+kind = "path-marker"
+paths = ["/run/.toolboxenv"]
+fixture = "linux/layers/podman-rootless"
+
+[[signal]]
+id = "linux.marker.flatpak-info"
+platform = "linux"
+kind = "path-marker"
+paths = ["/.flatpak-info"]
+fixture = "linux/rules/flatpak-info-sandbox"
+
+[[signal]]
+id = "linux.cred.k8s-sa-token"
+platform = "linux"
+kind = "credential-path"
+paths = ["/var/run/secrets/kubernetes.io/serviceaccount/token"]
+route = { class = "escape", kind = "orchestrator-credential" }
+fixture = "linux/layers/kubernetes-pod-sa-token"
+
+[[signal]]
+id = "linux.cred.run-secrets"
+platform = "linux"
+kind = "credential-dir"
+dir = "/run/secrets"
+route = { class = "escape", kind = "credential-file" }
+fixture = "linux/rules/run-secrets-dir"
+
+[[signal]]
+id = "cred.aws-shared"
+platform = "both"
+kind = "credential-path"
+paths = ["<home>/.aws/credentials", "<home>/.aws/config"]
+route = { class = "escape", kind = "cloud-credential" }
+fixture = "linux/routes/must-not-credential-contents"
+
+[[signal]]
+id = "cred.gcloud-adc"
+platform = "both"
+kind = "credential-path"
+paths = ["<home>/.config/gcloud/application_default_credentials.json"]
+route = { class = "escape", kind = "cloud-credential" }
+fixture = "linux/rules/credential-paths"
+
+[[signal]]
+id = "cred.azure-dir"
+platform = "both"
+kind = "credential-dir"
+dir = "<home>/.azure"
+route = { class = "escape", kind = "cloud-credential" }
+fixture = "linux/rules/credential-paths"
+
+[[signal]]
+id = "cred.docker-config"
+platform = "both"
+kind = "credential-path"
+paths = ["<home>/.docker/config.json"]
+route = { class = "escape", kind = "registry-credential" }
+fixture = "linux/rules/credential-paths"
+
+[[signal]]
+id = "cred.kubeconfig"
+platform = "both"
+kind = "credential-path"
+paths = ["<home>/.kube/config"]
+route = { class = "escape", kind = "orchestrator-credential" }
+fixture = "linux/rules/credential-paths"
+
+[[signal]]
+id = "cred.ssh-keys"
+platform = "both"
+kind = "credential-dir"
+dir = "<home>/.ssh"
+entry-prefix = "id_"
+entry-exclude-suffix = ".pub"
+route = { class = "escape", kind = "ssh-key" }
+fixture = "linux/rules/credential-paths"
+
+# Container-runtime and orchestrator sockets checked directly because
+# they sit below the depth-1 listings (KTD30 covers the rest by name).
+[[signal]]
+id = "linux.socket.docker"
+platform = "linux"
+kind = "path-marker"
+paths = ["/var/run/docker.sock", "/run/docker.sock", "/run/podman/podman.sock", "/run/user/<euid>/podman/podman.sock", "/run/containerd/containerd.sock", "/var/run/crio/crio.sock", "/var/run/cri-dockerd.sock", "/run/k3s/containerd/containerd.sock"]
+route = { class = "escape", kind = "runtime-socket" }
+fixture = "linux/layers/docker-socket-mounted"
+
+# Host system bus and the smart-card daemon.
+[[signal]]
+id = "linux.socket.host-ipc"
+platform = "linux"
+kind = "path-marker"
+paths = ["/run/dbus/system_bus_socket", "/var/run/dbus/system_bus_socket", "/run/pcscd/pcscd.comm"]
+route = { class = "escape", kind = "host-ipc-socket" }
+fixture = "linux/routes/host-ipc-sockets"
+
+[[signal]]
+id = "linux.socket.agent"
+platform = "linux"
+kind = "path-marker"
+paths = ["/run/user/<euid>/gnupg/S.gpg-agent.ssh", "/run/user/<euid>/keyring/ssh"]
+route = { class = "egress", kind = "agent-socket" }
+fixture = "linux/routes/agent-sockets"
+
+# Weak tamper indicator (KTD25): the static build never consults the
+# loader, so the file and the loader variables are listed only.
+[[signal]]
+id = "linux.loader.preload"
+platform = "linux"
+kind = "path-marker"
+paths = ["/etc/ld.so.preload"]
+tamper = { indicator = "loader-preload-file", strength = "weak" }
+fixture = "linux/completeness/ld-preload-weak"
+
+[[signal]]
+id = "linux.tamper.loader-env"
+platform = "linux"
+kind = "derived"
+names = ["LD_PRELOAD", "LD_AUDIT", "LD_LIBRARY_PATH"]
+tamper = { indicator = "loader-env", strength = "weak" }
+fixture = "linux/completeness/ld-preload-weak"
+
+# On macOS the build is dynamic, so a DYLD_ name is a strong indicator.
+[[signal]]
+id = "macos.tamper.dyld-env"
+platform = "macos"
+kind = "derived"
+name-prefixes = ["DYLD_"]
+tamper = { indicator = "dyld-env", strength = "strong" }
+fixture = "macos/completeness/dyld-insert-strong"
+
+# Strong tamper indicators produced by the integrity checks (KTD24,
+# KTD25): `traced` comes from TracerPid or the macOS traced flag read at
+# start and at finalize; the mismatch indicators come from the kernel
+# filesystem checks and already make their sources unknown.
+[[signal]]
+id = "linux.tamper.traced"
+platform = "linux"
+kind = "integrity"
+tamper = { indicator = "traced", strength = "strong" }
+fixture = "linux/completeness/traced-probe"
+
+[[signal]]
+id = "macos.tamper.traced"
+platform = "macos"
+kind = "integrity"
+tamper = { indicator = "traced", strength = "strong" }
+fixture = "macos/completeness/traced-probe"
+
+[[signal]]
+id = "linux.tamper.fs-type-mismatch"
+platform = "linux"
+kind = "integrity"
+tamper = { indicator = "fs-type-mismatch", strength = "strong" }
+fixture = "linux/completeness/must-not-fake-proc-tmpfs"
+
+[[signal]]
+id = "linux.tamper.proc-self-mismatch"
+platform = "linux"
+kind = "integrity"
+tamper = { indicator = "proc-self-mismatch", strength = "strong" }
+fixture = "linux/completeness/must-not-proc-self-wrong-pid"
+
+# User-namespace sysctls are integer attributes of the innermost layer
+# and nothing more; there is no route (KTD28). Each file is absent when
+# missing.
+[[signal]]
+id = "linux.sysctl.userns"
+platform = "linux"
+kind = "sysctl-value"
+paths = ["/proc/sys/user/max_user_namespaces", "/proc/sys/kernel/unprivileged_userns_clone", "/proc/sys/kernel/apparmor_restrict_unprivileged_userns"]
+attributes = ["max_user_namespaces", "unprivileged_userns_clone", "apparmor_restrict_unprivileged_userns"]
+fixture = "linux/routes/userns-sysctls-attributes-only"
+
+# Derived signals evaluated after layer detection (`after-layers`).
+[[signal]]
+id = "linux.shared-pid-namespace"
+platform = "linux"
+kind = "derived"
+after-layers = true
+route = { class = "escape", kind = "shared-pid-namespace" }
+fixture = "linux/routes/shared-host-namespaces"
+all = [{ layer-family = ["container"] }, { attr = "nspid-depth", equals = "1", evidence = "kernel" }]
+
+[[signal]]
+id = "linux.shared-ipc-namespace"
+platform = "linux"
+kind = "derived"
+after-layers = true
+route = { class = "escape", kind = "shared-ipc-namespace" }
+fixture = "linux/routes/shared-host-namespaces"
+all = [{ layer-family = ["container"] }, { attr = "ns-ipc-inode", equals = "4026531839", evidence = "kernel" }]
+
+[[signal]]
+id = "linux.shared-net-namespace"
+platform = "linux"
+kind = "derived"
+after-layers = true
+route = { class = "escape", kind = "shared-net-namespace" }
+fixture = "linux/routes/shared-host-namespaces"
+all = [{ layer-family = ["container"] }, { interface = ["docker0", "cni0", "cbr0", "cilium_host"], interface-prefix = ["veth", "cali", "flannel."], evidence = "network-interface" }]
+
+[[signal]]
+id = "cloud.metadata-endpoint"
+platform = "both"
+kind = "derived"
+after-layers = true
+route = { class = "egress", kind = "metadata-endpoint" }
+fixture = "linux/layers/aws-ec2-vm"
+any = [{ layer-family = ["cloud"] }, { env = ["AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "AWS_CONTAINER_CREDENTIALS_FULL_URI"] }]
+
+# A writable proc mount at /proc with no read-only proc mount at
+# /proc/sys is a writable kernel interface.
+[[signal]]
+id = "linux.proc-sys-writable"
+platform = "linux"
+kind = "derived"
+route = { class = "escape", kind = "writable-kernel-interface" }
+fixture = "linux/rules/proc-sys-writable"
+all = [{ mount = { fstype = ["proc"], point = ["/proc"], writable = true } }, { no-mount = { fstype = ["proc"], point = ["/proc/sys"], writable = false } }]
+
+# Every known capability in the effective set and Seccomp mode 0.
+[[signal]]
+id = "linux.privileged"
+platform = "linux"
+kind = "derived"
+route = { class = "escape", kind = "privileged-mode" }
+fixture = "linux/routes/privileged-container"
+all = [{ capabilities = ["all-effective"] }, { attr = "Seccomp", equals = "0" }]
+
+# Files that may configure a proxy; contents are never read (R17), so
+# display says the file may set a proxy.
+[[signal]]
+id = "proxy.config-files"
+platform = "both"
+kind = "path-marker"
+paths = ["/etc/pip.conf", "<home>/.npmrc", "<home>/.wgetrc", "<home>/.curlrc", "<home>/.config/pip/pip.conf"]
+dir = "/etc/apt/apt.conf.d"
+name-contains = "proxy"
+route = { class = "egress", kind = "proxy-config-file" }
+fixture = "linux/routes/proxy-config-files"
+
+# Cloud provider firmware evidence (matched, never emitted). Each is read
+# through the sys/class/dmi/id hop; a missing dmi directory is absent, an
+# unreadable file is unknown.
+[[signal]]
+id = "linux.dmi.aws"
+platform = "linux"
+kind = "dmi-value"
+fixture = "linux/layers/aws-ec2-vm"
+values = [{ group = 1, path = "/sys/class/dmi/id/sys_vendor", equals = "Amazon EC2" }, { group = 2, path = "/sys/class/dmi/id/board_asset_tag", prefix = "i-" }]
+
+[[signal]]
+id = "linux.dmi.gcp"
+platform = "linux"
+kind = "dmi-value"
+fixture = "linux/layers/gcp-vm"
+values = [{ group = 1, path = "/sys/class/dmi/id/product_name", equals = "Google Compute Engine" }]
+
+[[signal]]
+id = "linux.dmi.azure"
+platform = "linux"
+kind = "dmi-value"
+fixture = "linux/layers/azure-vm"
+values = [{ group = 1, path = "/sys/class/dmi/id/sys_vendor", equals = "Microsoft Corporation" }, { group = 1, path = "/sys/class/dmi/id/chassis_asset_tag", equals = "7783-7084-3265-9085-8269-3286-77" }]
+
+[[signal]]
+id = "macos.socket.docker"
+platform = "macos"
+kind = "path-marker"
+paths = ["/var/run/docker.sock", "<home>/.docker/run/docker.sock", "<home>/.colima/default/docker.sock", "<home>/.rd/docker.sock", "<home>/.orbstack/run/docker.sock", "<home>/.local/share/containers/podman/machine/podman.sock"]
+route = { class = "escape", kind = "runtime-socket" }
+fixture = "macos/routes/docker-desktop-socket"
+
+[[signal]]
+id = "macos.cred.login-keychain"
+platform = "macos"
+kind = "credential-path"
+paths = ["<home>/Library/Keychains/login.keychain-db"]
+route = { class = "escape", kind = "keychain" }
+fixture = "macos/routes/home-relative-signals-unknown"
+
+[[signal]]
+id = "macos.synced.icloud"
+platform = "macos"
+kind = "path-marker"
+paths = ["<home>/Library/Mobile Documents"]
+route = { class = "egress", kind = "synced-path" }
+fixture = "macos/routes/home-relative-signals-unknown"
+
+[[signal]]
+id = "macos.synced.cloudstorage"
+platform = "macos"
+kind = "credential-dir"
+dir = "<home>/Library/CloudStorage"
+route = { class = "egress", kind = "synced-path" }
+fixture = "macos/routes/home-relative-signals-unknown"

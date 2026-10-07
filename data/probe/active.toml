@@ -1,0 +1,93 @@
+# Active-mode limits (KTD21). Allowlist entries parse as IP:port literals
+# only; before the refused check, IPv4-mapped, IPv4-compatible, and NAT64
+# well-known-prefix addresses are canonicalized to IPv4 so their mapped
+# forms are refused like the IPv4 entry. A refused entry records its
+# result and creates no socket.
+#
+# `result` is `refused-metadata-address` for endpoints that could return
+# credentials or environment details, `refused-special-address` for
+# unspecified, broadcast, and multicast addresses.
+#
+# Each metadata entry carries a comment with the provider documentation
+# it was confirmed against.
+
+[[refused]]
+# AWS, GCP, Azure, OCI and others share the link-local metadata address
+# 169.254.169.254 inside 169.254.0.0/16; the block is refused whole.
+# https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html
+# https://docs.cloud.google.com/compute/docs/metadata/overview
+# https://learn.microsoft.com/en-us/azure/virtual-machines/instance-metadata-service
+value = "169.254.0.0/16"
+result = "refused-metadata-address"
+reason = "link-local block holding the AWS, GCP, Azure, and OCI instance metadata endpoints"
+
+[[refused]]
+# AWS IMDS over IPv6.
+# https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instancedata-data-retrieval.html
+value = "fd00:ec2::254"
+result = "refused-metadata-address"
+reason = "AWS instance metadata over IPv6"
+
+[[refused]]
+# EKS Pod Identity Agent credentials endpoint over IPv6.
+# https://docs.aws.amazon.com/eks/latest/userguide/pod-id-agent-setup.html
+value = "fd00:ec2::23"
+result = "refused-metadata-address"
+reason = "EKS Pod Identity Agent IPv6 credentials endpoint"
+
+[[refused]]
+# GCP metadata server over IPv6.
+# https://docs.cloud.google.com/compute/docs/metadata/overview
+value = "fd20:ce::254"
+result = "refused-metadata-address"
+reason = "GCP metadata server over IPv6"
+
+[[refused]]
+# Oracle OCI instance metadata over IPv6.
+# https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/gettingmetadata.htm
+# https://github.com/canonical/cloud-init/blob/main/cloudinit/sources/DataSourceOracle.py
+value = "fd00:c1::a9fe:a9fe"
+result = "refused-metadata-address"
+reason = "OCI instance metadata over IPv6"
+
+[[refused]]
+# Azure WireServer (platform connectivity, health, and DNS endpoint).
+# https://learn.microsoft.com/en-us/azure/virtual-network/what-is-ip-address-168-63-129-16
+value = "168.63.129.16"
+result = "refused-metadata-address"
+reason = "Azure WireServer endpoint"
+
+[[refused]]
+# Alibaba Cloud ECS metadata.
+# https://www.alibabacloud.com/help/en/ecs/user-guide/view-instance-metadata/
+value = "100.100.100.200"
+result = "refused-metadata-address"
+reason = "Alibaba Cloud ECS metadata endpoint"
+
+# Unspecified addresses connect to the local host; broadcast and
+# multicast reach sets of hosts. Neither is a checkable destination.
+
+[[refused]]
+value = "0.0.0.0"
+result = "refused-special-address"
+reason = "unspecified address; a connect targets the local host"
+
+[[refused]]
+value = "::"
+result = "refused-special-address"
+reason = "unspecified address; a connect targets the local host"
+
+[[refused]]
+value = "255.255.255.255"
+result = "refused-special-address"
+reason = "IPv4 broadcast"
+
+[[refused]]
+value = "224.0.0.0/4"
+result = "refused-special-address"
+reason = "IPv4 multicast"
+
+[[refused]]
+value = "ff00::/8"
+result = "refused-special-address"
+reason = "IPv6 multicast"

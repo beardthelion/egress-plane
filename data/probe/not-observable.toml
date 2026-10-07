@@ -1,0 +1,65 @@
+# Not-observable list (R23): sources no unprivileged process can observe
+# by design. They are never attempted, they are reported in their own
+# section on every run for the platform, and they never change the
+# completeness state. `statement` says what cannot be seen; `reason` says
+# why no unprivileged read exists.
+
+[[source]]
+id = "seccomp-filter-contents"
+platform = "linux"
+statement = "The BPF programs of an installed seccomp filter (only the mode and count are readable)"
+reason = "The kernel exposes filter mode and count through proc/self/status but never the program"
+
+[[source]]
+id = "landlock-domain"
+platform = "linux"
+statement = "Whether the process is in a Landlock domain and its rules; only the ABI version is queryable"
+reason = "Landlock exposes no syscall to inspect the current domain"
+
+[[source]]
+id = "netfilter-rules"
+platform = "linux"
+statement = "iptables and nftables rules of this and any outer network namespace"
+reason = "Rule tables need CAP_NET_ADMIN and are not exposed under proc or sys"
+
+[[source]]
+id = "outer-namespace-state"
+platform = "linux"
+statement = "Mounts, sockets, and listeners outside the probe's mount and network namespaces, including the listener behind a bind-mounted host socket"
+reason = "A process observes only its own namespace's tables"
+
+[[source]]
+id = "orchestrator-permissions"
+platform = "linux"
+statement = "What a found orchestrator credential is allowed to do"
+reason = "Permissions are decided by the API server and need an API call"
+
+[[source]]
+id = "seatbelt-profile"
+platform = "macos"
+statement = "The rules of the applied sandbox profile; only sandboxed-or-not is queryable"
+reason = "sandbox_check answers whether a check would be denied, not the profile text"
+
+[[source]]
+id = "mach-bootstrap-namespace"
+platform = "macos"
+statement = "The Mach and XPC services reachable through the bootstrap namespace"
+reason = "No unprivileged enumeration of the bootstrap namespace exists"
+
+[[source]]
+id = "pf-rules"
+platform = "macos"
+statement = "Packet filter rules"
+reason = "pf state lives behind /dev/pf ioctls that need privilege"
+
+[[source]]
+id = "content-filter-rules"
+platform = "macos"
+statement = "Network extension and content filter configuration"
+reason = "Filter configuration is owned by the system extensions, not readable by an unprivileged process"
+
+[[source]]
+id = "tcc-grants"
+platform = "macos"
+statement = "Privacy permission grants of the process"
+reason = "TCC state is held by the tccd service and has no unprivileged query"

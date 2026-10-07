@@ -1,0 +1,123 @@
+# Layer detection (v1). A process inside cannot measure nesting order, so
+# layers are ordered by the fixed family rank (KTD16): cloud (outermost),
+# ci, container, sandbox (innermost). `rank` must equal the family rank.
+#
+# A layer is detected when every `all` condition holds or any `any`
+# condition holds. `no-other-in-family` additionally requires that no
+# other kind of the same family was detected (generic-ci and oci-generic
+# are the fallback kinds; seccomp-filter yields to real sandbox kinds,
+# KTD29). Each condition carries `evidence`, the KTD16 source class it
+# contributes when it fires.
+#
+# When no layer is detected the report has one layer of family `host`,
+# kind `unrecognized`; that fallback is synthesized, never declared here.
+# Every layer names one fixture case that labels the layer.
+
+[[layer]]
+family = "cloud"
+kind = "aws"
+rank = 1
+fixture = "linux/layers/aws-ec2-vm"
+any = [{ signal = ["linux.dmi.aws"], evidence = "firmware" }, { resolver = ["169.254.169.253"], evidence = "resolver-config" }, { env = ["AWS_EXECUTION_ENV"], evidence = "environment-name" }]
+
+[[layer]]
+family = "cloud"
+kind = "gcp"
+rank = 1
+fixture = "linux/layers/gcp-vm"
+any = [{ signal = ["linux.dmi.gcp"], evidence = "firmware" }, { resolver-search = ["google.internal"], evidence = "resolver-config" }]
+
+[[layer]]
+family = "cloud"
+kind = "azure"
+rank = 1
+fixture = "linux/layers/azure-vm"
+any = [{ signal = ["linux.dmi.azure"], evidence = "firmware" }]
+
+[[layer]]
+family = "ci"
+kind = "github-actions"
+rank = 2
+fixture = "linux/layers/github-actions-runner"
+any = [{ env = ["GITHUB_ACTIONS"], evidence = "environment-name" }]
+
+[[layer]]
+family = "ci"
+kind = "gitlab-ci"
+rank = 2
+fixture = "linux/layers/gitlab-ci-job"
+any = [{ env = ["GITLAB_CI"], evidence = "environment-name" }]
+
+[[layer]]
+family = "ci"
+kind = "circleci"
+rank = 2
+fixture = "linux/rules/ci-kinds"
+any = [{ env = ["CIRCLECI"], evidence = "environment-name" }]
+
+[[layer]]
+family = "ci"
+kind = "buildkite"
+rank = 2
+fixture = "linux/rules/ci-kinds"
+any = [{ env = ["BUILDKITE"], evidence = "environment-name" }]
+
+[[layer]]
+family = "ci"
+kind = "generic-ci"
+rank = 2
+no-other-in-family = true
+fixture = "linux/rules/generic-ci"
+any = [{ env = ["CI"], evidence = "environment-name" }]
+
+[[layer]]
+family = "container"
+kind = "docker"
+rank = 3
+fixture = "linux/layers/docker-socket-mounted"
+any = [{ signal = ["linux.marker.dockerenv"], evidence = "filesystem-marker" }, { cgroup-contains = ["docker"], evidence = "kernel" }, { resolver = ["127.0.0.11"], evidence = "resolver-config" }]
+
+[[layer]]
+family = "container"
+kind = "podman"
+rank = 3
+fixture = "linux/layers/podman-rootless"
+any = [{ signal = ["linux.marker.containerenv", "linux.marker.toolboxenv"], evidence = "filesystem-marker" }, { cgroup-contains = ["libpod-"], evidence = "kernel" }]
+
+[[layer]]
+family = "container"
+kind = "kubernetes"
+rank = 3
+fixture = "linux/layers/kubernetes-pod-sa-token"
+any = [{ signal = ["linux.cred.k8s-sa-token"], evidence = "filesystem-marker" }, { env = ["KUBERNETES_SERVICE_HOST"], evidence = "environment-name" }, { cgroup-contains = ["kubepods"], evidence = "kernel" }, { resolver-search-suffix = ["svc.cluster.local"], evidence = "resolver-config" }]
+
+[[layer]]
+family = "container"
+kind = "oci-generic"
+rank = 3
+no-other-in-family = true
+fixture = "linux/rules/oci-generic-container"
+any = [{ cgroup-contains = ["crio-", "cri-containerd-"], evidence = "kernel" }]
+
+[[layer]]
+family = "sandbox"
+kind = "bubblewrap"
+rank = 4
+fixture = "linux/layers/bubblewrap-sandbox"
+all = [{ attr = "uid-map-lines", equals = "1", evidence = "kernel" }, { attr = "NoNewPrivs", equals = "1", evidence = "kernel" }, { root-fstype = ["tmpfs"], evidence = "kernel" }]
+any = [{ signal = ["linux.marker.flatpak-info"], evidence = "filesystem-marker" }]
+
+[[layer]]
+family = "sandbox"
+kind = "seccomp-filter"
+rank = 4
+no-other-in-family = true
+fixture = "linux/layers/seccomp-filter-only"
+all = [{ attr = "Seccomp", equals = "2", evidence = "kernel" }]
+
+[[layer]]
+family = "sandbox"
+kind = "seatbelt"
+rank = 4
+fixture = "macos/layers/seatbelt-sandbox"
+any = [{ fact = ["sandbox_check"], evidence = "kernel" }]

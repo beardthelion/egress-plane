@@ -21,3 +21,15 @@ toml.workspace = true
 
 [dev-dependencies]
 boon = "=0.6.1"
+
+[[test]]
+name = "reader"
+required-features = ["snapshot"]
+
+[[test]]
+name = "output"
+required-features = ["snapshot"]
+
+[[test]]
+name = "data_coverage"
+required-features = ["snapshot"]

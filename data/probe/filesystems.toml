@@ -1,0 +1,23 @@
+# Filesystem sets per platform (KTD24, KTD26).
+#
+# `no-touch` / `no-touch-prefixes`: the fstypes a passive run never
+# touches (R31). A call of any kind on a path under such a mount is
+# refused and its source is unknown `network-filesystem-not-touched`.
+# `9p`, `virtiofs`, and `fakeowner` are deliberately absent: they are
+# served by the local hypervisor over a virtual device.
+#
+# `magic` maps an in-root top-level directory to the filesystem magic its
+# handles must report (KTD24); anything else is `fs-type-mismatch`.
+
+[linux]
+no-touch = ["nfs", "nfs4", "cifs", "smb3", "smbfs", "ceph", "glusterfs", "lustre", "afs", "autofs", "fuse"]
+no-touch-prefixes = ["fuse."]
+
+# PROC_SUPER_MAGIC and SYSFS_MAGIC.
+[linux.magic]
+proc = "0x9fa0"
+sys = "0x62656572"
+
+[macos]
+no-touch = ["smbfs", "nfs", "afpfs", "webdav", "osxfuse", "macfuse", "autofs"]
+no-touch-prefixes = []
