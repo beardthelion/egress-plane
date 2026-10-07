@@ -1,0 +1,33 @@
+from subprocess import CalledProcessError, CompletedProcess, DEVNULL, PIPE, STDOUT, SubprocessError, TimeoutExpired, _HAVE_POSIX_SPAWN_CLOSEFROM, _PIPE_BUF, _PopenSelector, _USE_POSIX_SPAWN, _USE_VFORK, _WIFSTOPPED, _WNOHANG, _WSTOPSIG, _active, _args_from_interpreter_flags, _can_fork_exec, _cleanup, _del_safe, _mswindows, _optim_args_from_interpreter_flags, _text_encoding, _time, _use_posix_spawn, _waitpid, _waitstatus_to_exitcode, list2cmdline
+
+def probe():
+    return (
+        CalledProcessError,
+        CompletedProcess,
+        DEVNULL,
+        PIPE,
+        STDOUT,
+        SubprocessError,
+        TimeoutExpired,
+        _HAVE_POSIX_SPAWN_CLOSEFROM,
+        _PIPE_BUF,
+        _PopenSelector,
+        _USE_POSIX_SPAWN,
+        _USE_VFORK,
+        _WIFSTOPPED,
+        _WNOHANG,
+        _WSTOPSIG,
+        _active,
+        _args_from_interpreter_flags,
+        _can_fork_exec,
+        _cleanup,
+        _del_safe,
+        _mswindows,
+        _optim_args_from_interpreter_flags,
+        _text_encoding,
+        _time,
+        _use_posix_spawn,
+        _waitpid,
+        _waitstatus_to_exitcode,
+        list2cmdline,
+    )

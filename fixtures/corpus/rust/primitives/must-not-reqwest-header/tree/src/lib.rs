@@ -1,0 +1,25 @@
+pub fn probe() {
+    let _ = (
+        reqwest::header,
+        reqwest::Url,
+        reqwest::StatusCode,
+        reqwest::Method,
+        reqwest::Error,
+        reqwest::Response,
+        reqwest::RequestBuilder,
+        reqwest::Body,
+        reqwest::Proxy,
+        reqwest::Certificate,
+        reqwest::Identity,
+        reqwest::redirect,
+        reqwest::multipart,
+        reqwest::Version,
+        reqwest::Client,
+        reqwest::ClientBuilder,
+        reqwest::blocking::Client,
+        reqwest::blocking::ClientBuilder,
+        reqwest::blocking::Response,
+        reqwest::blocking::RequestBuilder,
+        reqwest::blocking::Body,
+    );
+}

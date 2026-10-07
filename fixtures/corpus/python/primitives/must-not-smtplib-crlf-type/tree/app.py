@@ -1,0 +1,31 @@
+from smtplib import CRLF, LMTP_PORT, OLDSTYLE_AUTH, SMTPAuthenticationError, SMTPConnectError, SMTPDataError, SMTPException, SMTPHeloError, SMTPNotSupportedError, SMTPRecipientsRefused, SMTPResponseException, SMTPSenderRefused, SMTPServerDisconnected, SMTP_PORT, SMTP_SSL_PORT, _MAXCHALLENGE, _MAXLINE, _addr_only, _fix_eols, _have_cram_md5_support, _have_ssl, _quote_periods, bCRLF, encode_base64, quoteaddr, quotedata
+
+def probe():
+    return (
+        CRLF,
+        LMTP_PORT,
+        OLDSTYLE_AUTH,
+        SMTPAuthenticationError,
+        SMTPConnectError,
+        SMTPDataError,
+        SMTPException,
+        SMTPHeloError,
+        SMTPNotSupportedError,
+        SMTPRecipientsRefused,
+        SMTPResponseException,
+        SMTPSenderRefused,
+        SMTPServerDisconnected,
+        SMTP_PORT,
+        SMTP_SSL_PORT,
+        _MAXCHALLENGE,
+        _MAXLINE,
+        _addr_only,
+        _fix_eols,
+        _have_cram_md5_support,
+        _have_ssl,
+        _quote_periods,
+        bCRLF,
+        encode_base64,
+        quoteaddr,
+        quotedata,
+    )

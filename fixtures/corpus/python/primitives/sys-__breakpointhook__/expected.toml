@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[blind_spots]]
+file = "app.py"
+symbol = "probe"
+kind = "dynamic-code"
+
+[[blind_spots]]
+file = "app.py"
+symbol = "probe"
+kind = "introspection"
