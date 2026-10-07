@@ -21,6 +21,7 @@ toml.workspace = true
 
 [dev-dependencies]
 boon = "=0.6.1"
+libc = "=0.2.189"
 
 [[test]]
 name = "reader"
@@ -32,4 +33,12 @@ required-features = ["snapshot"]
 
 [[test]]
 name = "data_coverage"
+required-features = ["snapshot"]
+
+[[test]]
+name = "linux_universes"
+required-features = ["snapshot"]
+
+[[test]]
+name = "self_observation"
 required-features = ["snapshot"]

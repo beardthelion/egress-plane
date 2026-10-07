@@ -10,6 +10,11 @@
 //! A fact is never partially read: an adapter reports `read` with its data
 //! or a fixed state, and consumers treat every non-`read` state uniformly.
 
+#[cfg(target_os = "linux")]
+pub mod ffi;
+#[cfg(target_os = "linux")]
+pub mod linux;
+
 use serde::Deserialize;
 
 /// The host platform the probe is running against.
