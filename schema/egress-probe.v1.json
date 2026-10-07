@@ -1,0 +1,628 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://egress-plane.invalid/schema/egress-probe.v1.json",
+  "title": "egress-plane environment probe report, schema version 1",
+  "description": "Output of `egress-plane probe --format json`. Additive optional fields keep schema_version 1; a removal, rename, or change of meaning bumps it. Consumers ignore unknown fields; this file is strict so the emitter cannot drift from it. A structured string field whose bytes are not UTF-8 or hold a control, format, or separator character emits as `<name>_display` plus `<name>_bytes` hex, and the exact field is omitted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "tool",
+    "source",
+    "platform",
+    "layer_order_basis",
+    "privilege",
+    "mode",
+    "nonce",
+    "completeness",
+    "layers",
+    "egress_routes",
+    "escape_routes",
+    "unknowns",
+    "tamper_indicators",
+    "not_observable",
+    "not_applicable",
+    "unclassified",
+    "universes",
+    "signals",
+    "active_checks",
+    "caveats"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "kind": {
+      "const": "environment-probe"
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "version",
+        "data_digest"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "data_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "source": {
+      "enum": [
+        "live",
+        "snapshot"
+      ],
+      "description": "Informational only (KTD23); never proof of a live run."
+    },
+    "platform": {
+      "enum": [
+        "linux",
+        "macos"
+      ]
+    },
+    "layer_order_basis": {
+      "const": "family-rank"
+    },
+    "privilege": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "euid",
+        "egid",
+        "root"
+      ],
+      "properties": {
+        "euid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "egid": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "root": {
+          "type": "boolean"
+        }
+      }
+    },
+    "mode": {
+      "enum": [
+        "passive",
+        "active"
+      ]
+    },
+    "nonce": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{1,64}$"
+        }
+      ]
+    },
+    "completeness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "complete",
+            "incomplete",
+            "empty"
+          ]
+        }
+      }
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/layer"
+      }
+    },
+    "egress_routes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/route"
+      }
+    },
+    "escape_routes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/route"
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "source",
+          "reason"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "$ref": "#/$defs/unknown_reason"
+          }
+        }
+      }
+    },
+    "tamper_indicators": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "indicator",
+          "strength",
+          "display"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "indicator": {
+            "type": "string",
+            "minLength": 1
+          },
+          "strength": {
+            "enum": [
+              "strong",
+              "weak"
+            ]
+          },
+          "display": {
+            "type": "string",
+            "description": "Rendered description, escaped."
+          }
+        }
+      }
+    },
+    "not_observable": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "statement",
+          "reason"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "not_applicable": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "unclassified": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "universe",
+          "member",
+          "display"
+        ],
+        "properties": {
+          "universe": {
+            "type": "string",
+            "minLength": 1
+          },
+          "member": {
+            "$ref": "#/$defs/id"
+          },
+          "display": {
+            "type": "string",
+            "description": "The member display, escaped."
+          }
+        }
+      }
+    },
+    "universes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/universe"
+      }
+    },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "signal",
+          "state"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "signal": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "enum": [
+              "present",
+              "absent",
+              "unknown",
+              "not-applicable"
+            ]
+          }
+        }
+      }
+    },
+    "active_checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "target",
+          "result"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "target": {
+            "type": "string",
+            "description": "The canonicalized IP:port literal, escaped."
+          },
+          "result": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "caveats": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "passive"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "egress_routes": {
+            "items": {
+              "properties": {
+                "verified": {
+                  "const": false
+                }
+              }
+            }
+          },
+          "escape_routes": {
+            "items": {
+              "properties": {
+                "verified": {
+                  "const": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "raw_bytes": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{2})+$"
+    },
+    "unknown_reason": {
+      "enum": [
+        "proc-not-mounted",
+        "unreadable",
+        "partial",
+        "implausibly-empty",
+        "masked-or-truncated",
+        "budget-exceeded",
+        "link-policy",
+        "internal-failure",
+        "depends-on-unknown",
+        "unsupported-layout",
+        "no-account-home",
+        "fs-type-mismatch",
+        "proc-self-mismatch",
+        "network-filesystem-not-touched",
+        "descriptor-limit",
+        "traced"
+      ]
+    },
+    "route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "kind",
+        "verified",
+        "display"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "rule"
+          ]
+        },
+        {
+          "required": [
+            "signal"
+          ]
+        }
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rule": {
+          "type": "string",
+          "minLength": 1
+        },
+        "signal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "member": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1
+        },
+        "location_display": {
+          "type": "string"
+        },
+        "location_bytes": {
+          "$ref": "#/$defs/raw_bytes"
+        },
+        "verified": {
+          "type": "boolean"
+        },
+        "display": {
+          "type": "string",
+          "description": "Rendered route description, escaped."
+        }
+      }
+    },
+    "member": {
+      "type": "object",
+      "required": [
+        "id",
+        "class",
+        "rules",
+        "ordinal",
+        "display"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "class": {
+          "enum": [
+            "escape",
+            "egress",
+            "inert",
+            "unclassified"
+          ]
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "display": {
+          "type": "string",
+          "description": "Rendered member description, escaped."
+        }
+      },
+      "additionalProperties": {
+        "description": "Per-universe structured fields; a `<name>` field is exact, `<name>_display` plus `<name>_bytes` carries the escaped and raw form (KTD27).",
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "boolean"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "universe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "state",
+        "members"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "enum": [
+            "enumerated",
+            "absent",
+            "unknown",
+            "not-applicable"
+          ]
+        },
+        "reason": {
+          "$ref": "#/$defs/unknown_reason"
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/member"
+          }
+        }
+      }
+    },
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "family",
+        "kind",
+        "evidence",
+        "attributes"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "family": {
+          "enum": [
+            "cloud",
+            "ci",
+            "container",
+            "sandbox",
+            "host"
+          ]
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "class",
+              "detail"
+            ],
+            "properties": {
+              "class": {
+                "enum": [
+                  "kernel",
+                  "filesystem-marker",
+                  "environment-name",
+                  "firmware",
+                  "resolver-config",
+                  "network-interface"
+                ]
+              },
+              "detail": {
+                "type": "string",
+                "description": "What was observed, escaped; presence only, never a value."
+              }
+            }
+          }
+        },
+        "attributes": {
+          "type": "object",
+          "description": "Confinement facts of the layer (R12); `namespaces` holds `name` plus display-only `inode` entries (KTD23). Unclean strings emit as `<name>_display` plus `<name>_bytes` (KTD27)."
+        }
+      }
+    }
+  }
+}

@@ -10,7 +10,11 @@
 //! feature so the released binary cannot replay a snapshot.
 
 pub mod facts;
+pub mod identity;
 pub mod integrity;
+pub mod json;
+pub mod model;
 pub mod reader;
 #[cfg(feature = "snapshot")]
 pub mod snapshot;
+pub mod text;
