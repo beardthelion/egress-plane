@@ -105,13 +105,21 @@ pub fn hash_id(key: &[u8]) -> String {
     hex(&digest[..8])
 }
 
-fn join(components: &[Vec<u8>]) -> Vec<u8> {
+/// Builds a canonical key under a caller-supplied version tag, with the
+/// same length-prefixing as the code layer's keys (KTD10). Callers that are
+/// not the code layer use their own tag, so a different namespace can never
+/// collide with these ids.
+pub fn key_with_version(version: &[u8], components: &[Vec<u8>]) -> Vec<u8> {
     let mut key = Vec::new();
-    for c in std::iter::once(KEY_VERSION).chain(components.iter().map(Vec::as_slice)) {
+    for c in std::iter::once(version).chain(components.iter().map(Vec::as_slice)) {
         key.extend_from_slice(&(c.len() as u64).to_be_bytes());
         key.extend_from_slice(c);
     }
     key
+}
+
+fn join(components: &[Vec<u8>]) -> Vec<u8> {
+    key_with_version(KEY_VERSION, components)
 }
 
 fn opt(v: Option<&str>) -> Vec<u8> {

@@ -46,6 +46,69 @@ pub enum ReadError {
     Unreadable,
 }
 
+// ---------------------------------------------------------------------------
+// KTD9 additions: errno-preserving reads, full metadata, a no-follow access
+// check, and filesystem types. Everything below is additive; the methods
+// above keep their signatures and behavior.
+// ---------------------------------------------------------------------------
+
+/// The raw file type from `lstat`, with sockets, FIFOs, and character and
+/// block devices kept apart instead of merged into [`EntryType::Other`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum NodeType {
+    File,
+    Dir,
+    Symlink,
+    Socket,
+    Fifo,
+    Char,
+    Block,
+    /// Anything else the filesystem reports.
+    Other,
+}
+
+/// Full metadata for one node: mode, owner, size, raw type, and the device
+/// number for character and block nodes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NodeStat {
+    pub kind: NodeType,
+    /// Raw `st_mode` bits (type plus permissions).
+    pub mode: u32,
+    pub uid: u32,
+    pub gid: u32,
+    pub size: u64,
+    /// `st_rdev`; meaningful only for [`NodeType::Char`] and
+    /// [`NodeType::Block`].
+    pub rdev: u64,
+}
+
+/// Why a bounded read failed, with the errno preserved so a caller can tell
+/// `ENOENT` (absent) from `EMFILE` (descriptor exhaustion) from everything
+/// else (KTD9).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadFail {
+    /// The final component exists but is not a regular file; carries its
+    /// type so a symlink is distinguishable from a FIFO or a directory.
+    NotRegular(NodeType),
+    TooLarge,
+    /// Any other failure, with the raw errno.
+    Errno(i32),
+}
+
+/// The result of an access check that never describes a swapped-in
+/// symlink's target.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AccessCheck {
+    /// Every requested mode bit is permitted.
+    Granted,
+    /// The check ran and was refused (for example `EACCES`, `EPERM`,
+    /// `EROFS`).
+    Refused,
+    /// The final component is a symlink; no access result for its target is
+    /// produced.
+    Symlink,
+}
+
 /// A directory reached from the root through real directories only, so a
 /// walk can step one component at a time without reopening every ancestor.
 #[derive(Debug)]
@@ -112,6 +175,125 @@ fn stat_kind(st: &libc::stat) -> EntryType {
         libc::S_IFDIR => EntryType::Dir,
         libc::S_IFLNK => EntryType::Symlink,
         _ => EntryType::Other,
+    }
+}
+
+fn node_type(st: &libc::stat) -> NodeType {
+    match st.st_mode & libc::S_IFMT {
+        libc::S_IFREG => NodeType::File,
+        libc::S_IFDIR => NodeType::Dir,
+        libc::S_IFLNK => NodeType::Symlink,
+        libc::S_IFSOCK => NodeType::Socket,
+        libc::S_IFIFO => NodeType::Fifo,
+        libc::S_IFCHR => NodeType::Char,
+        libc::S_IFBLK => NodeType::Block,
+        _ => NodeType::Other,
+    }
+}
+
+fn fstatat_full(dir: libc::c_int, name: &CStr) -> io::Result<NodeStat> {
+    let mut st = std::mem::MaybeUninit::<libc::stat>::uninit();
+    // SAFETY: `name` is NUL-terminated and `st` is a valid out pointer.
+    check(unsafe {
+        libc::fstatat(
+            dir,
+            name.as_ptr(),
+            st.as_mut_ptr(),
+            libc::AT_SYMLINK_NOFOLLOW,
+        )
+    })?;
+    // SAFETY: fstatat succeeded and filled `st`.
+    let st = unsafe { st.assume_init() };
+    Ok(NodeStat {
+        kind: node_type(&st),
+        mode: st.st_mode,
+        uid: st.st_uid,
+        gid: st.st_gid,
+        size: st.st_size.max(0) as u64,
+        rdev: st.st_rdev,
+    })
+}
+
+/// The filesystem type of an open handle as a name (KTD9). On Linux the
+/// `fstatfs` magic maps to a well-known name, with `0x<hex>` for anything
+/// unmapped; on macOS the `f_fstypename` string is used directly.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn fstatfs_name(fd: libc::c_int) -> io::Result<String> {
+    let mut st = std::mem::MaybeUninit::<libc::statfs>::uninit();
+    // SAFETY: `st` is a valid out pointer.
+    check(unsafe { libc::fstatfs(fd, st.as_mut_ptr()) })?;
+    // SAFETY: fstatfs succeeded and filled `st`.
+    let st = unsafe { st.assume_init() };
+    let name = match st.f_type {
+        libc::PROC_SUPER_MAGIC => "proc".to_string(),
+        libc::SYSFS_MAGIC => "sysfs".to_string(),
+        libc::TMPFS_MAGIC => "tmpfs".to_string(),
+        libc::DEVPTS_SUPER_MAGIC => "devpts".to_string(),
+        libc::CGROUP_SUPER_MAGIC => "cgroup".to_string(),
+        libc::CGROUP2_SUPER_MAGIC => "cgroup2".to_string(),
+        libc::OVERLAYFS_SUPER_MAGIC => "overlay".to_string(),
+        other => format!("0x{other:x}"),
+    };
+    Ok(name)
+}
+
+/// The filesystem type of an open handle (KTD9), per `f_fstypename`.
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+fn fstatfs_name(fd: libc::c_int) -> io::Result<String> {
+    let mut st = std::mem::MaybeUninit::<libc::statfs>::uninit();
+    // SAFETY: `st` is a valid out pointer.
+    check(unsafe { libc::fstatfs(fd, st.as_mut_ptr()) })?;
+    // SAFETY: fstatfs succeeded and filled `st`.
+    let st = unsafe { st.assume_init() };
+    // SAFETY: f_fstypename is a fixed char array holding a NUL-terminated
+    // name after a successful fstatfs.
+    let name = unsafe { CStr::from_ptr(st.f_fstypename.as_ptr()) };
+    Ok(name.to_string_lossy().into_owned())
+}
+
+/// An access check that never follows a swapped-in final symlink.
+///
+/// Implementation choice (KTD9): on Linux this calls `faccessat2` with
+/// `AT_SYMLINK_NOFOLLOW` through `libc::syscall`, so the kernel evaluates
+/// the named object itself even if it was swapped for a symlink between
+/// the caller's `lstat` and this call; on macOS it calls `faccessat` with
+/// the same flag, which has the `AT_SYMLINK_NOFOLLOW` semantics natively.
+/// `EACCES`, `EPERM`, and `EROFS` map to [`AccessCheck::Refused`]; every
+/// other errno propagates so `ENOENT` stays distinguishable from a denial.
+#[cfg(any(target_os = "linux", target_os = "android"))]
+fn faccessat_nofollow(dir: libc::c_int, name: &CStr, mode: libc::c_int) -> io::Result<AccessCheck> {
+    // SAFETY: `name` is NUL-terminated; faccessat2 is read-only.
+    let rc = unsafe {
+        libc::syscall(
+            libc::SYS_faccessat2,
+            dir,
+            name.as_ptr(),
+            mode,
+            libc::AT_SYMLINK_NOFOLLOW,
+        )
+    };
+    if rc == 0 {
+        return Ok(AccessCheck::Granted);
+    }
+    let e = io::Error::last_os_error();
+    match e.raw_os_error() {
+        Some(libc::EACCES) | Some(libc::EPERM) | Some(libc::EROFS) => Ok(AccessCheck::Refused),
+        _ => Err(e),
+    }
+}
+
+/// `faccessat` with `AT_SYMLINK_NOFOLLOW` on macOS (KTD9).
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+fn faccessat_nofollow(dir: libc::c_int, name: &CStr, mode: libc::c_int) -> io::Result<AccessCheck> {
+    // SAFETY: `name` is NUL-terminated; faccessat is read-only.
+    let rc = unsafe { libc::faccessat(dir, name.as_ptr(), mode, libc::AT_SYMLINK_NOFOLLOW) };
+    if rc == 0 {
+        return Ok(AccessCheck::Granted);
+    }
+    let e = io::Error::last_os_error();
+    match e.raw_os_error() {
+        Some(libc::EACCES) | Some(libc::EPERM) => Ok(AccessCheck::Refused),
+        _ => Err(e),
     }
 }
 
@@ -370,6 +552,213 @@ impl RootDir {
                 }
                 _ => ReadError::Unreadable,
             }),
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // KTD9 additions. Each observed method also records the filesystem type
+    // of every handle the walk opened into `fs`, in walk order, so callers
+    // can verify kernel filesystems (KTD24).
+    // ---------------------------------------------------------------------
+
+    /// `open_dir_parts` that also records each opened handle's filesystem
+    /// type.
+    fn open_dir_parts_fs(
+        &self,
+        parts: &[&[u8]],
+        fs: &mut Vec<String>,
+    ) -> io::Result<Option<OwnedFd>> {
+        let mut cur: Option<OwnedFd> = None;
+        for p in parts {
+            let dir = cur.as_ref().map_or(self.fd.as_raw_fd(), |f| f.as_raw_fd());
+            let fd = openat(dir, &cstr(p)?, DIR_FLAGS)?;
+            fs.push(fstatfs_name(fd.as_raw_fd())?);
+            cur = Some(fd);
+        }
+        Ok(cur)
+    }
+
+    /// `with_parent` that records the filesystem type of every opened
+    /// directory handle.
+    fn with_parent_fs<T>(
+        &self,
+        rel: &[u8],
+        fs: &mut Vec<String>,
+        f: impl FnOnce(libc::c_int, &CStr) -> io::Result<T>,
+    ) -> io::Result<T> {
+        let parts = components(rel)?;
+        let (last, dirs) = parts
+            .split_last()
+            .ok_or_else(|| io::Error::from(io::ErrorKind::InvalidInput))?;
+        let parent = self.open_dir_parts_fs(dirs, fs)?;
+        let dir = parent
+            .as_ref()
+            .map_or(self.fd.as_raw_fd(), |f| f.as_raw_fd());
+        f(dir, &cstr(last)?)
+    }
+
+    /// Full `lstat` of an in-root path (KTD9): raw file type, mode, owner,
+    /// size, and device number, never following the final component.
+    pub fn lstat_full(&self, rel: &[u8], fs: &mut Vec<String>) -> io::Result<NodeStat> {
+        if rel.is_empty() {
+            let st = fstat(self.fd.as_raw_fd())?;
+            return Ok(NodeStat {
+                kind: node_type(&st),
+                mode: st.st_mode,
+                uid: st.st_uid,
+                gid: st.st_gid,
+                size: st.st_size.max(0) as u64,
+                rdev: st.st_rdev,
+            });
+        }
+        self.with_parent_fs(rel, fs, fstatat_full)
+    }
+
+    /// The target bytes of an in-root symlink, recording the filesystem
+    /// type of every opened directory handle (KTD9).
+    pub fn readlink_observed(&self, rel: &[u8], fs: &mut Vec<String>) -> io::Result<Vec<u8>> {
+        self.with_parent_fs(rel, fs, readlinkat)
+    }
+
+    /// An access check that cannot follow a swapped-in final symlink
+    /// (KTD9). `read` and `write` select the `R_OK` and `W_OK` bits. A
+    /// symlink at the final component is reported as
+    /// [`AccessCheck::Symlink`]; anything else gets `faccessat2` with
+    /// `AT_SYMLINK_NOFOLLOW` on Linux (`faccessat` on macOS), so a swap
+    /// between the type check and the access check still cannot reach the
+    /// target.
+    pub fn access_nofollow(
+        &self,
+        rel: &[u8],
+        read: bool,
+        write: bool,
+        fs: &mut Vec<String>,
+    ) -> io::Result<AccessCheck> {
+        let mut mode = 0;
+        if read {
+            mode |= libc::R_OK;
+        }
+        if write {
+            mode |= libc::W_OK;
+        }
+        self.with_parent_fs(rel, fs, |dir, name| {
+            let st = fstatat_full(dir, name)?;
+            if st.kind == NodeType::Symlink {
+                return Ok(AccessCheck::Symlink);
+            }
+            faccessat_nofollow(dir, name, mode)
+        })
+    }
+
+    /// Lists a directory like [`RootDir::list_dir`], but each entry carries
+    /// full metadata ([`NodeStat`]) and the filesystem types of the opened
+    /// handles go to `fs` (KTD9).
+    pub fn list_dir_full(
+        &self,
+        rel: &[u8],
+        fs: &mut Vec<String>,
+    ) -> io::Result<Vec<(Vec<u8>, NodeStat)>> {
+        let parts = components(rel)?;
+        let fd = match self.open_dir_parts_fs(&parts, fs)? {
+            Some(fd) => fd,
+            None => {
+                let fd = openat(self.fd.as_raw_fd(), c".", DIR_FLAGS)?;
+                fs.push(fstatfs_name(fd.as_raw_fd())?);
+                fd
+            }
+        };
+        let raw = fd.as_raw_fd();
+        // SAFETY: `raw` is an open descriptor.
+        let dup = check(unsafe { libc::fcntl(raw, libc::F_DUPFD_CLOEXEC, 0) })?;
+        // SAFETY: `dup` is an open directory descriptor we own.
+        let dirp = unsafe { libc::fdopendir(dup) };
+        if dirp.is_null() {
+            let e = io::Error::last_os_error();
+            // SAFETY: fdopendir failed, so `dup` is still ours to close.
+            unsafe { libc::close(dup) };
+            return Err(e);
+        }
+        let mut names = Vec::new();
+        let result = loop {
+            // SAFETY: errno is thread-local and writable.
+            unsafe { *errno_ptr() = 0 };
+            // SAFETY: `dirp` is a valid open directory stream.
+            let ent = unsafe { libc::readdir(dirp) };
+            if ent.is_null() {
+                // SAFETY: errno is thread-local and readable.
+                let err = unsafe { *errno_ptr() };
+                break if err == 0 {
+                    Ok(())
+                } else {
+                    Err(io::Error::from_raw_os_error(err))
+                };
+            }
+            // SAFETY: `d_name` is a NUL-terminated name inside the entry.
+            let name = unsafe { CStr::from_ptr((*ent).d_name.as_ptr()) };
+            let b = name.to_bytes();
+            if b != b"." && b != b".." {
+                names.push(b.to_vec());
+            }
+        };
+        // SAFETY: `dirp` is valid and closed exactly once; this closes `dup`.
+        unsafe { libc::closedir(dirp) };
+        result?;
+        names.sort();
+        let mut out = Vec::with_capacity(names.len());
+        for n in names {
+            match fstatat_full(raw, &cstr(&n)?) {
+                Ok(st) => out.push((n, st)),
+                Err(e) if e.raw_os_error() == Some(libc::ENOENT) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(out)
+    }
+
+    /// Reads at most `limit` bytes of a regular in-root file, preserving
+    /// the errno on failure ([`ReadFail`], KTD9) and recording the
+    /// filesystem type of every opened handle into `fs`.
+    pub fn read_file_errno(
+        &self,
+        rel: &[u8],
+        limit: u64,
+        fs: &mut Vec<String>,
+    ) -> Result<Vec<u8>, ReadFail> {
+        // The file handle's filesystem type goes in `file_fs` (appended to
+        // `fs` after the walk's directory entries).
+        let mut file_fs = Vec::new();
+        let res = self.with_parent_fs(rel, fs, |dir, name| {
+            let st = fstatat_full(dir, name)?;
+            if st.kind != NodeType::File {
+                return Ok(Err(ReadFail::NotRegular(st.kind)));
+            }
+            if st.size > limit {
+                return Ok(Err(ReadFail::TooLarge));
+            }
+            let fd = openat(
+                dir,
+                name,
+                libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_NOCTTY,
+            )?;
+            file_fs.push(fstatfs_name(fd.as_raw_fd())?);
+            let kind = node_type(&fstat(fd.as_raw_fd())?);
+            if kind != NodeType::File {
+                return Ok(Err(ReadFail::NotRegular(kind)));
+            }
+            let cap = usize::try_from(st.size.min(limit).saturating_add(1)).unwrap_or(0);
+            let mut out = Vec::with_capacity(cap);
+            let mut file = std::fs::File::from(fd);
+            use std::io::Read;
+            (&mut file).take(limit + 1).read_to_end(&mut out)?;
+            if out.len() as u64 > limit {
+                return Ok(Err(ReadFail::TooLarge));
+            }
+            Ok(Ok(out))
+        });
+        fs.extend(file_fs);
+        match res {
+            Ok(r) => r,
+            Err(e) => Err(ReadFail::Errno(e.raw_os_error().unwrap_or(0))),
         }
     }
 }

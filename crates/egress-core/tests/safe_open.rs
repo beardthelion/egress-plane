@@ -3,10 +3,12 @@
 
 mod support;
 
+use std::os::unix::fs::MetadataExt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use egress_core::discover::open::{AccessCheck, NodeType, ReadFail, RootDir};
 use egress_core::discover::{Config, Discovery, SourceFile, discover};
 use egress_core::model::BlindSpotKind;
 use support::{Tree, privileged};
@@ -230,6 +232,200 @@ fn unsafe_open_unavailable_never_reads() {
         d.read_source(source(&d, "src/a.py")),
         Err(BlindSpotKind::UnsafeOpenUnavailable)
     );
+}
+
+// ---------------------------------------------------------------------------
+// KTD9 additions: errno-preserving reads, full metadata, no-follow access
+// checks, and filesystem types.
+// ---------------------------------------------------------------------------
+
+fn open_root(t: &Tree) -> RootDir {
+    RootDir::open(&t.root).unwrap()
+}
+
+#[test]
+fn errno_preserving_read_distinguishes_absent_and_unreadable() {
+    let t = Tree::new("read-errno");
+    t.file("src/a.py", "x = 1\n");
+    let root = open_root(&t);
+    let mut fs = Vec::new();
+    let got = root.read_file_errno(b"src/missing.py", 1024, &mut fs);
+    assert_eq!(got, Err(ReadFail::Errno(libc::ENOENT)));
+    let got = root.read_file_errno(b"src/a.py", 1024, &mut fs);
+    assert_eq!(got.unwrap(), b"x = 1\n");
+    assert!(!fs.is_empty(), "read reports handle filesystem types");
+}
+
+#[test]
+fn errno_preserving_read_reports_type_and_size_failures() {
+    let t = Tree::new("read-errno-kinds");
+    t.dir("src").fifo("pipe").file("big.js", vec![b'x'; 4096]);
+    let root = open_root(&t);
+    let mut fs = Vec::new();
+    assert_eq!(
+        root.read_file_errno(b"pipe", 1024, &mut fs),
+        Err(ReadFail::NotRegular(NodeType::Fifo))
+    );
+    assert_eq!(
+        root.read_file_errno(b"src", 1024, &mut fs),
+        Err(ReadFail::NotRegular(NodeType::Dir))
+    );
+    assert_eq!(
+        root.read_file_errno(b"big.js", 1024, &mut fs),
+        Err(ReadFail::TooLarge)
+    );
+}
+
+#[test]
+fn errno_preserving_read_reports_a_final_symlink() {
+    let t = Tree::new("read-errno-link");
+    t.file("real.txt", "x").link("link.txt", "real.txt");
+    let root = open_root(&t);
+    let mut fs = Vec::new();
+    assert_eq!(
+        root.read_file_errno(b"link.txt", 1024, &mut fs),
+        Err(ReadFail::NotRegular(NodeType::Symlink))
+    );
+}
+
+#[test]
+fn full_metadata_reports_type_owner_mode_and_device() {
+    let t = Tree::new("meta-full");
+    t.file("plain.txt", "x").fifo("pipe");
+    let root = open_root(&t);
+    let mut fs = Vec::new();
+
+    let st = root.lstat_full(b"plain.txt", &mut fs).unwrap();
+    assert_eq!(st.kind, NodeType::File);
+    assert_eq!(st.size, 1);
+    let want_mode = std::fs::metadata(t.path("plain.txt")).unwrap().mode();
+    assert_eq!(st.mode & 0o777, want_mode & 0o777);
+    assert_eq!(st.uid, unsafe { libc::geteuid() });
+
+    let st = root.lstat_full(b"pipe", &mut fs).unwrap();
+    assert_eq!(st.kind, NodeType::Fifo);
+
+    let st = root.lstat_full(b"", &mut fs).unwrap();
+    assert_eq!(st.kind, NodeType::Dir);
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn full_metadata_splits_char_and_block_devices() {
+    // /dev/null exists on every Linux host.
+    let root = RootDir::open(std::path::Path::new("/")).unwrap();
+    let mut fs = Vec::new();
+    let st = root.lstat_full(b"dev/null", &mut fs).unwrap();
+    assert_eq!(st.kind, NodeType::Char);
+    assert_eq!(st.rdev, 259);
+    let st = root.lstat_full(b"dev", &mut fs).unwrap();
+    assert_eq!(st.kind, NodeType::Dir);
+}
+
+#[test]
+fn full_listing_reports_entry_types() {
+    let t = Tree::new("list-full");
+    t.file("d/inner.txt", "x").fifo("d/pipe").dir("d/sub");
+    let root = open_root(&t);
+    let mut fs = Vec::new();
+    let entries = root.list_dir_full(b"d", &mut fs).unwrap();
+    let kinds: Vec<(&[u8], NodeType)> = entries
+        .iter()
+        .map(|(n, st)| (n.as_slice(), st.kind))
+        .collect();
+    assert_eq!(
+        kinds,
+        vec![
+            (b"inner.txt".as_slice(), NodeType::File),
+            (b"pipe".as_slice(), NodeType::Fifo),
+            (b"sub".as_slice(), NodeType::Dir),
+        ]
+    );
+    assert!(!fs.is_empty());
+}
+
+#[test]
+fn access_check_never_follows_a_final_symlink() {
+    let t = Tree::new("access-link");
+    let target = t.outside_file("writable.txt", "x");
+    t.link("link", &target);
+    let root = open_root(&t);
+    let mut fs = Vec::new();
+    let got = root.access_nofollow(b"link", true, true, &mut fs).unwrap();
+    // The symlink itself is reported; nothing about the outside target's
+    // access result is produced.
+    assert_eq!(got, AccessCheck::Symlink);
+}
+
+#[test]
+fn access_check_grants_and_refuses_real_files() {
+    let t = Tree::new("access-real");
+    t.file("ro.txt", "x").chmod("ro.txt", 0o444);
+    t.file("rw.txt", "x").chmod("rw.txt", 0o644);
+    let root = open_root(&t);
+    let mut fs = Vec::new();
+    assert_eq!(
+        root.access_nofollow(b"ro.txt", true, false, &mut fs)
+            .unwrap(),
+        AccessCheck::Granted
+    );
+    assert_eq!(
+        root.access_nofollow(b"rw.txt", true, true, &mut fs)
+            .unwrap(),
+        AccessCheck::Granted
+    );
+    if !privileged() {
+        assert_eq!(
+            root.access_nofollow(b"ro.txt", false, true, &mut fs)
+                .unwrap(),
+            AccessCheck::Refused
+        );
+    }
+    let err = root
+        .access_nofollow(b"missing", true, false, &mut fs)
+        .unwrap_err();
+    assert_eq!(err.raw_os_error(), Some(libc::ENOENT));
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn filesystem_type_of_proc_and_tmpfs_handles() {
+    let root = RootDir::open(std::path::Path::new("/")).unwrap();
+    let mut fs = Vec::new();
+    let data = root
+        .read_file_errno(b"proc/version", 1 << 20, &mut fs)
+        .unwrap();
+    assert!(!data.is_empty());
+    assert!(
+        fs.iter().all(|f| f == "proc"),
+        "every handle under /proc reports proc: {fs:?}"
+    );
+
+    // Find a tmpfs mount point from this process's own mountinfo that we
+    // can list (`proc/mounts` is a symlink, which the walk refuses).
+    let info = format!("proc/{}/mountinfo", unsafe { libc::getpid() });
+    let mounts = root
+        .read_file_errno(info.as_bytes(), 1 << 20, &mut Vec::new())
+        .unwrap();
+    let text = String::from_utf8_lossy(&mounts);
+    let point = text
+        .lines()
+        .filter_map(|l| {
+            let f: Vec<&str> = l.split_whitespace().collect();
+            let sep = f.iter().position(|x| *x == "-")?;
+            let fstype = f.get(sep + 1)?;
+            let point = f.get(4)?;
+            (*fstype == "tmpfs").then(|| point.to_string())
+        })
+        .find(|p| {
+            let rel = p.trim_start_matches('/');
+            root.list_dir_full(rel.as_bytes(), &mut Vec::new()).is_ok()
+        })
+        .expect("no listable tmpfs mount on this host");
+    let rel = point.trim_start_matches('/').as_bytes().to_vec();
+    let mut fs = Vec::new();
+    root.list_dir_full(&rel, &mut fs).unwrap();
+    assert_eq!(fs.last().map(String::as_str), Some("tmpfs"), "{point}");
 }
 
 #[test]

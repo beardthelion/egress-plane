@@ -6,7 +6,9 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use egress_core::destination as d;
-use egress_core::identity::{encode_path_bytes, encode_rel_path, finalize, hash_id, site_key};
+use egress_core::identity::{
+    encode_path_bytes, encode_rel_path, finalize, hash_id, key_with_version, site_key,
+};
 use egress_core::ir::LineIndex;
 use egress_core::json::to_json;
 use egress_core::model::{BlindSpotKind, Location, Report, Site};
@@ -240,6 +242,39 @@ fn unscanned_dependency_id_keys_on_language_and_package() {
         a.unscanned_dependencies[0].id,
         b.unscanned_dependencies[0].id
     );
+}
+
+#[test]
+fn versioned_keys_start_with_the_caller_tag() {
+    // A caller-supplied version tag produces a length-prefixed key whose
+    // first component is that tag, so a different tag namespace cannot
+    // collide with the code layer's ids (KTD10).
+    let components = vec![b"member".to_vec(), b"field".to_vec()];
+    let probe_key = key_with_version(b"egress-plane/probe-identity/v1", &components);
+    let code_key = key_with_version(b"egress-plane/identity/v1", &components);
+    assert_ne!(probe_key, code_key);
+    assert_ne!(hash_id(&probe_key), hash_id(&code_key));
+
+    // The private `join` used by site keys delegates with the code-layer
+    // tag: rebuilding a site key through the public function gives the
+    // identical bytes.
+    let r = finalized(vec![post(12)]);
+    let rebuilt = key_with_version(
+        b"egress-plane/identity/v1",
+        &[
+            b"site".to_vec(),
+            b"python".to_vec(),
+            b"src/notify.py".to_vec(),
+            b"send".to_vec(),
+            b"python:requests.post".to_vec(),
+            b"env".to_vec(),
+            b"WEBHOOK_URL".to_vec(),
+            vec![0],
+            b"0".to_vec(),
+        ],
+    );
+    assert_eq!(rebuilt, site_key(&r.sites[0]));
+    assert_eq!(r.sites[0].id, hash_id(&rebuilt));
 }
 
 #[test]
