@@ -297,8 +297,9 @@ const SENTINELS: [(&str, &str); 3] = [
     ("WEBHOOK_URL", "sentinel-webhook-7c41"),
 ];
 
-/// The binary spawns no subprocess and never reads a host
-/// environment value into its output.
+/// The `scan` subcommand spawns no subprocess and never reads a host
+/// environment value into its output (the guarantee is scan-scoped;
+/// probe_cli.rs covers the probe subcommand's own rules).
 #[test]
 fn must_not_spawn_tools_or_read_host_environment() {
     let t = Temp::new("traps");

@@ -279,7 +279,9 @@ checksum = "9bda8e21c04aca2ae33ffc2fd8c23134f3cac46db123ba97bd9d3f3b8a4a85e1"
 name = "egress-cli"
 version = "0.1.0"
 dependencies = [
+ "boon",
  "egress-core",
+ "egress-probe",
  "egress-scan",
  "libc",
  "serde_json",

@@ -463,6 +463,13 @@ pub fn to_json(report: &Report) -> String {
 /// unknown `budget-exceeded`; charging continues in declared order, so a
 /// later universe that still fits still renders (KTD18).
 pub fn to_json_bounded(report: &Report, budget: u64) -> String {
+    to_json_bounded_state(report, budget).0
+}
+
+/// [`to_json_bounded`] plus the completeness state the emitted report
+/// carries, so a caller can derive its exit code after budget
+/// replacement (a `budget-exceeded` unknown makes the run incomplete).
+pub fn to_json_bounded_state(report: &Report, budget: u64) -> (String, CompletenessState) {
     let mut r = report.clone();
     finalize(&mut r);
     let all: Vec<JUniverse> = r.universes.iter().map(j_universe).collect();
@@ -528,7 +535,7 @@ pub fn to_json_bounded(report: &Report, budget: u64) -> String {
         );
     }
     out.push('\n');
-    out
+    (out, r.completeness)
 }
 
 /// Replaces the members of every universe whose `keep` slot is false

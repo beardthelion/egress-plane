@@ -2,7 +2,7 @@
 
 egress-plane scans the first-party source of a Rust, Python, or JavaScript/TypeScript repository (or a mix of them) and reports every route by which that code can send data out of the process: network calls, process spawning, foreign-function and native code loads, and the equivalent routes each runtime offers. Where it cannot prove the account, it says so with a blind spot and a reason. The exit code tells you whether the account is complete.
 
-It is one static binary. It parses Python with ruff's parser, JavaScript and TypeScript with oxc, and Rust with syn, all in-process. It never runs the code it scans, spawns no subprocess (no `cargo`, `rustc`, `node`, `python`, `tsc`, or `git`), opens no network connection, and reads nothing outside the scan root.
+It is one static binary. It parses Python with ruff's parser, JavaScript and TypeScript with oxc, and Rust with syn, all in-process. It never runs the code it scans, spawns no subprocess (no `cargo`, `rustc`, `node`, `python`, `tsc`, or `git`), opens no network connection, and reads nothing outside the scan root. Those guarantees describe `scan`; the `probe` subcommand below has its own, narrower ones.
 
 ## Usage
 
@@ -98,6 +98,48 @@ A secret that matches none of these classes is not recognized and can appear in 
 - CommonJS exports are followed across files only in the direct forms written at module level: `module.exports = X`, `exports.name = X`, `module.exports.name = X`, and `module.exports = { name: X }`, where `X` is a `require` call, an imported module, or a member of one. Other forms, such as `Object.assign(module.exports, require("https"))`, a spread into the export object, a computed key, an export made inside a function, or an export object built in a local first, are reported only where the export is written: a module exported this way is an escape site there, but an importer's call through it is not reported as its own site. Exports are not ordered, so a later `module.exports = ...` is not taken to discard earlier `exports.name` assignments.
 - Destination resolution stays inside one function, plus module-level constants in the same file and constants imported from a first-party module. Anything further becomes a symbolic or `expr:` destination.
 - See also the runtime range, host, budget, caveat, and secret limits above.
+
+## Probing the environment
+
+`egress-plane probe` runs inside a container, agent sandbox, CI runner, or cloud VM and reports what a process there can see: egress routes (ways data can leave), escape routes (ways code can gain reach it should not have), and an explicit list of what it could not see.
+
+```sh
+egress-plane probe                          # text report (the default)
+egress-plane probe --format json            # JSON report
+egress-plane probe --nonce 5f3a             # echo a nonce into the report
+egress-plane probe --active --allow 10.0.0.8:443 --allow '[fd00::1]:53'
+```
+
+The default run is passive: it reads local state only and opens no socket, including no unix socket, and it never touches a path on a network or user-space filesystem, so it sends no traffic of any kind. `--active` adds bounded reachability checks and requires at least one `--allow` (`--allow` requires `--active`). A passive `probe` opens no network connection and spawns no subprocess; it does read environment variable *names* (never values), which is why the scan's no-environment-read guarantee does not extend to it.
+
+Exit codes match the scan report: 0 `complete`, 2 `incomplete`, 3 `empty` (no set could be enumerated at all), 1 tool error with nothing on stdout. The JSON schema is `schema/egress-probe.v1.json`, versioned like the scan schema, with `kind` `environment-probe`. The text report's sections, in order: Layers, Egress routes, Escape routes, Unknowns, Tamper indicators, Not observable, Not applicable, Unclassified, Inert counts, Active checks, Caveats.
+
+- An **unknown** is a source the probe tried to read and could not; each unknown makes the run incomplete. An **unclassified** member is one no declared rule matched; it is listed and does not change the state.
+- **Not observable** is a fixed list of sources no unprivileged process can read by design (seccomp filter contents, the current Landlock domain, firewall rules, the macOS bootstrap namespace). They are reported every run and do not change the state. **Not applicable** names the finite sets that do not exist on the host platform (Linux sets on macOS and vice versa); a macOS host has no process filesystem, and that is not a failure to read.
+- **Tamper indicators** come in two strengths. Strong (the probe is being traced, a kernel filesystem is not the expected type, the process filesystem describes another process) also produce an unknown, so the run is incomplete. Weak (loader variables such as `LD_PRELOAD`, `LD_AUDIT`, `LD_LIBRARY_PATH`, or an `/etc/ld.so.preload` file, which the static Linux build never consults) are listed only.
+
+### Trusting a probe report
+
+A report describes the probe's own context as that context presents itself; every report carries the `self-reported-context` caveat. No inside check can prove the launcher did not hand the probe a fabricated context (`unshare -rmn` with a crafted bind-mounted `/proc` produces an honest report of the wrong context), so a report is authentic only when the launch is trusted: the binary is supplied from outside and its hash checked, it is started through the same launch chain as the agent it stands in for (same wrapper, same sandbox arguments, same uid, same inherited descriptors), and stdout is captured outside. `docker exec` or `kubectl exec` reproduces the agent's context only when the agent is the container's direct process; an agent started under `bwrap`, a seatbelt profile, or another wrapper inside the container needs the probe started under that same wrapper.
+
+To check a report from outside, compare the probe's view with the agent's. The layer attributes carry the probe's namespace inode numbers (display-only; they never enter identity) and the `Seccomp`, `NoNewPrivs`, `CapInh`, `CapPrm`, `CapEff`, `CapBnd`, `CapAmb`, and `Uid` values the probe read from `proc/self/status`. Compare them with `/proc/<agent pid>/ns/*` and `/proc/<agent pid>/status` on the host. `--nonce HEX` (1 to 64 lowercase hex characters) is echoed into the `nonce` field and the text header so a captured report can be tied to one launch. The `source` field (`live` or `snapshot`) is informational only; it is not proof of a live run.
+
+Detected environments are listed as layers ordered by a fixed family rank (cloud VM, CI runner, container, sandbox), reported as `layer_order_basis: "family-rank"`. The order is a convention, not a measurement: a process inside cannot measure nesting, and a CI layer detected from environment names may in fact sit inside a container.
+
+### Reading the details
+
+- On Linux, home-relative credential checks resolve the home directory from the account file (`etc/passwd`), never from `HOME` or a name service; every Linux report carries the `home-from-account-database` caveat. A credential that lives under a `HOME` differing from the account's home is not checked. On macOS, v1 resolves no home directory, so every home-relative signal is an unknown with reason `no-account-home`.
+- A path on a network or user-space filesystem is never touched, not even for a metadata or access check: a `stat` or a directory read on NFS, CIFS, or FUSE is itself a remote call. The affected source reports an unknown with `network-filesystem-not-touched`; the mount itself is still listed from the mount table.
+- Identity uses stable fields only: process ids, descriptor numbers, ports, device numbers, mount ids, inode numbers, and counters are display-only and never enter an id.
+- Environment variable names, and file names inside credential directories, are emitted, but a name that matches a token-prefix class is redacted to `<redacted>`. Values never cross the reader.
+
+### Active mode
+
+`--allow` takes `IP:port` literals only: IPv4 `a.b.c.d:port` or IPv6 `[addr]:port`. Domain names are usage errors and are never resolved (resolving one is itself egress). Port 0, duplicate entries, and more than 16 entries are usage errors. Cloud metadata and other credential-bearing endpoints (the `169.254.0.0/16` block and the provider IPv6 metadata addresses, Azure WireServer, Alibaba metadata) plus unspecified, broadcast, and multicast addresses are always refused: the check is recorded as `refused-metadata-address` or `refused-special-address` and no socket is created. IPv4-mapped, IPv4-compatible, NAT64, and tunnel-embedded forms are canonicalized and refused the same way. Each remaining target gets one sequential non-blocking TCP connect bounded at 3 seconds, closed at once, with no payload; results are `connected`, `refused`, `timed-out`, `unreachable`, or `error:<errno name>`, recorded without timing values. Active checks never change the completeness state. Address translation inside the environment (a proxy or VPN carrying the connection elsewhere) cannot be prevented from inside; the exposure is bounded because a check sends no payload.
+
+### Build and scope notes
+
+The Linux release probe is a static `<arch>-unknown-linux-musl` build with no interpreter program header, so the dynamic loader never runs and `LD_PRELOAD`, `LD_AUDIT`, `LD_LIBRARY_PATH`, or a replaced libc cannot inject code; their names show up only as weak tamper indicators. A report is point-in-time: it describes what the probe observed at run time, not a standing guarantee about the environment.
 
 ## Building and testing
 

@@ -9,6 +9,7 @@
 //! and the snapshot reader, which exists only behind the `snapshot`
 //! feature so the released binary cannot replay a snapshot.
 
+pub mod active;
 pub mod classify;
 pub mod completeness;
 pub mod data;
@@ -18,6 +19,7 @@ pub mod identity;
 pub mod integrity;
 pub mod json;
 pub mod layers;
+pub mod live;
 pub mod model;
 pub mod reader;
 pub mod signals;
@@ -25,3 +27,4 @@ pub mod signals;
 pub mod snapshot;
 pub mod text;
 pub mod universe;
+pub mod watchdog;

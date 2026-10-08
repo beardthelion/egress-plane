@@ -4,6 +4,9 @@
 
 use std::path::{Path, PathBuf};
 
+use egress_probe::facts::Facts;
+use egress_probe::reader::{AccessMask, AccessResult, Denial, Meta, Mount, ReadLogEntry, Reader};
+
 /// Socket entry points `egress-probe` sources may never name outside
 /// `src/active.rs`.
 const SOCKET_NAMES: &[&str] = &[
@@ -94,13 +97,80 @@ fn passive_sources_name_no_socket_or_name_service() {
     assert!(violations.is_empty(), "{}", violations.join("\n"));
 }
 
-#[test]
-fn passive_mode_never_runs_an_active_check() {
-    // A passive run produces an empty active_checks section; the
-    // connector surface lives only in src/active.rs, which the guard
-    // above keeps empty until the active-mode unit lands.
-    let r = crate::common::report(vec![]);
-    assert!(r.active_checks.is_empty());
+/// A connector that counts its calls; passive mode must never reach it.
+struct Counting(usize);
+
+impl egress_probe::active::Connector for Counting {
+    fn connect(
+        &mut self,
+        _addr: &std::net::SocketAddr,
+        _timeout: std::time::Duration,
+    ) -> egress_probe::active::ConnectOutcome {
+        self.0 += 1;
+        egress_probe::active::ConnectOutcome::Connected
+    }
 }
 
-mod common;
+/// A reader that denies every call, enough to drive a pipeline pass.
+struct DenyReader(egress_probe::facts::Facts);
+
+impl Reader for DenyReader {
+    fn read(&mut self, _path: &[u8], _limit: u64) -> Result<Vec<u8>, Denial> {
+        Err(Denial::Absent)
+    }
+    fn list(&mut self, _path: &[u8]) -> Result<Vec<(Vec<u8>, Meta)>, Denial> {
+        Err(Denial::Absent)
+    }
+    fn metadata(&mut self, _path: &[u8]) -> Result<Meta, Denial> {
+        Err(Denial::Absent)
+    }
+    fn access(&mut self, _path: &[u8], _mask: AccessMask) -> Result<AccessResult, Denial> {
+        Err(Denial::Absent)
+    }
+    fn readlink(&mut self, _path: &[u8]) -> Result<Vec<u8>, Denial> {
+        Err(Denial::Absent)
+    }
+    fn signal_metadata(&mut self, path: &[u8]) -> Result<Meta, Denial> {
+        self.metadata(path)
+    }
+    fn signal_access(&mut self, path: &[u8], mask: AccessMask) -> Result<AccessResult, Denial> {
+        self.access(path, mask)
+    }
+    fn facts(&self) -> &Facts {
+        &self.0
+    }
+    fn read_log(&self) -> &[ReadLogEntry] {
+        &[]
+    }
+    fn arm_mounts(&mut self, _mounts: Vec<Mount>) {}
+    fn mounts_unknown(&mut self) {}
+    fn accepted_ancestor_pidns(&self) -> bool {
+        false
+    }
+}
+
+#[test]
+fn passive_mode_never_runs_an_active_check() {
+    // The counting fake proves the active module is never invoked on a
+    // passive run: a full pipeline pass over it produces an empty
+    // active_checks section and zero connector calls (KTD7).
+    let data = egress_probe::data::Data::embedded().unwrap();
+    let mut reader = DenyReader(egress_probe::facts::Facts::default());
+    let request = egress_probe::live::Request {
+        mode: egress_probe::model::Mode::Passive,
+        nonce: None,
+        targets: Vec::new(),
+        output: egress_probe::live::Output::Json,
+    };
+    let mut counting = Counting(0);
+    let rendered = egress_probe::live::run_with(
+        &mut reader,
+        &data,
+        egress_probe::model::Source::Snapshot,
+        &request,
+        &mut counting,
+    );
+    assert_eq!(counting.0, 0, "a passive run reached the connector");
+    let json: serde_json::Value = serde_json::from_str(&rendered.output).unwrap();
+    assert_eq!(json["active_checks"], serde_json::json!([]));
+}
