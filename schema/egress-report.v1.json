@@ -176,6 +176,23 @@
             "items": {
               "type": "string"
             }
+          },
+          "reason": {
+            "$ref": "#/$defs/unscanned_reason"
+          },
+          "distribution": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "distribution_source": {
+            "$ref": "#/$defs/distribution_source"
+          },
+          "mark": {
+            "$ref": "#/$defs/mark"
           }
         }
       }
@@ -206,6 +223,133 @@
               "broken-symlink",
               "symlink-hop-limit"
             ]
+          }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "roots",
+        "packages"
+      ],
+      "properties": {
+        "roots": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "label",
+              "kind"
+            ],
+            "properties": {
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "kind": {
+                "enum": [
+                  "npm",
+                  "python",
+                  "cargo-vendor",
+                  "cargo-registry",
+                  "cargo-git"
+                ]
+              }
+            }
+          }
+        },
+        "caveats": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "budget_exceeded": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "packages",
+              "files",
+              "bytes",
+              "findings",
+              "resolver-steps",
+              "inventory-entries"
+            ]
+          }
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "lockfile",
+              "problem"
+            ],
+            "properties": {
+              "lockfile": {
+                "type": "string",
+                "minLength": 1
+              },
+              "problem": {
+                "enum": [
+                  "parse-error",
+                  "unknown-version",
+                  "too-large",
+                  "unreadable"
+                ]
+              }
+            }
+          }
+        },
+        "auto_run": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "root",
+              "file",
+              "trigger",
+              "distribution"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/id"
+              },
+              "root": {
+                "type": "string",
+                "minLength": 1
+              },
+              "file": {
+                "type": "string",
+                "minLength": 1
+              },
+              "trigger": {
+                "enum": [
+                  "pth-import-line",
+                  "sitecustomize",
+                  "usercustomize"
+                ]
+              },
+              "distribution": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "packages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependency_package"
           }
         }
       }
@@ -470,6 +614,202 @@
         },
         "location": {
           "$ref": "#/$defs/location"
+        }
+      }
+    },
+    "unscanned_reason": {
+      "enum": [
+        "no-source-in-named-root",
+        "version-mismatch",
+        "archive-only-install",
+        "unsupported-layout",
+        "dependency-budget-exhausted",
+        "lockfile-unreadable",
+        "unlocked-shared-cache"
+      ]
+    },
+    "distribution_source": {
+      "enum": [
+        "installed-metadata",
+        "curated"
+      ]
+    },
+    "mark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rules",
+        "resembles"
+      ],
+      "properties": {
+        "rules": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "confusable-skeleton",
+              "mixed-script",
+              "non-ascii-name"
+            ]
+          }
+        },
+        "resembles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "imports_unscanned": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "language",
+        "package",
+        "reason"
+      ],
+      "properties": {
+        "language": {
+          "$ref": "#/$defs/language"
+        },
+        "package": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "$ref": "#/$defs/unscanned_reason"
+        },
+        "distribution": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "distribution_source": {
+          "$ref": "#/$defs/distribution_source"
+        },
+        "mark": {
+          "$ref": "#/$defs/mark"
+        }
+      }
+    },
+    "dependency_package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "language",
+        "package",
+        "root",
+        "locator",
+        "version",
+        "strength",
+        "imported_by",
+        "imported_by_packages",
+        "state",
+        "coverage",
+        "sites",
+        "blind_spots",
+        "imports_unscanned"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "language": {
+          "$ref": "#/$defs/language"
+        },
+        "package": {
+          "type": "string",
+          "minLength": 1
+        },
+        "root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string"
+        },
+        "strength": {
+          "enum": [
+            "checksum-verified",
+            "version-matched",
+            "unlocked"
+          ]
+        },
+        "modified": {
+          "const": true
+        },
+        "linked": {
+          "const": true
+        },
+        "catalogued": {
+          "const": true
+        },
+        "distribution": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "distribution_source": {
+          "$ref": "#/$defs/distribution_source"
+        },
+        "mark": {
+          "$ref": "#/$defs/mark"
+        },
+        "imported_by": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "imported_by_packages": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        },
+        "state": {
+          "enum": [
+            "complete",
+            "incomplete",
+            "empty"
+          ]
+        },
+        "coverage": {
+          "$ref": "#/$defs/counts"
+        },
+        "sites": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/site"
+          }
+        },
+        "blind_spots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/blind_spot"
+          }
+        },
+        "imports_unscanned": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/imports_unscanned"
+          }
         }
       }
     }

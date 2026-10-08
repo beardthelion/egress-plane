@@ -108,6 +108,7 @@ fn findings_budget_keeps_the_first_findings_in_identity_order() {
             .to_vec(),
         unscanned_dependencies: vec![],
         excluded: vec![],
+        dependencies: None,
     };
     egress_core::identity::finalize(&mut r);
     let mut first = r.clone();

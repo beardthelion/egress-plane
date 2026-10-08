@@ -7,11 +7,15 @@ use std::path::{Path, PathBuf};
 
 use egress_core::destination as d;
 use egress_core::identity::{
+    auto_run_key, dependency_blind_spot_key, dependency_key, dependency_site_key,
     encode_path_bytes, encode_rel_path, finalize, hash_id, key_with_version, site_key,
 };
 use egress_core::ir::LineIndex;
 use egress_core::json::to_json;
-use egress_core::model::{BlindSpotKind, Location, Report, Site};
+use egress_core::model::{
+    AutoRun, AutoRunTrigger, BlindSpotKind, DependencyPackage, DependencySection, Location, Report,
+    Site,
+};
 
 fn ids(r: &Report) -> BTreeSet<String> {
     r.sites.iter().map(|s| s.id.clone()).collect()
@@ -275,6 +279,222 @@ fn versioned_keys_start_with_the_caller_tag() {
     );
     assert_eq!(rebuilt, site_key(&r.sites[0]));
     assert_eq!(r.sites[0].id, hash_id(&rebuilt));
+}
+
+fn section_with(packages: Vec<DependencyPackage>) -> DependencySection {
+    DependencySection {
+        roots: vec![],
+        caveats: vec![],
+        budget_exceeded: vec![],
+        diagnostics: vec![],
+        auto_run: vec![],
+        packages,
+    }
+}
+
+fn dep_report(packages: Vec<DependencyPackage>) -> Report {
+    let mut r = common::report(vec![], vec![]);
+    r.dependencies = Some(section_with(packages));
+    finalize(&mut r);
+    r
+}
+
+fn site_ids(r: &Report) -> BTreeSet<String> {
+    r.dependencies.as_ref().unwrap().packages[0]
+        .sites
+        .iter()
+        .map(|s| s.id.clone())
+        .collect()
+}
+
+#[test]
+fn version_is_emitted_but_never_hashed() {
+    // AE6: bumping the installed version changes only the version fields.
+    let mut old = common::dependency_package();
+    old.version = "1.2.0".into();
+    let mut new = old.clone();
+    new.version = "1.2.1".into();
+    let a = dep_report(vec![old]);
+    let b = dep_report(vec![new]);
+    let (pa, pb) = (
+        &a.dependencies.as_ref().unwrap().packages[0],
+        &b.dependencies.as_ref().unwrap().packages[0],
+    );
+    assert_eq!(pa.id, pb.id);
+    assert_eq!(site_ids(&a), site_ids(&b));
+    let ba: BTreeSet<&str> = pa.blind_spots.iter().map(|b| b.id.as_str()).collect();
+    let bb: BTreeSet<&str> = pb.blind_spots.iter().map(|b| b.id.as_str()).collect();
+    assert_eq!(ba, bb);
+    // The public key builders agree with the ids finalize assigned.
+    assert_eq!(pa.id, hash_id(&dependency_key(pa)));
+    assert_eq!(
+        pa.sites[0].id,
+        hash_id(&dependency_site_key(pa, &pa.sites[0]))
+    );
+    assert_eq!(
+        pa.blind_spots[0].id,
+        hash_id(&dependency_blind_spot_key(pa, &pa.blind_spots[0]))
+    );
+    assert!(to_json(&a).contains("\"version\": \"1.2.0\""));
+    assert!(to_json(&b).contains("\"version\": \"1.2.1\""));
+}
+
+#[test]
+fn every_dependency_site_identity_component_changes_the_id() {
+    let base = dep_report(vec![common::dependency_package()]);
+    let base_ids = site_ids(&base);
+    // Root label and locator carry the install instance, never the
+    // absolute path or the version.
+    let edits: [fn(&mut DependencyPackage); 7] = [
+        |p| p.root = "other-root".into(),
+        |p| p.locator = "other/locator".into(),
+        |p| p.package = "other-package".into(),
+        |p| p.language = egress_core::model::Language::Javascript,
+        |p| p.sites[0].file = "requests/other.py".into(),
+        |p| p.sites[0].symbol = "other".into(),
+        |p| p.sites[0].mechanism = "python:urllib.request.urlopen".into(),
+    ];
+    let variants: Vec<DependencyPackage> = edits
+        .into_iter()
+        .map(|f| {
+            let mut p = common::dependency_package();
+            f(&mut p);
+            p
+        })
+        .collect();
+    for v in &variants {
+        let r = dep_report(vec![v.clone()]);
+        assert_ne!(site_ids(&r), base_ids, "{v:?}");
+    }
+    // Non-identity fields leave the id alone.
+    let mut same = common::dependency_package();
+    same.version = "9.9.9".into();
+    same.strength = egress_core::model::VerificationStrength::Unlocked;
+    same.sites[0].location = Some(Location {
+        line: 99,
+        column: 1,
+    });
+    let r = dep_report(vec![same]);
+    assert_eq!(site_ids(&r), base_ids);
+}
+
+#[test]
+fn identical_dependency_sites_separate_by_ordinal() {
+    let mut p = common::dependency_package();
+    let one = p.sites[0].clone();
+    let mut two = one.clone();
+    two.location = Some(Location {
+        line: 40,
+        column: 1,
+    });
+    p.sites = vec![two, one];
+    let r = dep_report(vec![p]);
+    let sites = &r.dependencies.as_ref().unwrap().packages[0].sites;
+    assert_eq!(sites.len(), 2);
+    // Ordinals follow source position; the earlier site takes ordinal 0.
+    assert_eq!(sites[0].ordinal, 0);
+    assert_eq!(sites[0].location.unwrap().line, 20);
+    assert_eq!(sites[1].ordinal, 1);
+    assert_ne!(sites[0].id, sites[1].id);
+}
+
+#[test]
+fn must_not_hash_absolute_root_path() {
+    // Two roots at different absolute locations outside the scan root share
+    // the kind-name label; identical entries under them take identical ids.
+    let mut a = common::dependency_package();
+    a.root = "python".into();
+    let mut b = a.clone();
+    b.version = "0.0.0".into();
+    let ra = dep_report(vec![a]);
+    let rb = dep_report(vec![b]);
+    assert_eq!(
+        ra.dependencies.as_ref().unwrap().packages[0].id,
+        rb.dependencies.as_ref().unwrap().packages[0].id
+    );
+    assert_eq!(site_ids(&ra), site_ids(&rb));
+    // A different label is a different instance.
+    let mut c = common::dependency_package();
+    c.root = "deps/venv".into();
+    let rc = dep_report(vec![c]);
+    assert_ne!(site_ids(&ra), site_ids(&rc));
+}
+
+#[test]
+fn dependency_site_and_first_party_site_ids_differ() {
+    let first_party = common::site(
+        "requests/api.py",
+        "api.get",
+        "python:requests.get",
+        d::literal("https://a.example"),
+        9,
+    );
+    let mut pkg = common::dependency_package();
+    pkg.sites = vec![first_party.clone()];
+    pkg.blind_spots = vec![];
+    let mut r = common::report(vec![first_party], vec![]);
+    r.dependencies = Some(section_with(vec![pkg]));
+    finalize(&mut r);
+    let dep_id = r.dependencies.as_ref().unwrap().packages[0].sites[0]
+        .id
+        .clone();
+    assert_ne!(r.sites[0].id, dep_id);
+    // The `dependency-site` tag also separates a dependency blind spot from
+    // a dependency site on the same file.
+    let mut pkg = common::dependency_package();
+    pkg.sites = vec![];
+    pkg.blind_spots = vec![common::blind(
+        "requests/api.py",
+        "api.get",
+        BlindSpotKind::DynamicCode,
+        "eval(x)",
+        9,
+    )];
+    let r2 = dep_report(vec![pkg]);
+    let blind_id = r2.dependencies.as_ref().unwrap().packages[0].blind_spots[0]
+        .id
+        .clone();
+    assert_ne!(blind_id, dep_id);
+}
+
+#[test]
+fn auto_run_id_keys_on_label_file_and_trigger() {
+    let auto = |file: &str, trigger: AutoRunTrigger| AutoRun {
+        id: String::new(),
+        root: "deps/venv".into(),
+        file: file.into(),
+        trigger,
+        distribution: "setuptools".into(),
+    };
+    let mut sec = section_with(vec![]);
+    sec.auto_run = vec![auto("b.pth", AutoRunTrigger::PthImportLine)];
+    let mut r = common::report(vec![], vec![]);
+    r.dependencies = Some(sec);
+    finalize(&mut r);
+    let base = r.dependencies.as_ref().unwrap().auto_run[0].id.clone();
+    assert_eq!(
+        base,
+        hash_id(&auto_run_key(&r.dependencies.as_ref().unwrap().auto_run[0]))
+    );
+
+    let variant = |f: &dyn Fn(&mut AutoRun)| {
+        let mut sec = section_with(vec![]);
+        let mut a = auto("b.pth", AutoRunTrigger::PthImportLine);
+        f(&mut a);
+        sec.auto_run = vec![a];
+        let mut r = common::report(vec![], vec![]);
+        r.dependencies = Some(sec);
+        finalize(&mut r);
+        r.dependencies.unwrap().auto_run[0].id.clone()
+    };
+    assert_ne!(variant(&|a| a.root = "other".into()), base);
+    assert_ne!(variant(&|a| a.file = "c.pth".into()), base);
+    assert_ne!(
+        variant(&|a| a.trigger = AutoRunTrigger::Sitecustomize),
+        base
+    );
+    // The attributed distribution is emitted, never hashed.
+    assert_eq!(variant(&|a| a.distribution = "other".into()), base);
 }
 
 #[test]

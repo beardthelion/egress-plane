@@ -21,6 +21,8 @@ pub struct Report {
     pub blind_spots: Vec<BlindSpot>,
     pub unscanned_dependencies: Vec<UnscannedDependency>,
     pub excluded: Vec<Excluded>,
+    /// Dependency scan results; present only when a dependency root is named.
+    pub dependencies: Option<DependencySection>,
 }
 
 impl Report {
@@ -460,6 +462,382 @@ pub struct UnscannedDependency {
     pub package: String,
     /// Sorted repo-relative files that import it.
     pub files: Vec<String>,
+    /// Why it stayed unscanned; set only in dependency mode.
+    pub reason: Option<UnscannedReason>,
+    /// Declaring Python distributions, sorted.
+    pub distribution: Vec<String>,
+    pub distribution_source: Option<DistributionSource>,
+    pub mark: Option<DependencyMark>,
+}
+
+/// The dependency section: results of scanning named dependency roots.
+/// Present only when at least one dependency root is named on the command
+/// line; its findings never enter the first-party collections.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DependencySection {
+    /// Every root the scan used, sorted by label then kind.
+    pub roots: Vec<DependencyRoot>,
+    /// Dependency-scope caveat ids, sorted.
+    pub caveats: Vec<String>,
+    /// Each exhausted dependency budget, sorted.
+    pub budget_exceeded: Vec<DependencyBudgetReason>,
+    /// Lockfiles that could not be used, sorted by path then problem.
+    pub diagnostics: Vec<LockfileDiagnostic>,
+    /// Installed files that run without an import, sorted.
+    pub auto_run: Vec<AutoRun>,
+    /// Scanned and linked package entries, sorted by identity.
+    pub packages: Vec<DependencyPackage>,
+}
+
+/// A named dependency root as the report labels it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DependencyRoot {
+    /// Path relative to the scan root for a root inside it, else the kind
+    /// name. Never an absolute path.
+    pub label: String,
+    pub kind: DependencyRootKind,
+}
+
+/// Kind of a named dependency root, from its marker files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DependencyRootKind {
+    Npm,
+    Python,
+    CargoVendor,
+    CargoRegistry,
+    CargoGit,
+}
+
+impl DependencyRootKind {
+    pub const ALL: [DependencyRootKind; 5] = [
+        Self::Npm,
+        Self::Python,
+        Self::CargoVendor,
+        Self::CargoRegistry,
+        Self::CargoGit,
+    ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Npm => "npm",
+            Self::Python => "python",
+            Self::CargoVendor => "cargo-vendor",
+            Self::CargoRegistry => "cargo-registry",
+            Self::CargoGit => "cargo-git",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.as_str() == s)
+    }
+}
+
+/// One installed package instance, scanned or linked.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DependencyPackage {
+    pub id: String,
+    pub language: Language,
+    pub package: String,
+    /// Label of the named root holding this instance.
+    pub root: String,
+    /// Name chain from the root to the instance; version-free except for
+    /// the `#<n>` rank suffix on multiply-installed Cargo names.
+    pub locator: String,
+    /// Installed version; emitted, never hashed.
+    pub version: String,
+    pub strength: VerificationStrength,
+    /// A per-file install hash differed or a file was missing or unlisted.
+    pub modified: bool,
+    /// Inside a root the first-party scan already covers; carries no
+    /// findings or importers.
+    pub linked: bool,
+    /// Catalogued package reached through an uncatalogued member.
+    pub catalogued: bool,
+    /// Declaring Python distributions, sorted.
+    pub distribution: Vec<String>,
+    pub distribution_source: Option<DistributionSource>,
+    pub mark: Option<DependencyMark>,
+    /// Sorted first-party files that import it.
+    pub imported_by: Vec<String>,
+    /// Sorted ids of package entries that import it.
+    pub imported_by_packages: Vec<String>,
+    /// The package's own completeness state; never feeds the top-level state.
+    pub state: CompletenessState,
+    pub coverage: CoverageCounts,
+    /// Sites and blind spots in the package's source; `file` is relative to
+    /// the package.
+    pub sites: Vec<Site>,
+    pub blind_spots: Vec<BlindSpot>,
+    /// Packages its code imports that stayed unscanned, with reasons.
+    pub imports_unscanned: Vec<ImportsUnscanned>,
+}
+
+/// A package imported only by dependency code that stayed unscanned.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportsUnscanned {
+    pub language: Language,
+    pub package: String,
+    pub reason: UnscannedReason,
+    /// Declaring Python distributions, sorted.
+    pub distribution: Vec<String>,
+    pub distribution_source: Option<DistributionSource>,
+    pub mark: Option<DependencyMark>,
+}
+
+/// A fixed reason an imported dependency stayed unscanned.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum UnscannedReason {
+    /// No named root holds the instance the import reaches.
+    NoSourceInNamedRoot,
+    /// The governing lockfile does not lock the installed version.
+    VersionMismatch,
+    /// Only an archive form exists (Yarn PnP, `.egg`, packed wheel).
+    ArchiveOnlyInstall,
+    /// A layout the scanner does not support, or metadata it cannot use.
+    UnsupportedLayout,
+    DependencyBudgetExhausted,
+    LockfileUnreadable,
+    /// A Cargo registry or git cache with no governing `Cargo.lock`.
+    UnlockedSharedCache,
+}
+
+impl UnscannedReason {
+    pub const ALL: [UnscannedReason; 7] = [
+        Self::NoSourceInNamedRoot,
+        Self::VersionMismatch,
+        Self::ArchiveOnlyInstall,
+        Self::UnsupportedLayout,
+        Self::DependencyBudgetExhausted,
+        Self::LockfileUnreadable,
+        Self::UnlockedSharedCache,
+    ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NoSourceInNamedRoot => "no-source-in-named-root",
+            Self::VersionMismatch => "version-mismatch",
+            Self::ArchiveOnlyInstall => "archive-only-install",
+            Self::UnsupportedLayout => "unsupported-layout",
+            Self::DependencyBudgetExhausted => "dependency-budget-exhausted",
+            Self::LockfileUnreadable => "lockfile-unreadable",
+            Self::UnlockedSharedCache => "unlocked-shared-cache",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.as_str() == s)
+    }
+}
+
+/// How far the installed source was verified against the lockfile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum VerificationStrength {
+    /// Locked version matched and per-file install hashes checked.
+    ChecksumVerified,
+    /// Locked version matched; no per-file hashes exist for this root kind.
+    VersionMatched,
+    /// No supported lockfile governs the import.
+    Unlocked,
+}
+
+impl VerificationStrength {
+    pub const ALL: [VerificationStrength; 3] =
+        [Self::ChecksumVerified, Self::VersionMatched, Self::Unlocked];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ChecksumVerified => "checksum-verified",
+            Self::VersionMatched => "version-matched",
+            Self::Unlocked => "unlocked",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.as_str() == s)
+    }
+}
+
+/// A name-signal mark on a dependency name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DependencyMark {
+    /// Sorted rules that fired.
+    pub rules: Vec<MarkRule>,
+    /// Sorted names the marked name resembles.
+    pub resembles: Vec<String>,
+}
+
+/// Why a dependency name was marked.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum MarkRule {
+    /// Non-ASCII name whose confusable skeleton equals another name's.
+    ConfusableSkeleton,
+    /// Python import name that fails the single-script test.
+    MixedScript,
+    /// npm or Cargo name holding a non-ASCII character.
+    NonAsciiName,
+}
+
+impl MarkRule {
+    pub const ALL: [MarkRule; 3] = [
+        Self::ConfusableSkeleton,
+        Self::MixedScript,
+        Self::NonAsciiName,
+    ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ConfusableSkeleton => "confusable-skeleton",
+            Self::MixedScript => "mixed-script",
+            Self::NonAsciiName => "non-ascii-name",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.as_str() == s)
+    }
+}
+
+/// Where a Python import name's declaring distribution came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DistributionSource {
+    /// Installed `RECORD` or `top_level.txt` metadata in a named root.
+    InstalledMetadata,
+    /// The embedded curated table.
+    Curated,
+}
+
+impl DistributionSource {
+    pub const ALL: [DistributionSource; 2] = [Self::InstalledMetadata, Self::Curated];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::InstalledMetadata => "installed-metadata",
+            Self::Curated => "curated",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.as_str() == s)
+    }
+}
+
+/// An installed file that runs without being imported.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AutoRun {
+    pub id: String,
+    /// Label of the named root holding the file.
+    pub root: String,
+    /// File relative to the import root.
+    pub file: String,
+    pub trigger: AutoRunTrigger,
+    /// Installing distribution, or `unattributed` when no `RECORD` lists it.
+    pub distribution: String,
+}
+
+/// What makes an installed file auto-run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum AutoRunTrigger {
+    /// A `.pth` file holding a line that starts with `import`.
+    PthImportLine,
+    Sitecustomize,
+    Usercustomize,
+}
+
+impl AutoRunTrigger {
+    pub const ALL: [AutoRunTrigger; 3] = [
+        Self::PthImportLine,
+        Self::Sitecustomize,
+        Self::Usercustomize,
+    ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::PthImportLine => "pth-import-line",
+            Self::Sitecustomize => "sitecustomize",
+            Self::Usercustomize => "usercustomize",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.as_str() == s)
+    }
+}
+
+/// A lockfile the scan could not use, reported repo-relative.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LockfileDiagnostic {
+    /// Repo-relative path of the lockfile.
+    pub lockfile: String,
+    pub problem: LockfileProblem,
+}
+
+/// Why a governing lockfile could not be used.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum LockfileProblem {
+    ParseError,
+    UnknownVersion,
+    TooLarge,
+    Unreadable,
+}
+
+impl LockfileProblem {
+    pub const ALL: [LockfileProblem; 4] = [
+        Self::ParseError,
+        Self::UnknownVersion,
+        Self::TooLarge,
+        Self::Unreadable,
+    ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::ParseError => "parse-error",
+            Self::UnknownVersion => "unknown-version",
+            Self::TooLarge => "too-large",
+            Self::Unreadable => "unreadable",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.as_str() == s)
+    }
+}
+
+/// A dependency budget that ran out during selection, inventory, or a
+/// per-package pass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DependencyBudgetReason {
+    Packages,
+    Files,
+    Bytes,
+    Findings,
+    ResolverSteps,
+    InventoryEntries,
+}
+
+impl DependencyBudgetReason {
+    pub const ALL: [DependencyBudgetReason; 6] = [
+        Self::Packages,
+        Self::Files,
+        Self::Bytes,
+        Self::Findings,
+        Self::ResolverSteps,
+        Self::InventoryEntries,
+    ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Packages => "packages",
+            Self::Files => "files",
+            Self::Bytes => "bytes",
+            Self::Findings => "findings",
+            Self::ResolverSteps => "resolver-steps",
+            Self::InventoryEntries => "inventory-entries",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.as_str() == s)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -564,6 +942,31 @@ mod tests {
         for l in Language::ALL {
             assert_eq!(Language::parse(l.as_str()), Some(l));
         }
+        for r in UnscannedReason::ALL {
+            assert_eq!(UnscannedReason::parse(r.as_str()), Some(r));
+        }
+        for s in VerificationStrength::ALL {
+            assert_eq!(VerificationStrength::parse(s.as_str()), Some(s));
+        }
+        for m in MarkRule::ALL {
+            assert_eq!(MarkRule::parse(m.as_str()), Some(m));
+        }
+        for s in DistributionSource::ALL {
+            assert_eq!(DistributionSource::parse(s.as_str()), Some(s));
+        }
+        for t in AutoRunTrigger::ALL {
+            assert_eq!(AutoRunTrigger::parse(t.as_str()), Some(t));
+        }
+        for p in LockfileProblem::ALL {
+            assert_eq!(LockfileProblem::parse(p.as_str()), Some(p));
+        }
+        for b in DependencyBudgetReason::ALL {
+            assert_eq!(DependencyBudgetReason::parse(b.as_str()), Some(b));
+        }
+        for k in DependencyRootKind::ALL {
+            assert_eq!(DependencyRootKind::parse(k.as_str()), Some(k));
+        }
         assert_eq!(BlindSpotKind::parse("nope"), None);
+        assert_eq!(UnscannedReason::parse("nope"), None);
     }
 }

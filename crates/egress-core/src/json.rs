@@ -23,6 +23,8 @@ struct JReport<'a> {
     blind_spots: Vec<JBlindSpot<'a>>,
     unscanned_dependencies: Vec<JUnscanned<'a>>,
     excluded: Vec<JExcluded<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dependencies: Option<JDependencies<'a>>,
 }
 
 #[derive(Serialize)]
@@ -137,6 +139,102 @@ struct JUnscanned<'a> {
     language: &'static str,
     package: &'a str,
     files: &'a [String],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reason: Option<&'static str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    distribution: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    distribution_source: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mark: Option<JMark>,
+}
+
+#[derive(Serialize)]
+struct JMark {
+    rules: Vec<&'static str>,
+    resembles: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct JDependencies<'a> {
+    roots: Vec<JRoot>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    caveats: Vec<&'a str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    budget_exceeded: Vec<&'static str>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    diagnostics: Vec<JDiagnostic<'a>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    auto_run: Vec<JAutoRun<'a>>,
+    packages: Vec<JPackage<'a>>,
+}
+
+#[derive(Serialize)]
+struct JRoot {
+    label: String,
+    kind: &'static str,
+}
+
+#[derive(Serialize)]
+struct JDiagnostic<'a> {
+    lockfile: &'a str,
+    problem: &'static str,
+}
+
+#[derive(Serialize)]
+struct JAutoRun<'a> {
+    id: &'a str,
+    root: String,
+    file: String,
+    trigger: &'static str,
+    distribution: String,
+}
+
+fn is_false(b: &bool) -> bool {
+    !*b
+}
+
+#[derive(Serialize)]
+struct JPackage<'a> {
+    id: &'a str,
+    language: &'static str,
+    package: String,
+    root: String,
+    locator: String,
+    version: String,
+    strength: &'static str,
+    #[serde(skip_serializing_if = "is_false")]
+    modified: bool,
+    #[serde(skip_serializing_if = "is_false")]
+    linked: bool,
+    #[serde(skip_serializing_if = "is_false")]
+    catalogued: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    distribution: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    distribution_source: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mark: Option<JMark>,
+    imported_by: &'a [String],
+    imported_by_packages: &'a [String],
+    state: &'static str,
+    coverage: JCounts,
+    sites: Vec<JSite<'a>>,
+    blind_spots: Vec<JBlindSpot<'a>>,
+    imports_unscanned: Vec<JImportsUnscanned>,
+}
+
+#[derive(Serialize)]
+struct JImportsUnscanned {
+    language: &'static str,
+    package: String,
+    reason: &'static str,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    distribution: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    distribution_source: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mark: Option<JMark>,
 }
 
 #[derive(Serialize)]
@@ -158,6 +256,91 @@ fn path_field(display: &str, bytes: Option<&str>) -> String {
 
 fn labels(l: &[model::Label]) -> Vec<&'static str> {
     l.iter().map(|l| l.as_str()).collect()
+}
+
+fn jsite(s: &model::Site) -> JSite<'_> {
+    JSite {
+        id: &s.id,
+        language: s.language.as_str(),
+        file: path_field(&s.file, s.file_bytes.as_deref()),
+        file_bytes: s.file_bytes.as_deref(),
+        symbol: &s.symbol,
+        bucket: s.bucket.as_str(),
+        mechanism: &s.mechanism,
+        destination: JDestination {
+            kind: s.destination.kind.as_str(),
+            value: &s.destination.value,
+            default: s.destination.default.as_deref(),
+            display: escape(&s.destination.display),
+        },
+        ordinal: s.ordinal,
+        labels: labels(&s.labels),
+        location: location(s.location),
+    }
+}
+
+fn jblind(b: &model::BlindSpot) -> JBlindSpot<'_> {
+    JBlindSpot {
+        id: &b.id,
+        language: b.language.map(|l| l.as_str()),
+        file: path_field(&b.file, b.file_bytes.as_deref()),
+        file_bytes: b.file_bytes.as_deref(),
+        symbol: &b.symbol,
+        kind: b.kind.as_str(),
+        whole_file: b.whole_file,
+        coverage_gap: b.coverage_gap,
+        construct: escape(&b.construct),
+        ordinal: b.ordinal,
+        labels: labels(&b.labels),
+        location: location(b.location),
+    }
+}
+
+fn jmark(m: &model::DependencyMark) -> JMark {
+    JMark {
+        rules: m.rules.iter().map(|r| r.as_str()).collect(),
+        resembles: m.resembles.iter().map(|r| escape(r)).collect(),
+    }
+}
+
+fn jdistribution(d: &[String]) -> Vec<String> {
+    d.iter().map(|s| escape(s)).collect()
+}
+
+fn jpackage(p: &model::DependencyPackage) -> JPackage<'_> {
+    JPackage {
+        id: &p.id,
+        language: p.language.as_str(),
+        package: escape(&p.package),
+        root: escape(&p.root),
+        locator: escape(&p.locator),
+        version: escape(&p.version),
+        strength: p.strength.as_str(),
+        modified: p.modified,
+        linked: p.linked,
+        catalogued: p.catalogued,
+        distribution: jdistribution(&p.distribution),
+        distribution_source: p.distribution_source.map(|s| s.as_str()),
+        mark: p.mark.as_ref().map(jmark),
+        imported_by: &p.imported_by,
+        imported_by_packages: &p.imported_by_packages,
+        state: p.state.as_str(),
+        coverage: p.coverage.into(),
+        sites: p.sites.iter().map(jsite).collect(),
+        blind_spots: p.blind_spots.iter().map(jblind).collect(),
+        imports_unscanned: p
+            .imports_unscanned
+            .iter()
+            .map(|u| JImportsUnscanned {
+                language: u.language.as_str(),
+                package: escape(&u.package),
+                reason: u.reason.as_str(),
+                distribution: jdistribution(&u.distribution),
+                distribution_source: u.distribution_source.map(|s| s.as_str()),
+                mark: u.mark.as_ref().map(jmark),
+            })
+            .collect(),
+    }
 }
 
 /// Serializes `report` after [`finalize`] on a copy, so the output does not
@@ -201,46 +384,8 @@ pub fn to_json(report: &Report) -> String {
                 text: &c.text,
             })
             .collect(),
-        sites: r
-            .sites
-            .iter()
-            .map(|s| JSite {
-                id: &s.id,
-                language: s.language.as_str(),
-                file: path_field(&s.file, s.file_bytes.as_deref()),
-                file_bytes: s.file_bytes.as_deref(),
-                symbol: &s.symbol,
-                bucket: s.bucket.as_str(),
-                mechanism: &s.mechanism,
-                destination: JDestination {
-                    kind: s.destination.kind.as_str(),
-                    value: &s.destination.value,
-                    default: s.destination.default.as_deref(),
-                    display: escape(&s.destination.display),
-                },
-                ordinal: s.ordinal,
-                labels: labels(&s.labels),
-                location: location(s.location),
-            })
-            .collect(),
-        blind_spots: r
-            .blind_spots
-            .iter()
-            .map(|b| JBlindSpot {
-                id: &b.id,
-                language: b.language.map(|l| l.as_str()),
-                file: path_field(&b.file, b.file_bytes.as_deref()),
-                file_bytes: b.file_bytes.as_deref(),
-                symbol: &b.symbol,
-                kind: b.kind.as_str(),
-                whole_file: b.whole_file,
-                coverage_gap: b.coverage_gap,
-                construct: escape(&b.construct),
-                ordinal: b.ordinal,
-                labels: labels(&b.labels),
-                location: location(b.location),
-            })
-            .collect(),
+        sites: r.sites.iter().map(jsite).collect(),
+        blind_spots: r.blind_spots.iter().map(jblind).collect(),
         unscanned_dependencies: r
             .unscanned_dependencies
             .iter()
@@ -249,6 +394,10 @@ pub fn to_json(report: &Report) -> String {
                 language: d.language.as_str(),
                 package: &d.package,
                 files: &d.files,
+                reason: d.reason.map(|r| r.as_str()),
+                distribution: jdistribution(&d.distribution),
+                distribution_source: d.distribution_source.map(|s| s.as_str()),
+                mark: d.mark.as_ref().map(jmark),
             })
             .collect(),
         excluded: r
@@ -260,6 +409,38 @@ pub fn to_json(report: &Report) -> String {
                 reason: x.reason.as_str(),
             })
             .collect(),
+        dependencies: r.dependencies.as_ref().map(|d| JDependencies {
+            roots: d
+                .roots
+                .iter()
+                .map(|r| JRoot {
+                    label: escape(&r.label),
+                    kind: r.kind.as_str(),
+                })
+                .collect(),
+            caveats: d.caveats.iter().map(|c| c.as_str()).collect(),
+            budget_exceeded: d.budget_exceeded.iter().map(|b| b.as_str()).collect(),
+            diagnostics: d
+                .diagnostics
+                .iter()
+                .map(|x| JDiagnostic {
+                    lockfile: &x.lockfile,
+                    problem: x.problem.as_str(),
+                })
+                .collect(),
+            auto_run: d
+                .auto_run
+                .iter()
+                .map(|a| JAutoRun {
+                    id: &a.id,
+                    root: escape(&a.root),
+                    file: escape(&a.file),
+                    trigger: a.trigger.as_str(),
+                    distribution: escape(&a.distribution),
+                })
+                .collect(),
+            packages: d.packages.iter().map(jpackage).collect(),
+        }),
     };
     // Serializing plain structs of strings, integers, and booleans cannot fail.
     let mut out = serde_json::to_string_pretty(&j).expect("report serializes");

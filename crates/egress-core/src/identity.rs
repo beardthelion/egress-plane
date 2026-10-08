@@ -13,7 +13,10 @@ use std::path::{Component, Path};
 
 use sha2::{Digest, Sha256};
 
-use crate::model::{BlindSpot, Report, Site, UnscannedDependency};
+use crate::model::{
+    AutoRun, BlindSpot, DependencyMark, DependencyPackage, DependencySection, ImportsUnscanned,
+    Report, Site, UnscannedDependency,
+};
 
 /// Version tag at the start of every key, so a future key change cannot
 /// silently reuse v1 IDs.
@@ -188,6 +191,69 @@ pub fn unscanned_dependency_key(dep: &UnscannedDependency) -> Vec<u8> {
     ])
 }
 
+/// The components that locate one installed package instance: language,
+/// package, root label, locator. The version and every absolute path stay
+/// out, so a version bump or a relocated root keeps the ids.
+fn instance_components(e: &DependencyPackage) -> Vec<Vec<u8>> {
+    vec![
+        e.language.as_str().into(),
+        e.package.as_bytes().to_vec(),
+        e.root.as_bytes().to_vec(),
+        e.locator.as_bytes().to_vec(),
+    ]
+}
+
+fn tagged(tag: &[u8], mut instance: Vec<Vec<u8>>, tail: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+    let mut c = Vec::with_capacity(instance.len() + tail.len() + 1);
+    c.push(tag.to_vec());
+    c.append(&mut instance);
+    c.extend(tail);
+    c
+}
+
+/// The canonical identity key of a dependency package entry.
+pub fn dependency_key(entry: &DependencyPackage) -> Vec<u8> {
+    join(&tagged(b"dependency", instance_components(entry), vec![]))
+}
+
+/// The canonical identity key of a site inside a dependency entry,
+/// including its ordinal. The file is relative to the package.
+pub fn dependency_site_key(entry: &DependencyPackage, site: &Site) -> Vec<u8> {
+    with_ordinal(
+        tagged(
+            b"dependency-site",
+            instance_components(entry),
+            site_components(site),
+        ),
+        site.ordinal,
+    )
+}
+
+/// The canonical identity key of a blind spot inside a dependency entry,
+/// including its ordinal. The file is relative to the package.
+pub fn dependency_blind_spot_key(entry: &DependencyPackage, spot: &BlindSpot) -> Vec<u8> {
+    with_ordinal(
+        tagged(
+            b"dependency-blind-spot",
+            instance_components(entry),
+            blind_spot_components(spot),
+        ),
+        spot.ordinal,
+    )
+}
+
+/// The canonical identity key of an auto-run file: root label, file
+/// relative to the import root, and trigger. The attributed distribution
+/// stays out.
+pub fn auto_run_key(entry: &AutoRun) -> Vec<u8> {
+    join(&[
+        b"dependency-auto-run".to_vec(),
+        entry.root.as_bytes().to_vec(),
+        entry.file.as_bytes().to_vec(),
+        entry.trigger.as_str().into(),
+    ])
+}
+
 fn site_sort_key(s: &Site) -> Vec<Vec<u8>> {
     // Language first, then the remaining identity components in identity order.
     site_components(s).split_off(1)
@@ -207,16 +273,14 @@ fn location_key(l: Option<crate::model::Location>) -> (u32, u32) {
     l.map(|l| (l.line, l.column)).unwrap_or((0, 0))
 }
 
-/// Assigns ordinals and ids to every finding, then sorts every collection
-/// byte-wise by identity components. Ordinals among identical
-/// siblings follow source position; nothing else depends on position or on
-/// insertion order. Idempotent.
-pub fn finalize(report: &mut Report) {
-    for s in &mut report.sites {
+/// Sorts labels, orders sites by identity components with source position
+/// breaking sibling ties, then assigns ordinals and ids with `components`.
+fn finalize_sites(sites: &mut [Site], components: impl Fn(&Site) -> Vec<Vec<u8>>) {
+    for s in sites.iter_mut() {
         s.labels.sort_by_key(|l| l.as_str());
         s.labels.dedup();
     }
-    report.sites.sort_by_cached_key(|s| {
+    sites.sort_by_cached_key(|s| {
         (
             site_sort_key(s),
             location_key(s.location),
@@ -225,18 +289,21 @@ pub fn finalize(report: &mut Report) {
         )
     });
     let mut counters: BTreeMap<Vec<Vec<u8>>, u32> = BTreeMap::new();
-    for s in &mut report.sites {
-        let n = counters.entry(site_components(s)).or_default();
+    for s in sites.iter_mut() {
+        let c = components(s);
+        let n = counters.entry(c.clone()).or_default();
         s.ordinal = *n;
         *n += 1;
-        s.id = hash_id(&site_key(s));
+        s.id = hash_id(&with_ordinal(c, s.ordinal));
     }
+}
 
-    for b in &mut report.blind_spots {
+fn finalize_blind_spots(spots: &mut [BlindSpot], components: impl Fn(&BlindSpot) -> Vec<Vec<u8>>) {
+    for b in spots.iter_mut() {
         b.labels.sort_by_key(|l| l.as_str());
         b.labels.dedup();
     }
-    report.blind_spots.sort_by_cached_key(|b| {
+    spots.sort_by_cached_key(|b| {
         (
             blind_spot_sort_key(b),
             location_key(b.location),
@@ -246,19 +313,140 @@ pub fn finalize(report: &mut Report) {
         )
     });
     let mut counters: BTreeMap<Vec<Vec<u8>>, u32> = BTreeMap::new();
-    for b in &mut report.blind_spots {
-        let n = counters.entry(blind_spot_components(b)).or_default();
+    for b in spots.iter_mut() {
+        let c = components(b);
+        let n = counters.entry(c.clone()).or_default();
         b.ordinal = *n;
         *n += 1;
-        b.id = hash_id(&blind_spot_key(b));
+        b.id = hash_id(&with_ordinal(c, b.ordinal));
     }
-    report
-        .blind_spots
-        .sort_by_cached_key(|b| (blind_spot_sort_key(b), b.ordinal));
+    spots.sort_by_cached_key(|b| (blind_spot_sort_key(b), b.ordinal));
+}
+
+fn sort_mark(mark: &mut DependencyMark) {
+    mark.rules.sort_by_key(|r| r.as_str());
+    mark.rules.dedup();
+    mark.resembles.sort();
+    mark.resembles.dedup();
+}
+
+fn imports_unscanned_sort_key(u: &ImportsUnscanned) -> Vec<Vec<u8>> {
+    let mut key = vec![
+        u.language.as_str().into(),
+        u.package.as_bytes().to_vec(),
+        u.reason.as_str().into(),
+    ];
+    for d in &u.distribution {
+        key.push(d.as_bytes().to_vec());
+    }
+    key.push(
+        u.distribution_source
+            .map(|s| s.as_str())
+            .unwrap_or("")
+            .into(),
+    );
+    match &u.mark {
+        None => key.push(vec![0]),
+        Some(m) => {
+            key.push(vec![1]);
+            for r in &m.rules {
+                key.push(r.as_str().into());
+            }
+            for n in &m.resembles {
+                key.push(n.as_bytes().to_vec());
+            }
+        }
+    }
+    key
+}
+
+/// Sorts and assigns ids inside one package entry: findings keep the
+/// first-party ordering rule, and ordinals count among identical siblings
+/// inside the entry.
+fn finalize_package(entry: &mut DependencyPackage) {
+    entry.distribution.sort();
+    entry.distribution.dedup();
+    if let Some(m) = &mut entry.mark {
+        sort_mark(m);
+    }
+    entry.imported_by.sort();
+    entry.imported_by.dedup();
+    entry.imported_by_packages.sort();
+    entry.imported_by_packages.dedup();
+    for u in &mut entry.imports_unscanned {
+        u.distribution.sort();
+        u.distribution.dedup();
+        if let Some(m) = &mut u.mark {
+            sort_mark(m);
+        }
+    }
+    entry
+        .imports_unscanned
+        .sort_by_cached_key(imports_unscanned_sort_key);
+
+    let instance = instance_components(entry);
+    finalize_sites(&mut entry.sites, |s| {
+        tagged(b"dependency-site", instance.clone(), site_components(s))
+    });
+    finalize_blind_spots(&mut entry.blind_spots, |b| {
+        tagged(
+            b"dependency-blind-spot",
+            instance.clone(),
+            blind_spot_components(b),
+        )
+    });
+}
+
+fn finalize_dependencies(deps: &mut DependencySection) {
+    deps.roots
+        .sort_by(|a, b| (&a.label, a.kind.as_str()).cmp(&(&b.label, b.kind.as_str())));
+    deps.caveats.sort();
+    deps.caveats.dedup();
+    deps.budget_exceeded.sort_by_key(|b| b.as_str());
+    deps.budget_exceeded.dedup();
+    deps.diagnostics
+        .sort_by(|a, b| (&a.lockfile, a.problem.as_str()).cmp(&(&b.lockfile, b.problem.as_str())));
+    deps.auto_run.sort_by(|a, b| {
+        (&a.root, &a.file, a.trigger.as_str(), &a.distribution).cmp(&(
+            &b.root,
+            &b.file,
+            b.trigger.as_str(),
+            &b.distribution,
+        ))
+    });
+    for a in &mut deps.auto_run {
+        a.id = hash_id(&auto_run_key(a));
+    }
+    for p in &mut deps.packages {
+        finalize_package(p);
+        p.id = hash_id(&dependency_key(p));
+    }
+    deps.packages.sort_by(|a, b| {
+        (a.language.as_str(), &a.package, &a.root, &a.locator).cmp(&(
+            b.language.as_str(),
+            &b.package,
+            &b.root,
+            &b.locator,
+        ))
+    });
+}
+
+/// Assigns ordinals and ids to every finding, then sorts every collection
+/// byte-wise by identity components. Ordinals among identical
+/// siblings follow source position; nothing else depends on position or on
+/// insertion order. Idempotent.
+pub fn finalize(report: &mut Report) {
+    finalize_sites(&mut report.sites, site_components);
+    finalize_blind_spots(&mut report.blind_spots, blind_spot_components);
 
     for d in &mut report.unscanned_dependencies {
         d.files.sort();
         d.files.dedup();
+        d.distribution.sort();
+        d.distribution.dedup();
+        if let Some(m) = &mut d.mark {
+            sort_mark(m);
+        }
         d.id = hash_id(&unscanned_dependency_key(d));
     }
     report
@@ -277,4 +465,8 @@ pub fn finalize(report: &mut Report) {
         .sort_by_key(|b| b.as_str());
     report.completeness.budget_exceeded.dedup();
     report.caveats.sort_by(|a, b| a.id.cmp(&b.id));
+
+    if let Some(deps) = &mut report.dependencies {
+        finalize_dependencies(deps);
+    }
 }

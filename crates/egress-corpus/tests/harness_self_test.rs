@@ -78,6 +78,10 @@ fn report_from(expected: &Expected) -> Report {
             language: d.language,
             package: d.package.clone(),
             files: vec![],
+            reason: None,
+            distribution: vec![],
+            distribution_source: None,
+            mark: None,
         })
         .collect();
     let excluded = expected
@@ -121,6 +125,7 @@ fn report_from(expected: &Expected) -> Report {
         blind_spots,
         unscanned_dependencies,
         excluded,
+        dependencies: None,
     }
 }
 

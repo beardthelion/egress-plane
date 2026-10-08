@@ -86,6 +86,7 @@ pub fn report(sites: Vec<Site>, blind_spots: Vec<BlindSpot>) -> Report {
         blind_spots,
         unscanned_dependencies: vec![],
         excluded: vec![],
+        dependencies: None,
     }
 }
 
@@ -155,6 +156,10 @@ pub fn full_report() -> Report {
         language: Language::Javascript,
         package: "left-pad".into(),
         files: vec!["src/z.js".into(), "src/a.js".into()],
+        reason: None,
+        distribution: vec![],
+        distribution_source: None,
+        mark: None,
     });
     r.excluded.push(Excluded {
         path: "node_modules".into(),
@@ -166,6 +171,140 @@ pub fn full_report() -> Report {
         path_bytes: Some("626164ff".into()),
         reason: ExcludedReason::BrokenSymlink,
     });
+    r
+}
+
+/// A package entry that fills every field and needs sorting: importers,
+/// sites, and blind spots are out of order and its mark rules are reversed.
+pub fn dependency_package() -> DependencyPackage {
+    use egress_core::destination as d;
+    DependencyPackage {
+        id: String::new(),
+        language: Language::Python,
+        package: "requests".into(),
+        root: "deps/venv".into(),
+        locator: "requests".into(),
+        version: "2.31.0".into(),
+        strength: VerificationStrength::ChecksumVerified,
+        modified: true,
+        linked: false,
+        catalogued: true,
+        distribution: vec!["requests".into(), "Requests".into()],
+        distribution_source: Some(DistributionSource::InstalledMetadata),
+        mark: Some(DependencyMark {
+            rules: vec![MarkRule::NonAsciiName, MarkRule::ConfusableSkeleton],
+            resembles: vec!["requests".into()],
+        }),
+        imported_by: vec!["src/z.py".into(), "src/a.py".into()],
+        imported_by_packages: vec!["0123456789abcdef".into()],
+        state: CompletenessState::Incomplete,
+        coverage: CoverageCounts {
+            scanned: 4,
+            skipped: 1,
+        },
+        sites: vec![
+            site(
+                "requests/sessions.py",
+                "Session.send",
+                "python:requests.Session.send",
+                d::literal("https://b.example"),
+                20,
+            ),
+            site(
+                "requests/api.py",
+                "api.get",
+                "python:requests.get",
+                d::literal("https://a.example"),
+                9,
+            ),
+        ],
+        blind_spots: vec![blind(
+            "requests/compat.py",
+            "<module>",
+            BlindSpotKind::ParseError,
+            "",
+            0,
+        )],
+        imports_unscanned: vec![ImportsUnscanned {
+            language: Language::Python,
+            package: "idna".into(),
+            reason: UnscannedReason::DependencyBudgetExhausted,
+            distribution: vec!["idna".into()],
+            distribution_source: Some(DistributionSource::Curated),
+            mark: None,
+        }],
+    }
+}
+
+/// A dependency section that fills every collection and every optional
+/// field, with entries out of order.
+pub fn dependency_section() -> DependencySection {
+    let linked = DependencyPackage {
+        id: String::new(),
+        language: Language::Rust,
+        package: "serde".into(),
+        root: "deps/vendor".into(),
+        locator: "serde".into(),
+        version: "1.0.200".into(),
+        strength: VerificationStrength::VersionMatched,
+        modified: false,
+        linked: true,
+        catalogued: false,
+        distribution: vec![],
+        distribution_source: None,
+        mark: None,
+        imported_by: vec![],
+        imported_by_packages: vec![],
+        state: CompletenessState::Complete,
+        coverage: CoverageCounts::default(),
+        sites: vec![],
+        blind_spots: vec![],
+        imports_unscanned: vec![],
+    };
+    DependencySection {
+        roots: vec![
+            DependencyRoot {
+                label: "deps/venv".into(),
+                kind: DependencyRootKind::Python,
+            },
+            DependencyRoot {
+                label: "deps/vendor".into(),
+                kind: DependencyRootKind::CargoVendor,
+            },
+        ],
+        caveats: vec!["dependency-conditional-code-included".into()],
+        budget_exceeded: vec![
+            DependencyBudgetReason::Files,
+            DependencyBudgetReason::Packages,
+        ],
+        diagnostics: vec![LockfileDiagnostic {
+            lockfile: "poetry.lock".into(),
+            problem: LockfileProblem::ParseError,
+        }],
+        auto_run: vec![
+            AutoRun {
+                id: String::new(),
+                root: "deps/venv".into(),
+                file: "sitecustomize.py".into(),
+                trigger: AutoRunTrigger::Sitecustomize,
+                distribution: "unattributed".into(),
+            },
+            AutoRun {
+                id: String::new(),
+                root: "deps/venv".into(),
+                file: "a.pth".into(),
+                trigger: AutoRunTrigger::PthImportLine,
+                distribution: "setuptools".into(),
+            },
+        ],
+        packages: vec![linked, dependency_package()],
+    }
+}
+
+/// `full_report` plus a full dependency section.
+pub fn report_with_dependencies() -> Report {
+    let mut r = full_report();
+    r.dependencies = Some(dependency_section());
     r
 }
 

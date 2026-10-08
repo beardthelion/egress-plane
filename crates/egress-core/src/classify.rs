@@ -469,6 +469,10 @@ impl<'p, 'a> State<'p, 'a> {
                 language,
                 package,
                 files: files.into_iter().collect(),
+                reason: None,
+                distribution: vec![],
+                distribution_source: None,
+                mark: None,
             });
         }
         self.out.resolver_steps = self.r.steps();

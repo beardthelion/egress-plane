@@ -326,6 +326,7 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
         blind_spots,
         unscanned_dependencies: classified.unscanned_dependencies,
         excluded: discovery.excluded.clone(),
+        dependencies: None,
     };
     finalize(&mut report);
     if apply_findings_budget(&mut report, options.config.budgets.findings) {

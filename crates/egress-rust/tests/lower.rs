@@ -528,6 +528,7 @@ fn cfg_variants_of_one_function_get_ordinals_zero_and_one() {
         blind_spots: Vec::new(),
         unscanned_dependencies: Vec::new(),
         excluded: Vec::new(),
+        dependencies: None,
     };
     finalize(&mut report);
     let ords: Vec<u32> = report.sites.iter().map(|s| s.ordinal).collect();
