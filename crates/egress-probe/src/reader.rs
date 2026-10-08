@@ -660,6 +660,14 @@ impl<B: Backend> SharedReader<B> {
     /// decides which paths may proceed at all, then the manifest overlay's
     /// no-touch nodes refuse anything left (KTD12).
     fn gate_check(&self, comps: &[Vec<u8>], path: &[u8]) -> Result<(), Denial> {
+        // A proc/self link that named the wrong pid poisons the whole
+        // proc filesystem: no proc path is trustworthy when the kernel
+        // reports the probe under another pid (KTD24).
+        if matches!(self.proc_self, Some(Err(Denial::ProcSelfMismatch)))
+            && comps.first().map(Vec::as_slice) == Some(b"proc")
+        {
+            return Err(Denial::ProcSelfMismatch);
+        }
         match &self.gate {
             GateState::Unarmed => match comps.first().map(Vec::as_slice) {
                 Some(b"proc") => {}

@@ -1,5 +1,5 @@
-state = "complete"
-exit_code = 0
+state = "incomplete"
+exit_code = 2
 
 absent_text = ["SENTINEL-mnt", "ghp_SENTINELfd"]
 
@@ -25,3 +25,11 @@ member = "/mnt/data"
 universe = "linux.fds"
 member = "fd 5: /run/<redacted>"
 
+
+[[unknowns]]
+source = "linux.socket-files"
+reason = "network-filesystem-not-touched"
+
+[[unknowns]]
+source = "linux.devices"
+reason = "network-filesystem-not-touched"

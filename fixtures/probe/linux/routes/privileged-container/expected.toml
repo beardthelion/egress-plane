@@ -85,3 +85,9 @@ kind = "dns-resolver"
 rule = "resolver.nameserver"
 member = "nameserver 8.8.8.8"
 
+
+[[routes]]
+class = "escape"
+kind = "shared-pid-namespace"
+signal = "linux.shared-pid-namespace"
+member = "linux.shared-pid-namespace"

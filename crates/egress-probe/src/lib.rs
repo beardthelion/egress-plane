@@ -9,13 +9,18 @@
 //! and the snapshot reader, which exists only behind the `snapshot`
 //! feature so the released binary cannot replay a snapshot.
 
+pub mod classify;
+pub mod completeness;
 pub mod data;
+pub mod engine;
 pub mod facts;
 pub mod identity;
 pub mod integrity;
 pub mod json;
+pub mod layers;
 pub mod model;
 pub mod reader;
+pub mod signals;
 #[cfg(feature = "snapshot")]
 pub mod snapshot;
 pub mod text;

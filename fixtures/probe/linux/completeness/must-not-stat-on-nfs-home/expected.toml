@@ -56,3 +56,17 @@ member = "/"
 universe = "linux.mounts"
 member = "/dev"
 
+
+[[routes]]
+class = "escape"
+kind = "writable-kernel-interface"
+signal = "linux.proc-sys-writable"
+member = "linux.proc-sys-writable"
+
+[[unknowns]]
+source = "linux.socket-files"
+reason = "network-filesystem-not-touched"
+
+[[unknowns]]
+source = "linux.devices"
+reason = "network-filesystem-not-touched"

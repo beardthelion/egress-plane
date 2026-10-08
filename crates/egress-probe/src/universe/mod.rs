@@ -11,6 +11,7 @@
 
 mod devices;
 pub mod linux;
+pub mod macos;
 mod resolvers;
 mod socket_files;
 
@@ -359,6 +360,7 @@ pub(crate) struct MountLayout {
 pub(crate) fn mount_layout<R: Reader>(
     r: &mut R,
     mounts: &[Mount],
+    no_touch: impl Fn(&str) -> bool,
 ) -> Result<MountLayout, UnknownReason> {
     let mut layout = MountLayout {
         dir_mounts: Vec::new(),
@@ -368,19 +370,21 @@ pub(crate) fn mount_layout<R: Reader>(
         if m.point.is_empty() {
             continue; // the root mount is canonical by definition
         }
+        if no_touch(&m.fstype) {
+            // A mount on a no-touch filesystem is never probed; the
+            // sources that need to enumerate it go unknown (KTD30, R9).
+            return Err(UnknownReason::NetworkFilesystemNotTouched);
+        }
         let path = join(m.point.as_slice());
-        match r.metadata(&path) {
-            Ok(meta) => match meta.kind {
-                NodeType::Dir => {
-                    if !canonical_mount(&m.point) {
-                        layout.dir_mounts.push(path);
-                    }
-                }
-                NodeType::Socket => layout.socket_points.push((path, meta)),
-                _ => {}
-            },
-            Err(Denial::Absent) => {}
-            Err(d) => return Err(denial_reason(d)),
+        // A mount point whose own lstat fails contributes no listing
+        // and no socket point; the denial belongs to the source that
+        // probes the mount's contents, not to the layout pass.
+        if let Ok(meta) = r.metadata(&path) {
+            if meta.kind == NodeType::Dir && !canonical_mount(&m.point) {
+                layout.dir_mounts.push(path);
+            } else if meta.kind == NodeType::Socket {
+                layout.socket_points.push((path, meta));
+            }
         }
     }
     Ok(layout)

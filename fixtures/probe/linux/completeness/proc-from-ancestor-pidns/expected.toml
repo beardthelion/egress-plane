@@ -26,3 +26,9 @@ layer = "unrecognized"
 name = "proc-from-ancestor-pidns"
 value = "true"
 
+
+[[routes]]
+class = "escape"
+kind = "writable-kernel-interface"
+signal = "linux.proc-sys-writable"
+member = "linux.proc-sys-writable"

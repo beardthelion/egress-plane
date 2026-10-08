@@ -335,6 +335,9 @@ pub struct MemberRef {
     /// The member's identity components; redacted in `finalize` exactly as
     /// the member's own fields are, so binding survives redaction.
     pub components: Vec<Vec<u8>>,
+    /// The member's display-order key: binds an identical sibling to its
+    /// own ordinal, not to the first sibling (KTD5).
+    pub order_key: Vec<u8>,
     /// The member id this reference resolved to; filled by `finalize`,
     /// `None` when no member carries these components.
     pub resolved: Option<String>,
@@ -343,9 +346,16 @@ pub struct MemberRef {
 impl MemberRef {
     /// The reference pointing at `member` in `universe`.
     pub fn of(universe: &str, member: &Member) -> MemberRef {
+        let mut order_key = Vec::new();
+        for (weight, bytes) in member.display_order_key() {
+            order_key.push(weight);
+            order_key.extend_from_slice(&bytes);
+            order_key.push(0);
+        }
         MemberRef {
             universe: universe.to_string(),
             components: member.identity_components(),
+            order_key,
             resolved: None,
         }
     }

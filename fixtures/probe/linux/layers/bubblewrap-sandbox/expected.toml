@@ -14,3 +14,9 @@ kind = "dns-resolver"
 rule = "resolver.nameserver"
 member = "nameserver 8.8.8.8"
 
+
+[[routes]]
+class = "escape"
+kind = "writable-kernel-interface"
+signal = "linux.proc-sys-writable"
+member = "linux.proc-sys-writable"

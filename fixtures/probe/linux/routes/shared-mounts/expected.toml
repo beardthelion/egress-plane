@@ -1,5 +1,5 @@
-state = "complete"
-exit_code = 0
+state = "incomplete"
+exit_code = 2
 
 
 [[layers]]
@@ -44,3 +44,11 @@ kind = "shared-mount"
 rule = "linux.mount.shared-fs"
 member = "/mnt/fuse"
 
+
+[[unknowns]]
+source = "linux.socket-files"
+reason = "network-filesystem-not-touched"
+
+[[unknowns]]
+source = "linux.devices"
+reason = "network-filesystem-not-touched"

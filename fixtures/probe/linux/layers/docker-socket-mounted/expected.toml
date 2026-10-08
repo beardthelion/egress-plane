@@ -76,3 +76,15 @@ universe = "linux.mounts"
 rule = "linux.mount.runtime-managed-files"
 member = "/etc/hosts"
 
+
+[[routes]]
+class = "egress"
+kind = "routed-network"
+rule = "route.any"
+member = "172.17.0.0/16 dev eth0"
+
+[[routes]]
+class = "escape"
+kind = "shared-pid-namespace"
+signal = "linux.shared-pid-namespace"
+member = "linux.shared-pid-namespace"

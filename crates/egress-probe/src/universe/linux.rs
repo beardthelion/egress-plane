@@ -149,7 +149,8 @@ pub fn enumerate<R: Reader>(r: &mut R, data: &Data) -> Scan {
     let unix = run(|| unix_sockets(r, u("linux.unix-sockets"), budgets));
     outcomes.insert("linux.unix-sockets", outcome(unix));
 
-    let sock = run(|| socket_files::enumerate(r, &mounts, euid, budgets));
+    let no_touch = |fs: &str| data.no_touch_fstype("linux", fs);
+    let sock = run(|| socket_files::enumerate(r, &mounts, euid, budgets, &no_touch));
     outcomes.insert("linux.socket-files", outcome(sock));
 
     let listeners = run(|| listeners(r, u("linux.listeners"), budgets));
@@ -174,7 +175,7 @@ pub fn enumerate<R: Reader>(r: &mut R, data: &Data) -> Scan {
     let ifaces = run(|| interfaces(r, u("linux.interfaces"), budgets));
     outcomes.insert("linux.interfaces", outcome(ifaces));
 
-    let devs = run(|| devices::enumerate(r, &mounts, u("linux.devices"), budgets));
+    let devs = run(|| devices::enumerate(r, &mounts, u("linux.devices"), budgets, &no_touch));
     outcomes.insert("linux.devices", outcome(devs));
 
     // 4. The remaining attribute sources.
@@ -374,7 +375,8 @@ fn parse_mountinfo(bytes: &[u8]) -> Result<Vec<MountRow>, UnknownReason> {
         let mount_id = pre[0].parse().map_err(|_| UnknownReason::Partial)?;
         let parent_id = pre[1].parse().map_err(|_| UnknownReason::Partial)?;
         let options = pre[5].to_string();
-        let writable = pre[5].split(',').any(|o| o == "rw");
+        let writable = pre[5].split(',').any(|o| o == "rw")
+            || post[2..].iter().any(|o| o.split(',').any(|f| f == "rw"));
         rows.push(MountRow {
             mount_id,
             parent_id,

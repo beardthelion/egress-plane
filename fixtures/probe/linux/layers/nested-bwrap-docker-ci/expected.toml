@@ -30,3 +30,21 @@ member = "nameserver 127.0.0.11"
 universe = "linux.env-names"
 member = "GITHUB_ACTIONS"
 
+
+[[routes]]
+class = "escape"
+kind = "shared-ipc-namespace"
+signal = "linux.shared-ipc-namespace"
+member = "linux.shared-ipc-namespace"
+
+[[routes]]
+class = "escape"
+kind = "shared-pid-namespace"
+signal = "linux.shared-pid-namespace"
+member = "linux.shared-pid-namespace"
+
+[[routes]]
+class = "escape"
+kind = "writable-kernel-interface"
+signal = "linux.proc-sys-writable"
+member = "linux.proc-sys-writable"

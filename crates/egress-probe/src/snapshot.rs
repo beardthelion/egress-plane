@@ -18,6 +18,7 @@ use egress_core::model::ToolError;
 use serde::Deserialize;
 
 use crate::facts;
+use crate::reader::Reader;
 use crate::reader::{
     AccessMask, AccessResult, Backend, Fail, FsBackend, Meta, Mount, SharedReader,
 };
@@ -34,10 +35,29 @@ pub struct ScanOutput {
     pub read_log: Vec<ReadLogEntry>,
 }
 
-/// Runs a snapshot scan of a case directory: not implemented until the
-/// scan pipeline unit. The harness compiles against this signature.
-pub fn scan_case(_case_dir: &Path) -> Result<ScanOutput, ToolError> {
-    Err(ToolError::Internal("snapshot probing is not implemented"))
+/// Runs a snapshot scan of a case directory: open the snapshot reader
+/// on `tree/` with the `manifest.toml` overlay and `facts.toml` facts,
+/// run the shared engine, finalize, and render.
+pub fn scan_case(case_dir: &Path) -> Result<ScanOutput, ToolError> {
+    let mut reader =
+        SnapshotReader::open(case_dir).map_err(|_| ToolError::Internal("snapshot open failed"))?;
+    let data = crate::data::Data::embedded()
+        .map_err(|_| ToolError::Internal("probe data failed to load"))?;
+    let mut report = crate::engine::run(
+        &mut reader,
+        &data,
+        crate::model::Source::Snapshot,
+        crate::model::Mode::Passive,
+    );
+    crate::identity::finalize(&mut report);
+    let json = crate::json::to_json_bounded(&report, data.budgets.report_bytes);
+    let text = crate::text::render(&report);
+    let read_log = reader.read_log().to_vec();
+    Ok(ScanOutput {
+        json,
+        text,
+        read_log,
+    })
 }
 
 // ---------------------------------------------------------------------------

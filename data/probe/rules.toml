@@ -124,6 +124,7 @@ class = "escape"
 kind = "writable-kernel-interface"
 fixture = "linux/routes/writable-cgroup-and-proc-sys"
 match = { fstype = { in = ["sysfs", "proc"] }, writable = { flag = true }, mount-point = { under = ["/sys", "/proc/sys"] } }
+except = { mount-point = { in = ["/proc", "/sys"] } }
 
 [[rule]]
 id = "linux.mount.writable-cgroup"
@@ -139,7 +140,7 @@ universes = ["linux.capabilities"]
 class = "escape"
 kind = "dangerous-capability"
 fixture = "linux/routes/privileged-container"
-match = { name = { in = ["cap_sys_admin", "cap_sys_module", "cap_sys_ptrace", "cap_dac_read_search", "cap_sys_rawio", "cap_bpf", "cap_net_admin", "cap_sys_boot", "cap_syslog", "cap_perfmon"] } }
+match = { name = { in = ["cap_sys_admin", "cap_sys_module", "cap_sys_ptrace", "cap_dac_read_search", "cap_sys_rawio", "cap_bpf", "cap_net_admin", "cap_sys_boot", "cap_syslog", "cap_perfmon"] }, set = { in = ["effective"] } }
 
 [[rule]]
 id = "linux.cap.raw-network"

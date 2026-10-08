@@ -45,3 +45,9 @@ universe = "linux.resolvers"
 rule = "resolver.directive"
 member = "search c.proj.internal google.internal"
 
+
+[[routes]]
+class = "escape"
+kind = "writable-kernel-interface"
+signal = "linux.proc-sys-writable"
+member = "linux.proc-sys-writable"

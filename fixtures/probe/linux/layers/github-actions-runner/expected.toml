@@ -66,3 +66,15 @@ member = "/"
 universe = "linux.mounts"
 member = "/dev"
 
+
+[[routes]]
+class = "egress"
+kind = "routed-network"
+rule = "route.any"
+member = "10.100.0.0/16 dev eth0"
+
+[[routes]]
+class = "escape"
+kind = "writable-kernel-interface"
+signal = "linux.proc-sys-writable"
+member = "linux.proc-sys-writable"

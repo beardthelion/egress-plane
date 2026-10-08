@@ -24,8 +24,9 @@ pub fn enumerate<R: Reader>(
     mounts: &[Mount],
     u: &crate::data::Universe,
     budgets: &Budgets,
+    no_touch: &dyn Fn(&str) -> bool,
 ) -> Result<Vec<Member>, UnknownReason> {
-    let MountLayout { dir_mounts, .. } = mount_layout(r, mounts)?;
+    let MountLayout { dir_mounts, .. } = mount_layout(r, mounts, no_touch)?;
 
     let mut found: BTreeSet<Vec<u8>> = BTreeSet::new();
     let mut queued: BTreeSet<Vec<u8>> = BTreeSet::new();

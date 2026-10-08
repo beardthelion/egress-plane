@@ -6,7 +6,7 @@ exit_code = 2
 order = 1
 family = "container"
 kind = "docker"
-evidence_classes = ["filesystem-marker", "kernel"]
+evidence_classes = ["kernel"]
 
 [[unknowns]]
 source = "linux.mounts"
@@ -92,3 +92,7 @@ reason = "depends-on-unknown"
 source = "proxy.config-files"
 reason = "depends-on-unknown"
 
+
+[[unknowns]]
+source = "linux.proc-sys-writable"
+reason = "depends-on-unknown"

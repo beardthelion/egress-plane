@@ -44,3 +44,9 @@ universe = "linux.env-names"
 rule = "env.ordinary"
 member = "PATH"
 
+
+[[routes]]
+class = "escape"
+kind = "writable-kernel-interface"
+signal = "linux.proc-sys-writable"
+member = "linux.proc-sys-writable"

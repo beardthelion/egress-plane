@@ -14,11 +14,6 @@ kind = "host-ipc-socket"
 signal = "linux.socket.host-ipc"
 member = "/run/dbus/system_bus_socket"
 
-[[routes]]
-class = "escape"
-kind = "host-ipc-socket"
-rule = "linux.socket.host-ipc"
-member = "/run/dbus/system_bus_socket"
 
 [[routes]]
 class = "escape"
@@ -26,11 +21,6 @@ kind = "host-ipc-socket"
 signal = "linux.socket.host-ipc"
 member = "/run/pcscd/pcscd.comm"
 
-[[routes]]
-class = "escape"
-kind = "host-ipc-socket"
-rule = "linux.socket.host-ipc"
-member = "/run/pcscd/pcscd.comm"
 
 [[routes]]
 class = "escape"
@@ -61,3 +51,9 @@ universe = "linux.capabilities"
 rule = "linux.cap.default-container"
 member = "cap_mknod"
 
+
+[[routes]]
+class = "escape"
+kind = "shared-pid-namespace"
+signal = "linux.shared-pid-namespace"
+member = "linux.shared-pid-namespace"

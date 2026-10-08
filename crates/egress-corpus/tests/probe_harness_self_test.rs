@@ -1001,7 +1001,11 @@ fn real_ledger_loads_and_names_only_existing_cases() {
     let all = all_pending();
     assert!(!all.cases.is_empty());
     let real = load_pending(&corpus_root().join("pending.toml")).expect("pending.toml loads");
-    assert_eq!(real.cases, all.cases, "pending.toml must name every case");
+    assert!(
+        real.cases.is_subset(&all.cases),
+        "pending.toml names a case that does not exist: {:?}",
+        real.cases.difference(&all.cases).collect::<Vec<_>>()
+    );
 }
 
 #[test]

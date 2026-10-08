@@ -7,7 +7,7 @@ absent_text = ["SENTINEL-atomic-token"]
 order = 1
 family = "container"
 kind = "kubernetes"
-evidence_classes = ["kernel"]
+evidence_classes = ["filesystem-marker", "kernel", "resolver-config"]
 
 [[routes]]
 class = "escape"

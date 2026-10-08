@@ -42,3 +42,9 @@ required-features = ["snapshot"]
 [[test]]
 name = "self_observation"
 required-features = ["snapshot"]
+
+[[test]]
+name = "engine"
+
+[[test]]
+name = "passive_guard"

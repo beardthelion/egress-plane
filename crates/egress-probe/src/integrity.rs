@@ -47,6 +47,18 @@ pub fn expected_fs(top_component: &[u8]) -> Option<&'static str> {
     }
 }
 
+/// The `TracerPid` value of a `proc/<pid>/status` body, or `None` when the
+/// line is absent or unparseable.
+pub fn tracer_pid(status: &[u8]) -> Option<u64> {
+    let text = std::str::from_utf8(status).ok()?;
+    for line in text.lines() {
+        if let Some(rest) = line.strip_prefix("TracerPid:") {
+            return rest.trim().parse::<u64>().ok();
+        }
+    }
+    None
+}
+
 /// True when every opened handle reported the expected filesystem. An empty
 /// list (a call that opened no handle, such as `lstat` on a top component)
 /// passes vacuously.

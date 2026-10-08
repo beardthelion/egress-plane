@@ -44,3 +44,9 @@ kind = "dns-resolver"
 rule = "resolver.nameserver"
 member = "nameserver 8.8.8.8"
 
+
+[[routes]]
+class = "escape"
+kind = "runtime-socket"
+rule = "linux.socket.runtime"
+member = "/var/run/cri-dockerd.sock"

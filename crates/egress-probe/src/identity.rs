@@ -326,7 +326,9 @@ pub fn finalize(r: &mut Report) {
 
     // Members: sort by identity components, identical siblings by sorted
     // display order, then ordinals and ids.
+    type BindingKey = (String, Vec<Vec<u8>>, Vec<u8>);
     let mut member_ids: BTreeMap<(String, Vec<Vec<u8>>), String> = BTreeMap::new();
+    let mut order_keyed: BTreeMap<BindingKey, String> = BTreeMap::new();
     for u in &mut r.universes {
         for m in &mut u.members {
             m.rules.sort();
@@ -343,6 +345,13 @@ pub fn finalize(r: &mut Report) {
             member_ids
                 .entry((u.id.clone(), components))
                 .or_insert_with(|| m.id.clone());
+            let mut ok = Vec::new();
+            for (w, b) in m.display_order_key() {
+                ok.push(w);
+                ok.extend_from_slice(&b);
+                ok.push(0);
+            }
+            order_keyed.insert((u.id.clone(), m.identity_components(), ok), m.id.clone());
         }
     }
 
@@ -350,9 +359,18 @@ pub fn finalize(r: &mut Report) {
     // siblings resolve to the first in sorted order.
     for route in r.egress_routes.iter_mut().chain(r.escape_routes.iter_mut()) {
         if let Some(m) = &mut route.member {
-            m.resolved = member_ids
-                .get(&(m.universe.clone(), m.components.clone()))
-                .cloned();
+            m.resolved = order_keyed
+                .get(&(
+                    m.universe.clone(),
+                    m.components.clone(),
+                    m.order_key.clone(),
+                ))
+                .cloned()
+                .or_else(|| {
+                    member_ids
+                        .get(&(m.universe.clone(), m.components.clone()))
+                        .cloned()
+                });
         }
     }
 
@@ -376,8 +394,9 @@ pub fn finalize(r: &mut Report) {
         l.evidence
             .sort_by(|a, b| (a.class, &a.detail).cmp(&(b.class, &b.detail)));
     }
-    r.layers
-        .sort_by(|a, b| (a.family, &a.kind, &a.id).cmp(&(b.family, &b.kind, &b.id)));
+    // Family rank orders layers; within a family the detection order
+    // (declaration order) is kept, so sort stably by family only.
+    r.layers.sort_by_key(|l| l.family);
 
     for s in &mut r.signals {
         s.id = signal_id(&s.signal);

@@ -24,11 +24,12 @@ pub fn enumerate<R: Reader>(
     mounts: &[Mount],
     euid: Option<u32>,
     budgets: &Budgets,
+    no_touch: &dyn Fn(&str) -> bool,
 ) -> Result<Vec<Member>, UnknownReason> {
     let MountLayout {
         dir_mounts,
         socket_points,
-    } = mount_layout(r, mounts)?;
+    } = mount_layout(r, mounts, no_touch)?;
 
     let mut dirs: Vec<Vec<u8>> = vec![b"run".to_vec(), b"tmp".to_vec(), b"tmp/.X11-unix".to_vec()];
     // `var/run` is an allowlisted hop: when it is a symlink its contents

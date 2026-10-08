@@ -7,7 +7,7 @@ absent_text = ["SENTINEL-token-contents", "SENTINEL-aws-secret"]
 order = 1
 family = "container"
 kind = "kubernetes"
-evidence_classes = ["kernel"]
+evidence_classes = ["filesystem-marker", "kernel"]
 
 [[routes]]
 class = "escape"
