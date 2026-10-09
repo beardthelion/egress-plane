@@ -20,6 +20,7 @@ use egress_core::classify::classify;
 use egress_core::data::Data;
 use egress_core::discover::budgets::{DependencyBudgets, apply_findings_budget};
 use egress_core::discover::completeness::{caveats, counts_mut, state};
+use egress_core::discover::dependency_roots;
 use egress_core::discover::labels::content_labels;
 use egress_core::discover::{
     Config, Discovery, SourceFile, WORKER_STACK_BYTES, discover, guard, whole_file_blind_spot,
@@ -27,8 +28,8 @@ use egress_core::discover::{
 use egress_core::identity::{EncodedPath, finalize};
 use egress_core::ir::FileIr;
 use egress_core::model::{
-    BlindSpotKind, BudgetReason, Completeness, Label, Language, Report, SCHEMA_VERSION, Tool,
-    ToolError,
+    BlindSpotKind, BudgetReason, Completeness, DependencyRoot, DependencySection, Label, Language,
+    Report, SCHEMA_VERSION, Tool, ToolError,
 };
 use egress_core::prescan;
 use egress_core::resolve::{Program, ProgramFile};
@@ -238,9 +239,6 @@ fn run_workers(d: &Discovery, options: &ScanOptions) -> Result<Vec<Outcome>, Too
 
 /// Scans `root` with explicit options.
 pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolError> {
-    if !options.dependency_roots.is_empty() {
-        return Err(ToolError::Internal("dependency scanning not built"));
-    }
     let data = data()?;
     let discovery = discover(root, &options.config)?;
     let outcomes = run_workers(&discovery, options)?;
@@ -347,6 +345,29 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
             &report.blind_spots,
             &report.completeness.budget_exceeded,
         );
+        finalize(&mut report);
+    }
+
+    // Named dependency roots are opened and validated only after the
+    // first-party report is final (KTD13): a rejected root is a tool
+    // error and nothing is printed. Package inventory lands in U4; for
+    // now the section carries the validated roots and no packages.
+    if !options.dependency_roots.is_empty() {
+        let roots = dependency_roots::open(discovery.root_dir(), &options.dependency_roots)?;
+        report.dependencies = Some(DependencySection {
+            roots: roots
+                .iter()
+                .map(|r| DependencyRoot {
+                    label: r.label.clone(),
+                    kind: r.kind,
+                })
+                .collect(),
+            caveats: Vec::new(),
+            budget_exceeded: Vec::new(),
+            diagnostics: Vec::new(),
+            auto_run: Vec::new(),
+            packages: Vec::new(),
+        });
         finalize(&mut report);
     }
     Ok(ScanOutput {

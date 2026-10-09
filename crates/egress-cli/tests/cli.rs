@@ -6,7 +6,7 @@ mod support;
 
 use std::ffi::OsStr;
 use std::os::unix::fs::PermissionsExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use support::{Temp, case, corpus, run, run_with, scan, scan_default};
@@ -290,12 +290,73 @@ fn absent_text_never_appears_in_either_format() {
     );
 }
 
-const TRAPS: [&str; 7] = ["cargo", "rustc", "node", "python", "python3", "tsc", "git"];
+const TRAPS: [&str; 11] = [
+    "cargo", "rustc", "node", "python", "python3", "tsc", "git", "npm", "pip", "uv", "poetry",
+];
 const SENTINELS: [(&str, &str); 3] = [
     ("CARGO_MANIFEST_DIR", "sentinel-manifest-dir-7c41"),
     ("OUT_DIR", "sentinel-out-dir-7c41"),
     ("WEBHOOK_URL", "sentinel-webhook-7c41"),
 ];
+
+/// Writes `rel` under `dir`, creating parents.
+fn env_file(dir: &Path, rel: &str, contents: &str) {
+    let p = dir.join(rel);
+    std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+    std::fs::write(&p, contents).unwrap();
+}
+
+/// Host-environment variables a dependency-root discovery could consult
+/// (KTD21): each value points at a directory holding a recognizable
+/// package, so a scan that read the variable would show the marker name.
+fn env_sentinels(t: &Temp) -> Vec<(&'static str, PathBuf, &'static str)> {
+    let env = t.path("env");
+    let home = env.join("sentinel-home-7c41");
+    env_file(
+        &home,
+        ".cargo/registry/src/i/sentinelhome-1.0.0/Cargo.toml.orig",
+        "",
+    );
+    env_file(
+        &home,
+        ".cargo/registry/src/i/sentinelhome-1.0.0/.cargo-ok",
+        "",
+    );
+    let cargo = env.join("sentinel-cargo-7c41");
+    env_file(
+        &cargo,
+        "registry/src/i/sentinelcargo-1.0.0/Cargo.toml.orig",
+        "",
+    );
+    env_file(&cargo, "registry/src/i/sentinelcargo-1.0.0/.cargo-ok", "");
+    let venv = env.join("sentinel-venv-7c41");
+    env_file(&venv, "pyvenv.cfg", "");
+    env_file(
+        &venv,
+        "lib/python3.12/site-packages/sentinelvenv/__init__.py",
+        "",
+    );
+    env_file(
+        &venv,
+        "lib/python3.12/site-packages/sentinelvenv-1.0.dist-info/x",
+        "",
+    );
+    let pythonpath = env.join("sentinel-pp-7c41");
+    env_file(&pythonpath, "sentinelpp/__init__.py", "");
+    let nodepath = env.join("sentinel-node-7c41");
+    env_file(&nodepath, "node_modules/sentinelnode/package.json", "{}");
+    let piptarget = env.join("sentinel-pip-7c41");
+    env_file(&piptarget, "sentinelpip/__init__.py", "");
+    env_file(&piptarget, "sentinelpip-1.0.dist-info/x", "");
+    vec![
+        ("HOME", home, "sentinelhome"),
+        ("CARGO_HOME", cargo, "sentinelcargo"),
+        ("VIRTUAL_ENV", venv, "sentinelvenv"),
+        ("PYTHONPATH", pythonpath, "sentinelpp"),
+        ("NODE_PATH", nodepath, "sentinelnode"),
+        ("PIP_TARGET", piptarget, "sentinelpip"),
+    ]
+}
 
 /// The `scan` subcommand spawns no subprocess and never reads a host
 /// environment value into its output (the guarantee is scan-scoped;
@@ -325,6 +386,7 @@ fn must_not_spawn_tools_or_read_host_environment() {
     assert!(marks.join("git").exists());
     std::fs::remove_file(marks.join("git")).unwrap();
 
+    let env_sentinels = env_sentinels(&t);
     let root = corpus().join("mixed");
     for format in ["text", "json"] {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_egress-plane"));
@@ -333,6 +395,9 @@ fn must_not_spawn_tools_or_read_host_environment() {
             .env("PATH", &bin);
         for (k, v) in SENTINELS {
             cmd.env(k, v);
+        }
+        for (k, dir, _) in &env_sentinels {
+            cmd.env(k, dir);
         }
         let out = run_with(&mut cmd);
         assert!(matches!(out.code, 0 | 2), "{format}: {}", out.stderr);
@@ -344,7 +409,57 @@ fn must_not_spawn_tools_or_read_host_environment() {
             assert!(!out.stdout.contains(v), "{format}: stdout holds {v}");
             assert!(!out.stderr.contains(v), "{format}: stderr holds {v}");
         }
+        for (_, dir, marker) in &env_sentinels {
+            assert!(
+                !out.stdout.contains(marker),
+                "{format}: stdout holds sentinel package {marker}"
+            );
+            assert!(
+                !out.stdout.contains(&*dir.to_string_lossy()),
+                "{format}: stdout holds a sentinel path"
+            );
+            assert!(
+                !out.stderr.contains(&*dir.to_string_lossy()),
+                "{format}: stderr holds a sentinel path"
+            );
+        }
     }
+
+    // KTD21: a run that names one dependency root with `--deps` must not
+    // scan packages reachable through the environment, must not print
+    // sentinel values, and must list exactly the root that was named.
+    let scan_root = t.path("proj");
+    std::fs::create_dir_all(&scan_root).unwrap();
+    std::fs::write(scan_root.join("app.js"), "const x = 1;\n").unwrap();
+    let named = t.path("named/sitepk");
+    std::fs::create_dir_all(named.join("x-1.0.dist-info")).unwrap();
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_egress-plane"));
+    cmd.args([OsStr::new("scan"), scan_root.as_os_str()])
+        .args(["--format", "json"])
+        .args([OsStr::new("--deps"), named.as_os_str()])
+        .env("PATH", &bin);
+    for (k, v) in SENTINELS {
+        cmd.env(k, v);
+    }
+    for (k, dir, _) in &env_sentinels {
+        cmd.env(k, dir);
+    }
+    let out = run_with(&mut cmd);
+    assert_eq!(out.code, 0, "{}", out.stderr);
+    let v: serde_json::Value = serde_json::from_str(&out.stdout).unwrap();
+    assert_eq!(
+        v["dependencies"]["roots"],
+        serde_json::json!([{"label": "python", "kind": "python"}])
+    );
+    assert!(
+        !out.stdout.contains("sentinel"),
+        "stdout holds a sentinel package name"
+    );
+    assert!(
+        !out.stderr.contains("sentinel"),
+        "stderr holds a sentinel value"
+    );
+
     let left: Vec<_> = std::fs::read_dir(&marks).unwrap().flatten().collect();
     assert!(left.is_empty(), "a trap binary ran: {left:?}");
 }

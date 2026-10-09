@@ -1,4 +1,4 @@
-//! `egress-plane scan <root> [--format text|json]` and
+//! `egress-plane scan <root> [--format text|json] [--deps <path>]...` and
 //! `egress-plane probe [--format text|json] [--nonce HEX]
 //! [--active --allow IP:PORT ...]`.
 //!
@@ -24,7 +24,7 @@ use egress_core::discover::guard;
 use egress_core::json::to_json;
 use egress_core::model::EXIT_TOOL_ERROR;
 
-const USAGE: &str = "usage: egress-plane scan <root> [--format text|json]\n       egress-plane probe [--format text|json] [--nonce HEX] [--active --allow IP:PORT ...]";
+const USAGE: &str = "usage: egress-plane scan <root> [--format text|json] [--deps <path>]...\n       egress-plane probe [--format text|json] [--nonce HEX] [--active --allow IP:PORT ...]";
 
 #[derive(Clone, Copy)]
 enum Format {
@@ -38,6 +38,7 @@ enum Command {
     Scan {
         root: PathBuf,
         format: Format,
+        deps: Vec<PathBuf>,
     },
     Probe {
         format: Format,
@@ -77,6 +78,7 @@ fn parse(args: Vec<OsString>) -> Result<Command, String> {
 fn parse_scan(mut it: std::vec::IntoIter<OsString>) -> Result<Command, String> {
     let mut root = None;
     let mut format = Format::Text;
+    let mut deps = Vec::new();
     let mut only_paths = false;
     while let Some(a) = it.next() {
         let s = a.to_str();
@@ -96,11 +98,19 @@ fn parse_scan(mut it: std::vec::IntoIter<OsString>) -> Result<Command, String> {
             Some(s) if s.starts_with("--format=") => {
                 format = parse_format(&OsString::from(&s["--format=".len()..]))?;
             }
+            // A `--deps` value is a path, so it is taken raw, not through
+            // `text_arg`: non-UTF-8 paths are accepted.
+            Some("--deps") => {
+                deps.push(PathBuf::from(it.next().ok_or("--deps needs a value")?));
+            }
+            Some(s) if s.starts_with("--deps=") => {
+                deps.push(PathBuf::from(&s["--deps=".len()..]));
+            }
             _ => return Err("unknown option".into()),
         }
     }
     let root = root.ok_or("missing scan root")?;
-    Ok(Command::Scan { root, format })
+    Ok(Command::Scan { root, format, deps })
 }
 
 /// `probe` takes no positional argument. `--active` and `--allow` require
@@ -171,10 +181,19 @@ fn print(out: &str) -> Result<(), ()> {
         .map_err(|_| ())
 }
 
-fn scan(root: PathBuf, format: Format) -> ExitCode {
+fn scan(root: PathBuf, format: Format, deps: Vec<PathBuf>) -> ExitCode {
     // A panic outside the per-file guards is a tool error; `guard` keeps its
     // payload, which may quote scanned input, off stderr.
-    let report = match guard(|| egress_scan::scan(&root)) {
+    let report = match guard(|| {
+        egress_scan::scan_with(
+            &root,
+            &egress_scan::ScanOptions {
+                dependency_roots: deps,
+                ..egress_scan::ScanOptions::default()
+            },
+        )
+        .map(|o| o.report)
+    }) {
         Some(Ok(r)) => r,
         Some(Err(e)) => return fail(&format!("error: {e}")),
         None => return fail("error: internal failure"),
@@ -241,7 +260,7 @@ fn probe(format: Format, nonce: Option<String>, allow: Vec<String>) -> ExitCode 
 
 fn main() -> ExitCode {
     match parse(std::env::args_os().skip(1).collect()) {
-        Ok(Command::Scan { root, format }) => scan(root, format),
+        Ok(Command::Scan { root, format, deps }) => scan(root, format, deps),
         Ok(Command::Probe {
             format,
             nonce,

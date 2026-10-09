@@ -889,11 +889,75 @@ pub struct Excluded {
     pub reason: ExcludedReason,
 }
 
+/// Why a named dependency root was rejected (KTD2, KTD3, KTD5). Every
+/// `Display` text is fixed and never holds a path or a scanned string.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DependencyRootProblem {
+    /// The named path does not exist.
+    NotFound,
+    /// The named path exists but is not a directory.
+    NotDirectory,
+    /// The layout matches no root kind, or matches more than one (KTD3).
+    UnrecognizedLayout,
+    /// The root could not be listed.
+    Unreadable,
+    /// The root equals or contains the scan root (KTD2).
+    OverlapsScanRoot,
+    /// The root lies strictly inside another named root (KTD2).
+    InsideAnotherRoot,
+    /// An npm root outside the scan root that Node's lookup from the
+    /// scan root cannot reach (KTD5).
+    NpmNotOnLookupPath,
+    /// Two roots hold the same package at the same locator (KTD4, AE11).
+    AmbiguousRoots,
+    /// Two Python roots hold the same top-level import name, or one venv
+    /// has more than one import root (KTD5).
+    AmbiguousEnvironment,
+}
+
+impl DependencyRootProblem {
+    pub const ALL: [DependencyRootProblem; 9] = [
+        Self::NotFound,
+        Self::NotDirectory,
+        Self::UnrecognizedLayout,
+        Self::Unreadable,
+        Self::OverlapsScanRoot,
+        Self::InsideAnotherRoot,
+        Self::NpmNotOnLookupPath,
+        Self::AmbiguousRoots,
+        Self::AmbiguousEnvironment,
+    ];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NotFound => "not found",
+            Self::NotDirectory => "not a directory",
+            Self::UnrecognizedLayout => "unrecognized layout",
+            Self::Unreadable => "cannot be read",
+            Self::OverlapsScanRoot => "equals or contains the scan root",
+            Self::InsideAnotherRoot => "inside another named dependency root",
+            Self::NpmNotOnLookupPath => "npm root is not on the lookup path",
+            Self::AmbiguousRoots => "ambiguous dependency roots",
+            Self::AmbiguousEnvironment => "ambiguous Python environment",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.as_str() == s)
+    }
+}
+
 /// A failure that produces no report (exit code 1).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ToolError {
     RootNotFound,
     RootNotDirectory,
+    /// A `--deps` argument was rejected; `ordinal` is its 1-based
+    /// argument position.
+    DependencyRoot {
+        ordinal: usize,
+        problem: DependencyRootProblem,
+    },
     /// An internal failure with a fixed description.
     Internal(&'static str),
 }
@@ -903,6 +967,9 @@ impl std::fmt::Display for ToolError {
         match self {
             Self::RootNotFound => f.write_str("scan root not found"),
             Self::RootNotDirectory => f.write_str("scan root is not a directory"),
+            Self::DependencyRoot { ordinal, problem } => {
+                write!(f, "dependency root {ordinal}: {}", problem.as_str())
+            }
             Self::Internal(what) => write!(f, "internal error: {what}"),
         }
     }

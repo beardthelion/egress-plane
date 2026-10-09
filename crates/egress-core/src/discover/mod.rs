@@ -5,6 +5,7 @@
 
 pub mod budgets;
 pub mod completeness;
+pub mod dependency_roots;
 pub mod hooks;
 pub mod labels;
 pub mod manifests;
@@ -777,6 +778,12 @@ impl Walk<'_> {
 }
 
 impl Discovery {
+    /// The open handle on the canonical scan root, for dependency-root
+    /// validation and in-index lockfile reads (KTD24).
+    pub fn root_dir(&self) -> &RootDir {
+        &self.root
+    }
+
     /// Reads one source file through the safe open path, strips a UTF-8 BOM,
     /// and decodes it. UTF-8 is the only accepted encoding.
     pub fn read_source(&self, file: &SourceFile) -> Result<String, BlindSpotKind> {
