@@ -1,0 +1,10 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/sitepk"
+
+[[auto_run]]
+file = "evil.pth"
+trigger = "pth-import-line"
+distribution = "evil-dist"

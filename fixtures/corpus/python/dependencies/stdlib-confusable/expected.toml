@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[unscanned_dependencies]]
+language = "python"
+package = "ѕocket"
+mark = ["socket"]
+mark_rules = ["confusable-skeleton", "mixed-script"]

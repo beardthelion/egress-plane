@@ -76,14 +76,16 @@ use crate::compare::CaseOutcome;
 /// Language directories under the corpus root.
 pub const LANGUAGES: [&str; 4] = ["python", "javascript", "rust", "mixed"];
 
-/// Category directories. `primitives` holds the one-per-entry cases.
-pub const CATEGORIES: [&str; 6] = [
+/// Category directories. `primitives` holds the one-per-entry cases;
+/// `dependencies` holds the dependency-source cases.
+pub const CATEGORIES: [&str; 7] = [
     "ordinary",
     "tricky",
     "evasive",
     "closure",
     "primitives",
     "completeness",
+    "dependencies",
 ];
 
 /// The pending ledger: cases not yet expected to pass.
@@ -277,10 +279,25 @@ impl RunSummary {
     }
 }
 
-/// Runs every case under `corpus_root` through `scan`.
+/// Runs every case under `corpus_root` through `scan` with no dependency
+/// roots.
 pub fn run_corpus<F>(corpus_root: &Path, pending: &Pending, scan: F) -> RunSummary
 where
     F: Fn(&Path) -> Result<Report, ToolError>,
+{
+    run_corpus_with(corpus_root, pending, |tree, _, _| scan(tree))
+}
+
+/// Runs every case under `corpus_root` through `scan`, passing each case's
+/// labeled dependency roots (resolved against the case directory, in labeled
+/// order) and `[dependency_budgets]` override.
+pub fn run_corpus_with<F>(corpus_root: &Path, pending: &Pending, scan: F) -> RunSummary
+where
+    F: Fn(
+        &Path,
+        &[PathBuf],
+        Option<&labels::DependencyBudgetOverride>,
+    ) -> Result<Report, ToolError>,
 {
     let mut summary = RunSummary::default();
     let cases = discover(corpus_root, &mut summary.errors);
@@ -306,7 +323,16 @@ where
                 continue;
             }
         };
-        let outcome = compare::compare(&expected, &scan(&case.tree()));
+        let roots: Vec<PathBuf> = expected
+            .dependency_roots
+            .iter()
+            .map(|r| case.dir.join(r))
+            .collect();
+        let outcome = compare::compare_case(
+            &expected,
+            &scan(&case.tree(), &roots, expected.dependency_budgets.as_ref()),
+            &case.dir,
+        );
         match (is_pending, outcome.passed()) {
             (false, false) => summary.errors.push(format!(
                 "{}: case fails:\n    {}",

@@ -1,0 +1,15 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/venv"
+
+[[dependencies]]
+language = "python"
+package = "yaml"
+root = "python"
+locator = "yaml"
+version = "6.0.2"
+strength = "checksum-verified"
+state = "complete"
+distribution = ["PyYAML"]

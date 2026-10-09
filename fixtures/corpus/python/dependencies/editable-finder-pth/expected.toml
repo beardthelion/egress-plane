@@ -1,0 +1,15 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/sitepk"
+
+[[unscanned_dependencies]]
+language = "python"
+package = "leftpy"
+reason = "unsupported-layout"
+
+[[auto_run]]
+file = "__editable__.leftpy-1.0.pth"
+trigger = "pth-import-line"
+distribution = "leftpy"

@@ -1,0 +1,17 @@
+state = "complete"
+exit_code = 0
+absent_dependency_blind_spots = [
+  { package = "foo", kind = "shadowed-module" },
+]
+
+[[dependency_root]]
+path = "roots/sitepk"
+
+[[dependencies]]
+language = "python"
+package = "foo"
+root = "python"
+locator = "foo"
+version = "1.0.0"
+strength = "unlocked"
+state = "complete"

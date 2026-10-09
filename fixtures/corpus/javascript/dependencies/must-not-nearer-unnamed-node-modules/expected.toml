@@ -1,0 +1,13 @@
+state = "complete"
+exit_code = 0
+absent_scanned = [
+  { language = "javascript", package = "leftpad" },
+]
+
+[[dependency_root]]
+path = "tree/node_modules"
+
+[[unscanned_dependencies]]
+language = "javascript"
+package = "leftpad"
+reason = "no-source-in-named-root"

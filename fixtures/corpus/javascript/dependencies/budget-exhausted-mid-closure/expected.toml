@@ -1,0 +1,34 @@
+state = "complete"
+exit_code = 0
+dependency_budget_exceeded = ["packages"]
+
+[dependency_budgets]
+packages = 1
+
+[[dependency_root]]
+path = "tree/node_modules"
+
+[[sites]]
+file = "app.js"
+symbol = "main"
+mechanism = "javascript:https.get"
+destination = "https://telemetry.example/"
+
+[[dependencies]]
+language = "javascript"
+package = "a"
+root = "node_modules"
+locator = "a"
+version = "1.0.0"
+strength = "unlocked"
+state = "complete"
+
+[[unscanned_dependencies]]
+language = "javascript"
+package = "b"
+reason = "dependency-budget-exhausted"
+
+[[unscanned_dependencies]]
+language = "javascript"
+package = "c"
+reason = "dependency-budget-exhausted"

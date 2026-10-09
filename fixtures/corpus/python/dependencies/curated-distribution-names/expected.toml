@@ -1,0 +1,77 @@
+state = "complete"
+exit_code = 0
+
+[[unscanned_dependencies]]
+language = "python"
+package = "PIL"
+distribution = ["Pillow"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "bs4"
+distribution = ["beautifulsoup4"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "cv2"
+distribution = ["opencv-python"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "Crypto"
+distribution = ["pycryptodome"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "skimage"
+distribution = ["scikit-image"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "sklearn"
+distribution = ["scikit-learn"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "dateutil"
+distribution = ["python-dateutil"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "jwt"
+distribution = ["PyJWT"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "docx"
+distribution = ["python-docx"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "serial"
+distribution = ["pyserial"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "websocket"
+distribution = ["websocket-client"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "git"
+distribution = ["GitPython"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "OpenSSL"
+distribution = ["pyOpenSSL"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "magic"
+distribution = ["python-magic"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "yaml"
+distribution = ["PyYAML"]

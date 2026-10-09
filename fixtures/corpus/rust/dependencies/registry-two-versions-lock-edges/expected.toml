@@ -1,0 +1,23 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/registry/src"
+
+[[dependencies]]
+language = "rust"
+package = "syn"
+root = "cargo-registry"
+locator = "syn#1"
+version = "1.0.0"
+strength = "version-matched"
+state = "complete"
+
+[[dependencies]]
+language = "rust"
+package = "syn"
+root = "cargo-registry"
+locator = "syn#2"
+version = "2.0.0"
+strength = "version-matched"
+state = "complete"

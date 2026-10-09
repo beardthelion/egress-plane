@@ -1,0 +1,13 @@
+state = "complete"
+exit_code = 0
+
+[[unscanned_dependencies]]
+language = "rust"
+package = "serde"
+mark = []
+
+[[unscanned_dependencies]]
+language = "rust"
+package = "sеrde"
+mark = ["serde"]
+mark_rules = ["confusable-skeleton", "non-ascii-name"]

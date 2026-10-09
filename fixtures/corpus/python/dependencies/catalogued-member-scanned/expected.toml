@@ -1,0 +1,15 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/sitepk"
+
+[[dependencies]]
+language = "python"
+package = "requests"
+root = "python"
+locator = "requests"
+version = "2.32.0"
+strength = "unlocked"
+state = "complete"
+catalogued = true

@@ -1,0 +1,22 @@
+state = "complete"
+exit_code = 0
+absent_text = ["tests-sentinel-zz"]
+
+[[dependency_root]]
+path = "roots/vendor"
+
+[[dependencies]]
+language = "rust"
+package = "leftbuild"
+root = "cargo-vendor"
+locator = "leftbuild"
+version = "0.2.0"
+strength = "checksum-verified"
+state = "complete"
+
+[[dependency_blind_spots]]
+package = "leftbuild"
+locator = "leftbuild"
+file = "build.rs"
+symbol = "<module>"
+kind = "build-hook"

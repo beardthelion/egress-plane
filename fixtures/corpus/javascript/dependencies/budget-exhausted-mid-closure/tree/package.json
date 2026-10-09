@@ -1,0 +1,6 @@
+{
+  "name": "fixture-app",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {"a": "1.0.0", "b": "1.0.0", "c": "1.0.0"}
+}

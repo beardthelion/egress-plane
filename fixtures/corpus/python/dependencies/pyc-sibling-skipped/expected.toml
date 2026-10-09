@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/sitepk"
+
+[[dependencies]]
+language = "python"
+package = "pkgsib"
+root = "python"
+locator = "pkgsib"
+version = "1.0.0"
+strength = "unlocked"
+state = "incomplete"

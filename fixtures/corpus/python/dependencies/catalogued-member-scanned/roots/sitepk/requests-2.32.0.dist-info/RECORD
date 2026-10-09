@@ -1,0 +1,4 @@
+requests/__init__.py,sha256=fRBqyZGHJEXaoJkonNzd4sitFHxYLmS-3lbNkLnk7qs,21
+requests/compat.py,sha256=IAdur0l-LwdEIC9W6LFqDoAFEY8EkiCZu8ssEDpPM7k,30
+requests-2.32.0.dist-info/METADATA,sha256=WpelU2VuC5VkdqQKlEd7gonalT1tENEenVbhvj_m3lw,53
+requests-2.32.0.dist-info/RECORD,,

@@ -1,0 +1,7 @@
+state = "complete"
+exit_code = 0
+
+[[unscanned_dependencies]]
+language = "javascript"
+package = "leftpad"
+reason = "archive-only-install"

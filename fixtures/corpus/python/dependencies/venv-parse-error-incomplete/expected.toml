@@ -1,0 +1,21 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/venv"
+
+[[dependencies]]
+language = "python"
+package = "leftpy"
+root = "python"
+locator = "leftpy"
+version = "1.0.0"
+strength = "unlocked"
+state = "incomplete"
+
+[[dependency_blind_spots]]
+package = "leftpy"
+locator = "leftpy"
+file = "broken.py"
+symbol = "<module>"
+kind = "parse-error"

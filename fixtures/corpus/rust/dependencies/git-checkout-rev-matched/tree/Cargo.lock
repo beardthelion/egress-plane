@@ -1,0 +1,13 @@
+version = 3
+
+[[package]]
+name = "fixture"
+version = "0.1.0"
+dependencies = [
+  "leftgit",
+]
+
+[[package]]
+name = "leftgit"
+version = "0.4.0"
+source = "git+https://git.example.com/leftgit.git?rev=9abc123#9abc1230deadbeef"

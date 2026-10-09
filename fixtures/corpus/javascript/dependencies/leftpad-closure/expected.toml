@@ -1,0 +1,35 @@
+state = "complete"
+exit_code = 0
+absent_unscanned = [
+  { language = "javascript", package = "leftpad" },
+  { language = "javascript", package = "padder" },
+]
+
+[[dependency_root]]
+path = "tree/node_modules"
+
+[[dependencies]]
+language = "javascript"
+package = "leftpad"
+root = "node_modules"
+locator = "leftpad"
+version = "1.3.0"
+strength = "unlocked"
+state = "complete"
+
+[[dependencies]]
+language = "javascript"
+package = "padder"
+root = "node_modules"
+locator = "padder"
+version = "2.0.0"
+strength = "unlocked"
+state = "complete"
+
+[[dependency_sites]]
+package = "leftpad"
+locator = "leftpad"
+file = "index.js"
+symbol = "pad"
+mechanism = "javascript:http.request"
+destination = "https://sink.leftpad.example/"

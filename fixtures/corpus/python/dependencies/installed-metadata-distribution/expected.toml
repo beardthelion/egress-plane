@@ -1,0 +1,15 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/venv"
+
+[[dependencies]]
+language = "python"
+package = "jwt"
+root = "python"
+locator = "jwt"
+version = "2.8.0"
+strength = "unlocked"
+state = "complete"
+distribution = ["PyJWT"]

@@ -1,0 +1,13 @@
+state = "complete"
+exit_code = 0
+
+[[unscanned_dependencies]]
+language = "python"
+package = "requests"
+mark = []
+
+[[unscanned_dependencies]]
+language = "python"
+package = "rеquests"
+mark = ["requests"]
+mark_rules = ["confusable-skeleton", "mixed-script"]

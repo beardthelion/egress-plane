@@ -1,0 +1,23 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "tree/node_modules"
+
+[[dependencies]]
+language = "javascript"
+package = "axios"
+root = "node_modules"
+locator = "axios"
+version = "1.7.7"
+strength = "unlocked"
+state = "complete"
+catalogued = true
+
+[[dependency_sites]]
+package = "axios"
+locator = "axios"
+file = "index.js"
+symbol = "request"
+mechanism = "javascript:https.get"
+destination = "https://api.axios.internal/"

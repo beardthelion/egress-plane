@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/registry/src"
+
+[[dependencies]]
+language = "rust"
+package = "serde"
+root = "cargo-registry"
+locator = "serde"
+version = "1.0.201"
+strength = "version-matched"
+state = "complete"

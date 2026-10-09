@@ -1,0 +1,32 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "tree/node_modules"
+
+[[dependencies]]
+language = "javascript"
+package = "a"
+root = "node_modules"
+locator = "a"
+version = "1.0.0"
+strength = "unlocked"
+state = "complete"
+
+[[dependencies]]
+language = "javascript"
+package = "leftpad"
+root = "node_modules"
+locator = "leftpad"
+version = "1.0.0"
+strength = "unlocked"
+state = "complete"
+
+[[dependencies]]
+language = "javascript"
+package = "leftpad"
+root = "node_modules"
+locator = "a/leftpad"
+version = "2.0.0"
+strength = "unlocked"
+state = "complete"

@@ -1,0 +1,10 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/git/checkouts"
+
+[[unscanned_dependencies]]
+language = "rust"
+package = "leftgit"
+reason = "version-mismatch"

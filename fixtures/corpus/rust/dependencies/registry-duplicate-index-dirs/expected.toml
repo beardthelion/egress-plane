@@ -1,0 +1,10 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/registry/src"
+
+[[unscanned_dependencies]]
+language = "rust"
+package = "serde"
+reason = "unsupported-layout"

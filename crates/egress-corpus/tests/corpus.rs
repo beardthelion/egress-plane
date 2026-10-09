@@ -4,14 +4,24 @@
 
 use std::path::Path;
 
-use egress_corpus::{load_pending, run_corpus};
+use egress_corpus::{load_pending, run_corpus_with};
+use egress_scan::{ScanOptions, scan_with};
 
 #[test]
 fn corpus() {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let root = manifest.join("../../fixtures/corpus");
     let pending = load_pending(&root.join("pending.toml")).unwrap_or_else(|e| panic!("{e}"));
-    let summary = run_corpus(&root, &pending, egress_scan::scan);
+    let summary = run_corpus_with(&root, &pending, |tree, roots, budgets| {
+        let mut options = ScanOptions {
+            dependency_roots: roots.to_vec(),
+            ..ScanOptions::default()
+        };
+        if let Some(b) = budgets {
+            b.apply(&mut options.dependency_budgets);
+        }
+        scan_with(tree, &options).map(|o| o.report)
+    });
     println!("{}", summary.render());
     let target = manifest.join("../../target");
     if std::fs::create_dir_all(&target).is_ok() {

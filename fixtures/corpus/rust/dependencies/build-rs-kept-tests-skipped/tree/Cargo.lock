@@ -1,0 +1,14 @@
+version = 3
+
+[[package]]
+name = "fixture"
+version = "0.1.0"
+dependencies = [
+  "leftbuild",
+]
+
+[[package]]
+name = "leftbuild"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7777777777777777777777777777777777777777777777777777777777777777"

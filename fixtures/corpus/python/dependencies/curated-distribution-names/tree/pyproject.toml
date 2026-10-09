@@ -1,0 +1,4 @@
+[project]
+name = "fixture"
+version = "0.1.0"
+dependencies = ["Pillow", "beautifulsoup4", "opencv-python", "pycryptodome", "scikit-image", "scikit-learn", "python-dateutil", "PyJWT", "python-docx", "pyserial", "websocket-client", "GitPython", "pyOpenSSL", "python-magic", "PyYAML"]

@@ -7,13 +7,17 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use egress_core::model::{
-    BlindSpot, Bucket, Caveat, Completeness, CompletenessState, Coverage, Destination,
-    DestinationKind, Excluded, Language, Location, Report, RuntimeRange, SCHEMA_VERSION, Site,
-    Tool, ToolError, UnscannedDependency,
+    AutoRun, BlindSpot, Bucket, Caveat, Completeness, CompletenessState, Coverage, CoverageCounts,
+    DependencyMark, DependencyPackage, DependencyRoot, DependencyRootKind, DependencySection,
+    Destination, DestinationKind, Excluded, ImportsUnscanned, Language, Location,
+    LockfileDiagnostic, MarkRule, Report, RuntimeRange, SCHEMA_VERSION, Site, Tool, ToolError,
+    UnscannedDependency,
 };
-use egress_corpus::compare::compare;
+use egress_corpus::compare::{compare, compare_case};
 use egress_corpus::labels::{Expected, load_expected, parse_expected};
-use egress_corpus::{Pending, discover_cases, load_pending, parse_pending, run_corpus};
+use egress_corpus::{
+    Pending, discover_cases, load_pending, parse_pending, run_corpus, run_corpus_with,
+};
 
 fn corpus_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/corpus")
@@ -78,10 +82,10 @@ fn report_from(expected: &Expected) -> Report {
             language: d.language,
             package: d.package.clone(),
             files: vec![],
-            reason: None,
-            distribution: vec![],
+            reason: d.reason,
+            distribution: d.distribution.clone().unwrap_or_default(),
             distribution_source: None,
-            mark: None,
+            mark: mark_from(&d.mark, &d.mark_rules),
         })
         .collect();
     let excluded = expected
@@ -125,8 +129,152 @@ fn report_from(expected: &Expected) -> Report {
         blind_spots,
         unscanned_dependencies,
         excluded,
-        dependencies: None,
+        dependencies: dependency_section(expected),
     }
+}
+
+/// Builds a labeled mark; `mark = []` means no mark.
+fn mark_from(mark: &Option<Vec<String>>, rules: &Option<Vec<MarkRule>>) -> Option<DependencyMark> {
+    match mark {
+        Some(v) if v.is_empty() => None,
+        Some(v) => Some(DependencyMark {
+            rules: rules.clone().unwrap_or_default(),
+            resembles: v.clone(),
+        }),
+        None => rules.as_ref().map(|r| DependencyMark {
+            rules: r.clone(),
+            resembles: vec![],
+        }),
+    }
+}
+
+/// Builds the dependency section a perfect scanner would produce for
+/// `expected`; `None` when the case names no dependency root.
+fn dependency_section(expected: &Expected) -> Option<DependencySection> {
+    if expected.dependency_roots.is_empty() {
+        return None;
+    }
+    let packages = expected
+        .dependencies
+        .iter()
+        .enumerate()
+        .map(|(i, d)| {
+            let in_entry = |p: &str, l: &str| p == d.package.as_str() && l == d.locator.as_str();
+            let sites = expected
+                .dependency_sites
+                .iter()
+                .filter(|s| in_entry(&s.package, &s.locator))
+                .map(|s| Site {
+                    id: format!("{:016x}", 3000 + i),
+                    language: language_of(&s.mechanism),
+                    file: s.file.clone(),
+                    file_bytes: None,
+                    symbol: s.symbol.clone(),
+                    bucket: Bucket::Primitive,
+                    mechanism: s.mechanism.clone(),
+                    destination: Destination {
+                        kind: DestinationKind::Expr,
+                        value: s.destination.clone(),
+                        default: None,
+                        display: s.destination.clone(),
+                    },
+                    ordinal: 0,
+                    labels: vec![],
+                    location: None,
+                })
+                .collect();
+            let blind_spots = expected
+                .dependency_blind_spots
+                .iter()
+                .filter(|b| in_entry(&b.package, &b.locator))
+                .map(|b| BlindSpot {
+                    id: format!("{:016x}", 4000 + i),
+                    language: Some(d.language),
+                    file: b.file.clone(),
+                    file_bytes: None,
+                    symbol: b.symbol.clone(),
+                    kind: b.kind,
+                    whole_file: b.kind.is_whole_file(),
+                    coverage_gap: b.kind.is_whole_file(),
+                    construct: String::new(),
+                    ordinal: 0,
+                    labels: vec![],
+                    location: None,
+                })
+                .collect();
+            let imports_unscanned = expected
+                .dependency_imports_unscanned
+                .iter()
+                .filter(|u| in_entry(&u.package, &u.locator))
+                .map(|u| ImportsUnscanned {
+                    language: u.language,
+                    package: u.imported.clone(),
+                    reason: u.reason,
+                    distribution: vec![],
+                    distribution_source: None,
+                    mark: None,
+                })
+                .collect();
+            DependencyPackage {
+                id: format!("{:016x}", 2000 + i),
+                language: d.language,
+                package: d.package.clone(),
+                root: d.root.clone(),
+                locator: d.locator.clone(),
+                version: d.version.clone(),
+                strength: d.strength,
+                modified: d.modified,
+                linked: d.linked,
+                catalogued: d.catalogued,
+                distribution: d.distribution.clone().unwrap_or_default(),
+                distribution_source: None,
+                mark: mark_from(&d.mark, &d.mark_rules),
+                imported_by: vec![],
+                imported_by_packages: vec![],
+                state: d.state,
+                coverage: CoverageCounts::default(),
+                sites,
+                blind_spots,
+                imports_unscanned,
+            }
+        })
+        .collect();
+    Some(DependencySection {
+        roots: expected
+            .dependency_roots
+            .iter()
+            .map(|p| DependencyRoot {
+                label: p.clone(),
+                kind: DependencyRootKind::Python,
+            })
+            .collect(),
+        caveats: vec![],
+        budget_exceeded: expected
+            .dependency_budget_exceeded
+            .clone()
+            .unwrap_or_default(),
+        diagnostics: expected
+            .dependency_diagnostics
+            .iter()
+            .map(|d| LockfileDiagnostic {
+                lockfile: d.lockfile.clone(),
+                problem: d.problem,
+            })
+            .collect(),
+        auto_run: expected
+            .auto_run
+            .iter()
+            .enumerate()
+            .map(|(i, a)| AutoRun {
+                id: format!("{:016x}", 5000 + i),
+                root: expected.dependency_roots[0].clone(),
+                file: a.file.clone(),
+                trigger: a.trigger,
+                distribution: a.distribution.clone(),
+            })
+            .collect(),
+        packages,
+    })
 }
 
 const BASIC: &str = r#"
@@ -505,13 +653,22 @@ fn perfect_scan(root: &Path) -> Result<Report, ToolError> {
     Ok(report_from(&expected))
 }
 
+/// `perfect_scan` under the `run_corpus_with` signature.
+fn perfect_scan_with(
+    root: &Path,
+    _: &[PathBuf],
+    _: Option<&egress_corpus::labels::DependencyBudgetOverride>,
+) -> Result<Report, ToolError> {
+    perfect_scan(root)
+}
+
 #[test]
 fn run_passes_when_every_case_passes() {
     let root = temp_corpus(&[
         ("python/ordinary/a", COMPLETE_EMPTY),
         ("rust/evasive/b", COMPLETE_EMPTY),
     ]);
-    let s = run_corpus(&root, &pending(&[]), perfect_scan);
+    let s = run_corpus_with(&root, &pending(&[]), perfect_scan_with);
     assert!(s.passed(), "{:?}", s.errors);
     assert_eq!(s.cases.len(), 2);
 }
@@ -519,7 +676,9 @@ fn run_passes_when_every_case_passes() {
 #[test]
 fn failing_non_pending_case_fails_run() {
     let root = temp_corpus(&[("python/ordinary/a", COMPLETE_EMPTY)]);
-    let s = run_corpus(&root, &pending(&[]), |_| Err(ToolError::Internal("stub")));
+    let s = run_corpus_with(&root, &pending(&[]), |_, _, _| {
+        Err(ToolError::Internal("stub"))
+    });
     assert!(!s.passed());
     assert!(s.errors.join("\n").contains("python/ordinary/a"));
 }
@@ -527,7 +686,7 @@ fn failing_non_pending_case_fails_run() {
 #[test]
 fn failing_pending_case_does_not_fail_run() {
     let root = temp_corpus(&[("python/ordinary/a", COMPLETE_EMPTY)]);
-    let s = run_corpus(&root, &pending(&["python/ordinary/a"]), |_| {
+    let s = run_corpus_with(&root, &pending(&["python/ordinary/a"]), |_, _, _| {
         Err(ToolError::Internal("stub"))
     });
     assert!(s.passed(), "{:?}", s.errors);
@@ -536,7 +695,7 @@ fn failing_pending_case_does_not_fail_run() {
 #[test]
 fn pending_case_that_passes_fails_run_with_removal_message() {
     let root = temp_corpus(&[("python/ordinary/a", COMPLETE_EMPTY)]);
-    let s = run_corpus(&root, &pending(&["python/ordinary/a"]), perfect_scan);
+    let s = run_corpus_with(&root, &pending(&["python/ordinary/a"]), perfect_scan_with);
     assert!(!s.passed());
     let msg = s.errors.join("\n");
     assert!(msg.contains("python/ordinary/a"), "{msg}");
@@ -561,7 +720,7 @@ fn malformed_expected_fails_run_with_case_path() {
         ("python/ordinary/good", COMPLETE_EMPTY),
         ("python/tricky/bad", "state = \"complete\"\n"),
     ]);
-    let s = run_corpus(&root, &pending(&[]), perfect_scan);
+    let s = run_corpus_with(&root, &pending(&[]), perfect_scan_with);
     assert!(!s.passed());
     assert!(s.errors.join("\n").contains("python/tricky/bad"));
 }
@@ -570,7 +729,7 @@ fn malformed_expected_fails_run_with_case_path() {
 fn unknown_language_or_category_fails_run() {
     for (id, named) in [("go/ordinary/a", "go:"), ("python/misc/a", "python/misc:")] {
         let root = temp_corpus(&[(id, COMPLETE_EMPTY)]);
-        let s = run_corpus(&root, &pending(&[]), perfect_scan);
+        let s = run_corpus_with(&root, &pending(&[]), perfect_scan_with);
         assert!(!s.passed(), "{id}");
         assert!(s.errors.join("\n").contains(named), "{id}: {:?}", s.errors);
     }
@@ -580,7 +739,7 @@ fn unknown_language_or_category_fails_run() {
 fn case_without_tree_fails_run() {
     let root = temp_corpus(&[("python/ordinary/a", COMPLETE_EMPTY)]);
     fs::remove_dir_all(root.join("python/ordinary/a/tree")).unwrap();
-    let s = run_corpus(&root, &pending(&[]), perfect_scan);
+    let s = run_corpus_with(&root, &pending(&[]), perfect_scan_with);
     assert!(!s.passed());
     assert!(s.errors.join("\n").contains("tree"));
 }
@@ -588,7 +747,7 @@ fn case_without_tree_fails_run() {
 #[test]
 fn false_positives_are_summed_across_cases() {
     let root = temp_corpus(&[("python/ordinary/a", COMPLETE_EMPTY)]);
-    let s = run_corpus(&root, &pending(&[]), |tree| {
+    let s = run_corpus_with(&root, &pending(&[]), |tree, _, _| {
         let mut r = perfect_scan(tree)?;
         let other = report_from(&basic());
         r.sites = other.sites;
@@ -611,7 +770,11 @@ fn pending_ledger_rejects_duplicates_and_unknown_keys() {
 // harness behavior itself, so they keep a stub as the scan and a ledger
 // that lists every case.
 
-fn stub(_: &Path) -> Result<Report, ToolError> {
+fn stub(
+    _: &Path,
+    _: &[PathBuf],
+    _: Option<&egress_corpus::labels::DependencyBudgetOverride>,
+) -> Result<Report, ToolError> {
     Err(ToolError::Internal("stub scan"))
 }
 
@@ -639,7 +802,7 @@ fn real_corpus_loads_and_every_case_fails_against_the_stub() {
     for c in &cases {
         load_expected(&c.dir.join("expected.toml")).unwrap();
     }
-    let s = run_corpus(&corpus_root(), &all_pending(), stub);
+    let s = run_corpus_with(&corpus_root(), &all_pending(), stub);
     assert!(s.passed(), "{:#?}", s.errors);
 }
 
@@ -655,7 +818,7 @@ fn removing_any_one_case_from_the_ledger_turns_the_run_red() {
     for id in &full.cases {
         let mut p = full.clone();
         p.cases.remove(id);
-        let s = run_corpus(&corpus_root(), &p, stub);
+        let s = run_corpus_with(&corpus_root(), &p, stub);
         by_case.insert(id.clone(), s);
     }
     for (id, s) in &by_case {
@@ -672,8 +835,383 @@ fn go_only_case_fails_against_the_stub() {
     assert_eq!(e.exit_code, 3);
     let mut p = all_pending();
     assert!(p.cases.remove(id), "{id} is a corpus case");
-    let s = run_corpus(&corpus_root(), &p, stub);
+    let s = run_corpus_with(&corpus_root(), &p, stub);
     assert!(!s.passed());
     let msg = s.errors.join("\n");
     assert!(msg.contains(id) && msg.contains("tool error"), "{msg}");
+}
+
+// Dependency-corpus rules: the new label kinds, the two global rules of
+// KTD20, and the must-not anchor requirements.
+
+/// Labels for a dependency case a perfect scan satisfies.
+const DEP_BASIC: &str = r#"
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/node_modules"
+
+[[dependencies]]
+language = "javascript"
+package = "leftpad"
+root = "node_modules"
+locator = "nested/leftpad"
+version = "1.3.0"
+strength = "unlocked"
+state = "complete"
+
+[[dependency_sites]]
+package = "leftpad"
+locator = "nested/leftpad"
+file = "index.js"
+symbol = "pad"
+mechanism = "javascript:http.request"
+destination = "https://x.example/"
+
+[[dependency_imports_unscanned]]
+package = "leftpad"
+locator = "nested/leftpad"
+language = "javascript"
+imported = "padder"
+reason = "no-source-in-named-root"
+
+[[auto_run]]
+file = "evil.pth"
+trigger = "pth-import-line"
+distribution = "evil-dist"
+
+[[dependency_diagnostics]]
+lockfile = "package-lock.json"
+problem = "parse-error"
+"#;
+
+fn dep_basic() -> Expected {
+    parse_expected(DEP_BASIC, "javascript/dependencies/x").expect("dependency labels parse")
+}
+
+#[test]
+fn dependency_labels_pass_when_every_field_matches() {
+    let e = dep_basic();
+    let outcome = compare(&e, &ok(report_from(&e)));
+    assert!(outcome.passed(), "{:?}", outcome.failures);
+    assert!(outcome.false_positives.is_empty());
+}
+
+#[test]
+fn missing_dependency_package_fails_naming_package_and_locator() {
+    let e = dep_basic();
+    let mut r = report_from(&e);
+    r.dependencies.as_mut().unwrap().packages.clear();
+    let outcome = compare(&e, &ok(r));
+    assert!(!outcome.passed());
+    let msg = outcome.failures.join("\n");
+    assert!(msg.contains("leftpad"), "{msg}");
+    assert!(msg.contains("nested/leftpad"), "{msg}");
+}
+
+#[test]
+fn labeled_reason_compares_and_unlabeled_reason_is_ignored() {
+    let e = parse_expected(
+        r#"
+state = "complete"
+exit_code = 0
+[[dependency_root]]
+path = "roots/node_modules"
+[[unscanned_dependencies]]
+language = "javascript"
+package = "leftpad"
+reason = "version-mismatch"
+"#,
+        "javascript/dependencies/x",
+    )
+    .unwrap();
+    let mut r = report_from(&e);
+    assert!(compare(&e, &ok(r.clone())).passed());
+    r.unscanned_dependencies[0].reason =
+        Some(egress_core::model::UnscannedReason::NoSourceInNamedRoot);
+    let outcome = compare(&e, &ok(r));
+    assert!(!outcome.passed());
+    assert!(outcome.failures.join("\n").contains("version-mismatch"));
+
+    let unlabeled = parse_expected(
+        r#"
+state = "complete"
+exit_code = 0
+[[dependency_root]]
+path = "roots/node_modules"
+[[unscanned_dependencies]]
+language = "javascript"
+package = "leftpad"
+"#,
+        "javascript/dependencies/x",
+    )
+    .unwrap();
+    let mut r = report_from(&unlabeled);
+    r.unscanned_dependencies[0].reason =
+        Some(egress_core::model::UnscannedReason::LockfileUnreadable);
+    assert!(compare(&unlabeled, &ok(r)).passed());
+}
+
+#[test]
+fn empty_mark_label_requires_no_mark() {
+    let e = parse_expected(
+        r#"
+state = "complete"
+exit_code = 0
+[[dependency_root]]
+path = "roots/node_modules"
+[[unscanned_dependencies]]
+language = "javascript"
+package = "leftpad"
+mark = []
+"#,
+        "javascript/dependencies/x",
+    )
+    .unwrap();
+    let mut r = report_from(&e);
+    assert!(compare(&e, &ok(r.clone())).passed());
+    r.unscanned_dependencies[0].mark = Some(DependencyMark {
+        rules: vec![MarkRule::NonAsciiName],
+        resembles: vec!["leftpad".to_string()],
+    });
+    assert!(!compare(&e, &ok(r)).passed());
+}
+
+#[test]
+fn dependency_section_without_labeled_root_fails_the_opt_in_rule() {
+    let e = basic();
+    let mut r = report_from(&e);
+    r.dependencies = Some(DependencySection {
+        roots: vec![],
+        caveats: vec![],
+        budget_exceeded: vec![],
+        diagnostics: vec![],
+        auto_run: vec![],
+        packages: vec![],
+    });
+    let outcome = compare(&e, &ok(r));
+    assert!(!outcome.passed());
+    assert!(outcome.failures.join("\n").contains("dependency section"));
+}
+
+#[test]
+fn unscanned_reason_without_labeled_root_fails() {
+    let e = basic();
+    let mut r = report_from(&e);
+    r.unscanned_dependencies[0].reason = Some(egress_core::model::UnscannedReason::VersionMismatch);
+    let outcome = compare(&e, &ok(r));
+    assert!(!outcome.passed());
+    assert!(outcome.failures.join("\n").contains("leftpad"));
+}
+
+#[test]
+fn case_directory_path_in_json_output_fails() {
+    let e = parse_expected(
+        "state = \"complete\"\nexit_code = 0\n[[excluded]]\npath = \"deps\"\nreason = \"install-output\"\n",
+        "javascript/dependencies/x",
+    )
+    .unwrap();
+    let dir = Path::new("/self-test/case/dir-7f3a");
+    let mut r = report_from(&e);
+    assert!(compare_case(&e, &ok(r.clone()), dir).passed());
+    r.excluded.push(Excluded {
+        path: "/self-test/case/dir-7f3a/inner".into(),
+        path_bytes: None,
+        reason: egress_core::model::ExcludedReason::InstallOutput,
+    });
+    let outcome = compare_case(&e, &ok(r), dir);
+    assert!(!outcome.passed());
+    assert!(
+        outcome.failures.join("\n").contains("case directory"),
+        "{:?}",
+        outcome.failures
+    );
+}
+
+#[test]
+fn unknown_key_in_dependencies_is_a_harness_error() {
+    let err = parse_expected(
+        r#"
+state = "complete"
+exit_code = 0
+[[dependencies]]
+language = "javascript"
+package = "leftpad"
+root = "node_modules"
+locator = "leftpad"
+version = "1.0.0"
+strength = "unlocked"
+state = "complete"
+surprise = 1
+"#,
+        "javascript/dependencies/x",
+    )
+    .unwrap_err();
+    assert!(err.contains("javascript/dependencies/x"), "{err}");
+}
+
+#[test]
+fn must_not_hide_dependency_text() {
+    // A sentinel that appears only inside a dependency package's site.
+    let e = parse_expected(
+        r#"
+state = "complete"
+exit_code = 0
+absent_text = ["hunter2-sentinel"]
+[[dependency_root]]
+path = "roots/node_modules"
+[[dependencies]]
+language = "javascript"
+package = "leftpad"
+root = "node_modules"
+locator = "leftpad"
+version = "1.0.0"
+strength = "unlocked"
+state = "complete"
+"#,
+        "javascript/dependencies/must-not-x",
+    )
+    .unwrap();
+    let mut r = report_from(&e);
+    assert!(
+        compare(&e, &ok(r.clone())).passed(),
+        "{:?}",
+        compare(&e, &ok(r.clone())).failures
+    );
+    r.dependencies.as_mut().unwrap().packages[0]
+        .sites
+        .push(Site {
+            id: "9".repeat(16),
+            language: Language::Javascript,
+            file: "index.js".into(),
+            file_bytes: None,
+            symbol: "f".into(),
+            bucket: Bucket::Primitive,
+            mechanism: "javascript:http.request".into(),
+            destination: Destination {
+                kind: DestinationKind::Expr,
+                value: "x".into(),
+                default: None,
+                display: "https://hunter2-sentinel.example/".into(),
+            },
+            ordinal: 0,
+            labels: vec![],
+            location: None,
+        });
+    assert!(!compare(&e, &ok(r)).passed());
+
+    // Or only inside an auto-run file name.
+    let mut r = report_from(&e);
+    r.dependencies.as_mut().unwrap().auto_run.push(AutoRun {
+        id: "9".repeat(16),
+        root: "node_modules".into(),
+        file: "hunter2-sentinel.pth".into(),
+        trigger: egress_core::model::AutoRunTrigger::PthImportLine,
+        distribution: "evil-dist".into(),
+    });
+    assert!(!compare(&e, &ok(r)).passed());
+}
+
+#[test]
+fn must_not_dependency_case_without_absence_label_is_a_harness_error() {
+    let text = r#"
+state = "complete"
+exit_code = 0
+[[dependency_root]]
+path = "roots/node_modules"
+"#;
+    let err = parse_expected(text, "python/dependencies/must-not-x").unwrap_err();
+    assert!(err.contains("python/dependencies/must-not-x"), "{err}");
+    // The same labels are fine outside a must-not case.
+    parse_expected(text, "python/dependencies/x").unwrap();
+}
+
+#[test]
+fn must_not_absence_labels_need_an_anchor() {
+    // Top-level keys must precede the `[[...]]` tables.
+    let head = "state = \"complete\"\nexit_code = 0\n";
+    let root = "[[dependency_root]]\npath = \"roots/venv\"\n";
+
+    // absent_dependency_blind_spots without the package under [[dependencies]].
+    let err = parse_expected(
+        &format!(
+            "{head}absent_dependency_blind_spots = [{{ package = \"foo\", kind = \"shadowed-module\" }}]\n{root}"
+        ),
+        "python/dependencies/must-not-x",
+    )
+    .unwrap_err();
+    assert!(err.contains("foo"), "{err}");
+
+    // The same case with the anchor parses.
+    parse_expected(
+        &format!(
+            "{head}absent_dependency_blind_spots = [{{ package = \"foo\", kind = \"shadowed-module\" }}]\n{root}\
+             [[dependencies]]\nlanguage = \"python\"\npackage = \"foo\"\nroot = \"venv\"\n\
+             locator = \"foo\"\nversion = \"1.0\"\nstrength = \"unlocked\"\nstate = \"complete\"\n"
+        ),
+        "python/dependencies/must-not-x",
+    )
+    .unwrap();
+
+    // absent_unscanned/absent_scanned need a scanned entry or a reasoned
+    // unscanned entry.
+    let err = parse_expected(
+        &format!(
+            "{head}absent_unscanned = [{{ language = \"python\", package = \"foo\" }}]\n{root}"
+        ),
+        "python/dependencies/must-not-x",
+    )
+    .unwrap_err();
+    assert!(err.contains("anchor"), "{err}");
+    parse_expected(
+        &format!(
+            "{head}absent_unscanned = [{{ language = \"python\", package = \"foo\" }}]\n{root}\
+             [[unscanned_dependencies]]\nlanguage = \"python\"\npackage = \"bar\"\n\
+             reason = \"no-source-in-named-root\"\n"
+        ),
+        "python/dependencies/must-not-x",
+    )
+    .unwrap();
+}
+
+#[test]
+fn dependency_budgets_unknown_key_is_a_harness_error() {
+    let err = parse_expected(
+        "state = \"complete\"\nexit_code = 0\n[dependency_budgets]\nwat = 1\n",
+        "javascript/dependencies/x",
+    )
+    .unwrap_err();
+    assert!(err.contains("javascript/dependencies/x"), "{err}");
+
+    let e = parse_expected(
+        "state = \"complete\"\nexit_code = 0\n[dependency_budgets]\npackages = 1\nmetadata_bytes = 64\n",
+        "javascript/dependencies/x",
+    )
+    .unwrap();
+    let o = e.dependency_budgets.unwrap();
+    assert_eq!(o.packages, Some(1));
+    assert_eq!(o.metadata_bytes, Some(64));
+    assert_eq!(o.files, None);
+}
+
+/// Every dependency case must sit in the pending ledger while the scan
+/// stub stands, except `leftpad-no-root`, which matches today's output and
+/// is never pending.
+#[test]
+fn dependency_cases_are_pending_except_leftpad_no_root() {
+    let real = load_pending(&corpus_root().join("pending.toml")).expect("pending.toml loads");
+    let cases = discover_cases(&corpus_root()).expect("corpus discovers");
+    let deps: Vec<_> = cases
+        .iter()
+        .filter(|c| c.category() == "dependencies")
+        .collect();
+    assert!(!deps.is_empty(), "no dependency cases discovered");
+    for c in &deps {
+        if c.id == "javascript/dependencies/leftpad-no-root" {
+            assert!(!real.cases.contains(&c.id), "{} must not be pending", c.id);
+        } else {
+            assert!(real.cases.contains(&c.id), "{} is not pending", c.id);
+        }
+    }
 }

@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/vendor"
+
+[[dependencies]]
+language = "rust"
+package = "tokio-util"
+root = "cargo-vendor"
+locator = "tokio-util"
+version = "0.7.10"
+strength = "checksum-verified"
+state = "complete"

@@ -1,0 +1,5 @@
+foo/__init__.py,sha256=lnc0uiaGLF0qMi_rWhCpRSFvaj0CJEiMCAl6Yqn1ZiA,21
+foo/client.py,sha256=TYg9BRLy8waHSvnGkMOdNpjlOE0OmwqZ2eqkZqbm3UI,91
+foo/http.py,sha256=__By69am_TYNAnmJkvBRr4dlaPf8HWkwUZ52W1qjXUk,29
+foo-1.0.0.dist-info/METADATA,sha256=FDF9jiZpEpAIcallP3KCSlkF0cvxTXJ2aYRfpkzrv5c,47
+foo-1.0.0.dist-info/RECORD,,

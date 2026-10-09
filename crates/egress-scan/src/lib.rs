@@ -12,13 +12,13 @@
 mod js;
 pub mod registry;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex, OnceLock};
 
 use egress_core::classify::classify;
 use egress_core::data::Data;
-use egress_core::discover::budgets::apply_findings_budget;
+use egress_core::discover::budgets::{DependencyBudgets, apply_findings_budget};
 use egress_core::discover::completeness::{caveats, counts_mut, state};
 use egress_core::discover::labels::content_labels;
 use egress_core::discover::{
@@ -48,6 +48,11 @@ pub struct ScanOptions {
     /// Cap on the total source bytes held by workers at once. A single file
     /// larger than the cap still runs, alone.
     pub in_flight_bytes: u64,
+    /// Dependency roots named on the command line, in argument order.
+    /// Empty means no dependency source is read.
+    pub dependency_roots: Vec<PathBuf>,
+    /// Dependency pass budgets; the corpus overrides them per case.
+    pub dependency_budgets: DependencyBudgets,
 }
 
 impl Default for ScanOptions {
@@ -59,6 +64,8 @@ impl Default for ScanOptions {
                 .map_or(1, usize::from)
                 .min(8),
             in_flight_bytes: DEFAULT_IN_FLIGHT_BYTES,
+            dependency_roots: Vec::new(),
+            dependency_budgets: DependencyBudgets::default(),
         }
     }
 }
@@ -231,6 +238,9 @@ fn run_workers(d: &Discovery, options: &ScanOptions) -> Result<Vec<Outcome>, Too
 
 /// Scans `root` with explicit options.
 pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolError> {
+    if !options.dependency_roots.is_empty() {
+        return Err(ToolError::Internal("dependency scanning not built"));
+    }
     let data = data()?;
     let discovery = discover(root, &options.config)?;
     let outcomes = run_workers(&discovery, options)?;

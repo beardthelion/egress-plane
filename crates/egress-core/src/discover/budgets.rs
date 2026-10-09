@@ -32,6 +32,46 @@ impl Budgets {
     }
 }
 
+/// Deterministic budgets for the dependency pass, kept separate from the
+/// first-party [`Budgets`] so a large install tree cannot reduce first-party
+/// coverage. `Default` follows `data/budgets.toml` for the shared counts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DependencyBudgets {
+    /// Installed package instances admitted to the closure.
+    pub packages: u64,
+    /// Dependency source files parsed.
+    pub files: u64,
+    /// Dependency source bytes parsed.
+    pub bytes: u64,
+    /// Dependency findings kept in the report.
+    pub findings: u64,
+    /// Resolver steps inside dependency code.
+    pub resolver_steps: u64,
+    /// Directory entries inventoried across named roots.
+    pub inventory_entries: u64,
+    /// Largest lockfile read, in bytes.
+    pub lockfile_bytes: u64,
+    /// Largest package metadata file read, in bytes.
+    pub metadata_bytes: u64,
+}
+
+impl Default for DependencyBudgets {
+    fn default() -> Self {
+        let b = Budgets::embedded();
+        DependencyBudgets {
+            packages: 20_000,
+            files: b.files,
+            bytes: b.bytes,
+            findings: b.findings,
+            resolver_steps: b.resolver_steps,
+            inventory_entries: 1_000_000,
+            lockfile_bytes: 32 * 1024 * 1024,
+            metadata_bytes: 8 * 1024 * 1024,
+        }
+    }
+}
+
 /// Charges files and bytes in byte-wise path order. Once either
 /// budget is exhausted, every later file is refused.
 #[derive(Debug)]

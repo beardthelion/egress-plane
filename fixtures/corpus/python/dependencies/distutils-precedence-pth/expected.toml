@@ -1,0 +1,10 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/sitepk"
+
+[[auto_run]]
+file = "distutils-precedence.pth"
+trigger = "pth-import-line"
+distribution = "setuptools"

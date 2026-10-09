@@ -1,0 +1,4 @@
+[package]
+name = "serde"
+version = "1.0.200"
+edition = "2021"
