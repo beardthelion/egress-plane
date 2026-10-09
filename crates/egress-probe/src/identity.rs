@@ -428,17 +428,11 @@ pub fn finalize(r: &mut Report) {
         })
         .collect();
 
-    // Not-applicable universes and signals join the producer's list (R24).
-    for u in &r.universes {
-        if u.state == UniverseState::NotApplicable {
-            r.not_applicable.push(u.id.clone());
-        }
-    }
-    for s in &r.signals {
-        if s.state == SignalState::NotApplicable {
-            r.not_applicable.push(s.signal.clone());
-        }
-    }
+    // The `not_applicable` list is exactly the declared R24 set: the
+    // universes and attribute sources the other platform declares.
+    // Off-platform universes and signals still show `not-applicable` in
+    // their own rosters but do not join this list (the declared set is
+    // the complete answer, per the R24 corpus expectations).
     r.not_applicable.sort();
     r.not_applicable.dedup();
 

@@ -204,14 +204,23 @@ fn fstatat_full(dir: libc::c_int, name: &CStr) -> io::Result<NodeStat> {
     })?;
     // SAFETY: fstatat succeeded and filled `st`.
     let st = unsafe { st.assume_init() };
-    Ok(NodeStat {
-        kind: node_type(&st),
-        mode: st.st_mode,
+    Ok(node_stat(&st))
+}
+
+/// Widens the platform `stat` field widths (`st_mode` is `u16` and
+/// `st_rdev` `i32` on macOS, `u32`/`u64` on Linux) into the fixed
+/// [`NodeStat`] fields. The no-op casts on Linux are intentional so the
+/// same expression compiles on both.
+#[allow(clippy::unnecessary_cast)]
+fn node_stat(st: &libc::stat) -> NodeStat {
+    NodeStat {
+        kind: node_type(st),
+        mode: st.st_mode as u32,
         uid: st.st_uid,
         gid: st.st_gid,
         size: st.st_size.max(0) as u64,
-        rdev: st.st_rdev,
-    })
+        rdev: st.st_rdev as u64,
+    }
 }
 
 /// The filesystem type of an open handle as a name (KTD9). On Linux the
@@ -604,14 +613,7 @@ impl RootDir {
     pub fn lstat_full(&self, rel: &[u8], fs: &mut Vec<String>) -> io::Result<NodeStat> {
         if rel.is_empty() {
             let st = fstat(self.fd.as_raw_fd())?;
-            return Ok(NodeStat {
-                kind: node_type(&st),
-                mode: st.st_mode,
-                uid: st.st_uid,
-                gid: st.st_gid,
-                size: st.st_size.max(0) as u64,
-                rdev: st.st_rdev,
-            });
+            return Ok(node_stat(&st));
         }
         self.with_parent_fs(rel, fs, fstatat_full)
     }

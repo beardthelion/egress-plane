@@ -3,16 +3,4 @@
 # passes fails the run, so each unit removes its slice as
 # it lands. Must be empty at Definition of Done.
 cases = [
-    "macos/completeness/dyld-insert-strong",
-    "macos/completeness/dyld-versioned-library-path",
-    "macos/completeness/pcblist-unsupported-layout",
-    "macos/completeness/traced-probe",
-    "macos/layers/github-actions-macos",
-    "macos/layers/host-unrecognized",
-    "macos/layers/seatbelt-sandbox",
-    "macos/routes/docker-desktop-socket",
-    "macos/routes/docker-desktop-socket-link",
-    "macos/routes/home-relative-signals-unknown",
-    "macos/rules/devices",
-    "macos/rules/mounts",
 ]

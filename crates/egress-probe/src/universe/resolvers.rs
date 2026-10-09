@@ -12,7 +12,8 @@ use crate::reader::{Denial, Reader};
 pub fn enumerate_linux(r: &mut impl Reader, budgets: &Budgets) -> Result<Outcome, UnknownReason> {
     match r.read(b"etc/resolv.conf", budgets.bytes_per_file) {
         Ok(bytes) => {
-            let members = parse(&bytes)?;
+            let mut members = Vec::new();
+            parse_members(&bytes, None, &mut members)?;
             check_members(&members, budgets)?;
             Ok(Outcome::Enumerated(members))
         }
@@ -28,12 +29,18 @@ enum Line {
     Unrecognized,
 }
 
-/// Parses resolv.conf text. `nameserver` values are IP literals,
-/// `search` and `domain` values hostname characters, `options` tokens
+/// Parses one resolver file's text into members, appending to
+/// `members`. `nameserver` values are IP literals, `search` and
+/// `domain` values hostname characters, `options` tokens
 /// `[a-z0-9:._-]`; a value that fails its check is `partial` (R17).
-fn parse(bytes: &[u8]) -> Result<Vec<Member>, UnknownReason> {
+/// `file` is the macOS resolver file name that joins each member's
+/// identity; `None` for the Linux single-file universe.
+pub(crate) fn parse_members(
+    bytes: &[u8],
+    file: Option<&[u8]>,
+    members: &mut Vec<Member>,
+) -> Result<(), UnknownReason> {
     let text = std::str::from_utf8(bytes).map_err(|_| UnknownReason::Partial)?;
-    let mut members = Vec::new();
     let mut parsed: Vec<Line> = Vec::new();
     for line in text.lines() {
         // `#` and `;` start comments that run to the end of the line.
@@ -78,18 +85,19 @@ fn parse(bytes: &[u8]) -> Result<Vec<Member>, UnknownReason> {
     }
     for (i, l) in parsed.iter().enumerate() {
         if let Line::Member { directive, value } = l {
-            members.push(member(
-                vec![
-                    tfield("directive", directive, true),
-                    bfield("value", value.as_bytes(), true),
-                    ifield("line-order", i as u64),
-                    ifield("unrecognized-count", unrecognized_total(&parsed)),
-                ],
-                format!("{directive} {value}"),
-            ));
+            let mut fields = vec![
+                tfield("directive", directive, true),
+                bfield("value", value.as_bytes(), true),
+            ];
+            if let Some(file) = file {
+                fields.push(bfield("file", file, true));
+            }
+            fields.push(ifield("line-order", i as u64));
+            fields.push(ifield("unrecognized-count", unrecognized_total(&parsed)));
+            members.push(member(fields, format!("{directive} {value}")));
         }
     }
-    Ok(members)
+    Ok(())
 }
 
 fn unrecognized_total(lines: &[Line]) -> u64 {

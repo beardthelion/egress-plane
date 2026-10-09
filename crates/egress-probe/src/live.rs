@@ -55,12 +55,17 @@ fn platform_facts() -> Result<Facts, ToolError> {
     Ok(crate::facts::linux::collect())
 }
 
-/// macOS adapters arrive with the macOS unit; until then the live entry
-/// exists only on Linux.
-#[cfg(not(target_os = "linux"))]
+/// The macOS platform fact collection (KTD8, KTD17).
+#[cfg(target_os = "macos")]
+fn platform_facts() -> Result<Facts, ToolError> {
+    Ok(crate::facts::macos::collect())
+}
+
+/// The live entry exists on Linux and macOS.
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
 fn platform_facts() -> Result<Facts, ToolError> {
     Err(ToolError::Internal(
-        "the live probe is implemented on Linux only",
+        "the live probe is implemented on Linux and macOS",
     ))
 }
 

@@ -255,23 +255,32 @@ fn data_digest(data: &Data) -> String {
     data.data_digest.clone()
 }
 
-/// The integrity tamper indicators (KTD25): `traced` reads TracerPid
-/// again at finalize so a tracer that attached mid-run is caught;
+/// The integrity tamper indicators (KTD25): `traced` reads the traced
+/// state again at finalize so a tracer that attached mid-run is caught;
 /// `fs-type-mismatch` and `proc-self-mismatch` follow the unknowns the
-/// reader already produced on their sources.
+/// reader already produced on their sources. On macOS the second read
+/// is the `traced` fact the adapter produced (the KERN_PROC_PID sysctl
+/// is fact-backed like every other source).
 fn integrity_tamper<R: Reader>(
     reader: &mut R,
     scan: &Scan,
     tamper: &mut Vec<TamperIndicator>,
     unknowns: &mut Vec<Unknown>,
 ) {
-    let start_traced = scan.tracer_pid.is_some_and(|t| t != 0);
-    let end_traced = match reader.read(b"proc/self/status", 65536) {
-        Ok(bytes) => integrity::tracer_pid(&bytes).is_some_and(|t| t != 0),
-        Err(Denial::Absent | Denial::NotRegular) | Err(_) => {
-            scan.tracer_pid.is_some_and(|t| t != 0)
-        }
-    };
+    let (start_traced, end_traced) =
+        if reader.facts().platform == Some(crate::facts::Platform::Macos) {
+            let t = matches!(reader.facts().traced, Some(crate::facts::Fact::Read(true)));
+            (t, t)
+        } else {
+            let start = scan.tracer_pid.is_some_and(|t| t != 0);
+            let end = match reader.read(b"proc/self/status", 65536) {
+                Ok(bytes) => integrity::tracer_pid(&bytes).is_some_and(|t| t != 0),
+                Err(Denial::Absent | Denial::NotRegular) | Err(_) => {
+                    scan.tracer_pid.is_some_and(|t| t != 0)
+                }
+            };
+            (start, end)
+        };
     if start_traced || end_traced {
         tamper.push(TamperIndicator {
             id: String::new(),

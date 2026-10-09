@@ -251,8 +251,9 @@ pub fn fd_members(entries: &[FdEntry]) -> Vec<Member> {
 }
 
 /// The target of one descriptor link: `socket:[i]`, `pipe:[i]`,
-/// `anon_inode:<name>`, or a filesystem path. Returns
-/// `(kind, path, anon_name, inode)`.
+/// `anon_inode:<name>`, a filesystem path, or the bare `socket`/`pipe`
+/// labels the macOS adapter reports for non-vnode descriptor types.
+/// Returns `(kind, path, anon_name, inode)`.
 fn fd_target(target: &str) -> (&'static str, Vec<u8>, String, u64) {
     if let Some(inner) = bracketed(target, "socket:") {
         return ("socket", Vec::new(), String::new(), inner);
@@ -265,6 +266,13 @@ fn fd_target(target: &str) -> (&'static str, Vec<u8>, String, u64) {
     }
     if target.starts_with('/') {
         return ("path", target.as_bytes().to_vec(), String::new(), 0);
+    }
+    // Bare type labels the macOS `proc_pidfdinfo` adapter emits.
+    if target == "socket" {
+        return ("socket", Vec::new(), String::new(), 0);
+    }
+    if target == "pipe" {
+        return ("pipe", Vec::new(), String::new(), 0);
     }
     ("other", Vec::new(), String::new(), 0)
 }

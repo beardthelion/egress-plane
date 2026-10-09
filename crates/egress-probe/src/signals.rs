@@ -263,7 +263,11 @@ fn eval_paths<R: Reader>(r: &mut R, sig: &Signal, ctx: &Ctx<'_>, out: &mut Signa
     let mut first_denial: Option<UnknownReason> = None;
     for raw in &sig.paths {
         let Some(path) = subst(raw, ctx, ctx.euid) else {
-            // <home> unresolved: the signal is unknown, not absent.
+            // <home> unresolved: the signal is unknown, not absent; a
+            // denial already recorded still lands (KTD31).
+            if let Some(reason) = first_denial.take() {
+                unknown(sig, out, reason);
+            }
             unknown(
                 sig,
                 out,
@@ -274,7 +278,7 @@ fn eval_paths<R: Reader>(r: &mut R, sig: &Signal, ctx: &Ctx<'_>, out: &mut Signa
             );
             return;
         };
-        match r.metadata(&path) {
+        match r.signal_metadata(&path) {
             Ok(_meta) => {
                 any = true;
                 let mut loc = path.clone();
@@ -288,6 +292,21 @@ fn eval_paths<R: Reader>(r: &mut R, sig: &Signal, ctx: &Ctx<'_>, out: &mut Signa
                     }
                 }
             }
+            // A refused link chain leaves the route present with
+            // unknown attributes and marks the signal (KTD31).
+            Err(Denial::LinkPolicy) => {
+                let mut loc = path.clone();
+                loc.insert(0, b'/');
+                if let Some(route) =
+                    signal_route(sig, String::from_utf8_lossy(&loc).into_owned(), Some(loc))
+                {
+                    match sig.route.as_ref().map(|s| s.class) {
+                        Some(crate::data::RuleClass::Egress) => out.egress.push(route),
+                        _ => out.escape.push(route),
+                    }
+                }
+                first_denial = Some(UnknownReason::LinkPolicy);
+            }
             Err(d) => {
                 if let Some(reason) = structural_denial(d) {
                     first_denial = Some(reason);
@@ -297,6 +316,9 @@ fn eval_paths<R: Reader>(r: &mut R, sig: &Signal, ctx: &Ctx<'_>, out: &mut Signa
     }
     if let Some(dir) = &sig.dir {
         let Some(path) = subst(dir, ctx, ctx.euid) else {
+            if let Some(reason) = first_denial.take() {
+                unknown(sig, out, reason);
+            }
             unknown(
                 sig,
                 out,
@@ -505,6 +527,7 @@ fn field_text(m: &crate::model::Member, field: &str) -> String {
 
 fn env_names(ctx: &Ctx<'_>) -> Vec<String> {
     members(ctx, "linux.env-names")
+        .chain(members(ctx, "macos.env-names"))
         .map(|m| field_text(m, "name"))
         .collect()
 }

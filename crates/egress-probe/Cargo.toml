@@ -40,6 +40,10 @@ name = "linux_universes"
 required-features = ["snapshot"]
 
 [[test]]
+name = "macos_universes"
+required-features = ["snapshot"]
+
+[[test]]
 name = "self_observation"
 required-features = ["snapshot"]
 
@@ -51,3 +55,4 @@ name = "passive_guard"
 
 [[test]]
 name = "live"
+
