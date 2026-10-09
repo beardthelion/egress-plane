@@ -1,0 +1,56 @@
+# Live smoke matrix for `egress-plane probe` (P2 U9): runs the
+# environment-gated ignored tests on real hosts. Triggered manually or
+# on pull request; no secrets are passed to any step.
+name: probe-live
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Install Rust with the musl target
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --target x86_64-unknown-linux-musl
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Install test tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools strace docker.io bubblewrap
+      - name: Build the static probe binary
+        run: cargo build --release --locked -p egress-cli --target x86_64-unknown-linux-musl
+      - name: Run the live matrix
+        env:
+          EGRESS_PROBE_STATIC_BIN: target/x86_64-unknown-linux-musl/release/egress-plane
+        run: |
+          for t in live_static_binary_has_no_interpreter live_static_ignores_ld_preload \
+                   live_traced_probe live_linux_host live_docker_runtime_socket \
+                   live_docker_odd_path_socket live_bubblewrap_sandbox; do
+            cargo test -p egress-probe --locked --features snapshot --test live -- \
+              --ignored --exact "$t" --nocapture || true
+          done
+          cargo test -p egress-probe --locked --features snapshot --test live -- \
+            --ignored --exact live_github_actions_job --nocapture
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Build the probe
+        run: cargo build --release --locked -p egress-cli
+      - name: Run the macOS rows
+        env:
+          EGRESS_PROBE_BIN: target/release/egress-plane
+        run: |
+          cargo test -p egress-probe --locked --features snapshot --test live -- \
+            --ignored --exact live_macos_host --nocapture
+          cargo test -p egress-probe --locked --features snapshot --test live -- \
+            --ignored --exact live_macos_seatbelt --nocapture

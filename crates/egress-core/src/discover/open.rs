@@ -224,7 +224,9 @@ fn fstatfs_name(fd: libc::c_int) -> io::Result<String> {
     check(unsafe { libc::fstatfs(fd, st.as_mut_ptr()) })?;
     // SAFETY: fstatfs succeeded and filled `st`.
     let st = unsafe { st.assume_init() };
-    let name = match st.f_type {
+    // `f_type` is signed on glibc and unsigned on musl.
+    #[allow(clippy::unnecessary_cast)]
+    let name = match st.f_type as i64 {
         libc::PROC_SUPER_MAGIC => "proc".to_string(),
         libc::SYSFS_MAGIC => "sysfs".to_string(),
         libc::TMPFS_MAGIC => "tmpfs".to_string(),
@@ -615,9 +617,39 @@ impl RootDir {
     }
 
     /// The target bytes of an in-root symlink, recording the filesystem
-    /// type of every opened directory handle (KTD9).
+    /// type of every opened directory handle (KTD9). A parent directory
+    /// that cannot be opened for reading but can be traversed (for
+    /// example `proc/self/ns` once the process is non-dumpable, which
+    /// shows `dr-x--x--x root`) is crossed with a single `readlinkat`
+    /// on the remaining components.
     pub fn readlink_observed(&self, rel: &[u8], fs: &mut Vec<String>) -> io::Result<Vec<u8>> {
-        self.with_parent_fs(rel, fs, readlinkat)
+        let parts = components(rel)?;
+        let Some((last, dirs)) = parts.split_last() else {
+            return Err(io::Error::from(io::ErrorKind::InvalidInput));
+        };
+        let mut cur: Option<OwnedFd> = None;
+        for (i, p) in dirs.iter().enumerate() {
+            let dir = cur.as_ref().map_or(self.fd.as_raw_fd(), |f| f.as_raw_fd());
+            match openat(dir, &cstr(p)?, DIR_FLAGS) {
+                Ok(fd) => {
+                    fs.push(fstatfs_name(fd.as_raw_fd())?);
+                    cur = Some(fd);
+                }
+                Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
+                    let mut tail = dirs[i].to_vec();
+                    for p in &dirs[i + 1..] {
+                        tail.push(b'/');
+                        tail.extend_from_slice(p);
+                    }
+                    tail.push(b'/');
+                    tail.extend_from_slice(last);
+                    return readlinkat(dir, &cstr(&tail)?);
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        let dir = cur.as_ref().map_or(self.fd.as_raw_fd(), |f| f.as_raw_fd());
+        readlinkat(dir, &cstr(last)?)
     }
 
     /// An access check that cannot follow a swapped-in final symlink

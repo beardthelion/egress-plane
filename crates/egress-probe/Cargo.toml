@@ -48,3 +48,6 @@ name = "engine"
 
 [[test]]
 name = "passive_guard"
+
+[[test]]
+name = "live"

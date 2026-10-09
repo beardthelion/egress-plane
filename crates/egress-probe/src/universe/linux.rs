@@ -891,19 +891,37 @@ fn interfaces(
 // Landlock ABI, and the user-namespace sysctls.
 // ---------------------------------------------------------------------------
 
+/// The kernel's fixed set of `proc/self/ns` entries. The directory is
+/// never listed: a non-dumpable probe cannot read it (`dr-x--x--x`
+/// owned by root once `PR_SET_DUMPABLE 0` is set), but each entry's
+/// magic link stays readable, so the names are declared here.
+const NS_NAMES: &[&str] = &[
+    "cgroup",
+    "ipc",
+    "mnt",
+    "net",
+    "pid",
+    "pid_for_children",
+    "time",
+    "time_for_children",
+    "user",
+    "uts",
+];
+
 fn namespaces(
     r: &mut impl Reader,
-    budgets: &Budgets,
+    _budgets: &Budgets,
 ) -> Result<BTreeMap<String, AttrValue>, UnknownReason> {
-    let entries = r.list(b"proc/self/ns").map_err(proc_denial)?;
-    if entries.len() as u64 > budgets.entries_per_listing {
-        return Err(UnknownReason::BudgetExceeded);
-    }
     let mut ns = Vec::new();
-    for (name, _meta) in entries {
+    for name in NS_NAMES {
         let mut path = b"proc/self/ns/".to_vec();
-        path.extend_from_slice(&name);
-        let target = r.readlink(&path).map_err(proc_denial)?;
+        path.extend_from_slice(name.as_bytes());
+        let target = match r.readlink(&path) {
+            Ok(t) => t,
+            Err(Denial::Absent) => continue,
+            Err(d) => return Err(proc_denial(d)),
+        };
+        let _ = name;
         let text = lossy(&target);
         // Link text is `kind:[inode]`; the name stays the link's name.
         let Some(inner) = text
@@ -914,9 +932,13 @@ fn namespaces(
         };
         let inode: u64 = inner.parse().map_err(|_| UnknownReason::Partial)?;
         ns.push(NamespaceInode {
-            name: lossy(&name),
+            name: name.to_string(),
             inode,
         });
+    }
+    if ns.is_empty() {
+        // Every name absent: proc is not mounted.
+        return Err(UnknownReason::ProcNotMounted);
     }
     let mut attrs = BTreeMap::new();
     if let Some(ipc) = ns.iter().find(|n| n.name == "ipc") {
