@@ -5,4 +5,4 @@ mod lower;
 mod packages;
 
 pub use lower::{LowerError, lower};
-pub use packages::PythonRules;
+pub use packages::{DependencyPythonRules, PythonRules};

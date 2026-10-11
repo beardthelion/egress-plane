@@ -6,7 +6,7 @@ mod classify_support;
 use classify_support::*;
 use egress_core::ir::UseKind::*;
 use egress_core::ir::{Expr, Provenance};
-use egress_core::model::{Bucket, DestinationKind};
+use egress_core::model::{Bucket, DestinationKind, Language};
 
 #[test]
 fn os_path_join_is_inert_and_os_system_is_a_site() {
@@ -1090,6 +1090,61 @@ fn many_declarations(n: usize) -> Fx {
             .arg(lit("https://api.example.com/users")));
     }
     fx().file("a.py", ir)
+}
+
+// ---- unscanned-import recording (KTD10) ------------------------------
+
+#[test]
+fn unscanned_imports_record_full_specifiers_and_member_names() {
+    let c = fx()
+        .file(
+            "a.py",
+            py().import(import(Some("auth"), "google", &["auth"]))
+                .import(import_module("google.auth"))
+                .import(import(Some("pool"), "urllib3", &["HTTPConnectionPool"])),
+        )
+        .run();
+    // `from google import auth` names the module `google.auth` with
+    // member `auth`: what the dependency closure needs to key a PEP
+    // 420 namespace package (AE14).
+    let rec = &c.unscanned_imports[&(Language::Python, s("google"))];
+    assert_eq!(
+        rec.specifiers.iter().collect::<Vec<_>>(),
+        vec!["google.auth"]
+    );
+    assert_eq!(rec.members.iter().collect::<Vec<_>>(), vec!["auth"]);
+    let rec = &c.unscanned_imports[&(Language::Python, s("urllib3"))];
+    assert!(
+        rec.specifiers.contains("urllib3.HTTPConnectionPool"),
+        "{rec:?}"
+    );
+    assert!(rec.members.contains("HTTPConnectionPool"), "{rec:?}");
+    // The unscanned entries themselves are unchanged.
+    assert_eq!(deps(&c), vec![s("google"), s("urllib3")]);
+    assert_eq!(c.unscanned_dependencies[0].files, vec![s("a.py")]);
+}
+
+#[test]
+fn unscanned_imports_record_member_chains_from_references() {
+    let c = fx()
+        .file(
+            "a.py",
+            py().import(import_module("requests")).r(r(
+                imp("requests"),
+                &["utils", "quote"],
+                Call,
+                "requests.utils.quote(x)",
+            )),
+        )
+        .run();
+    let rec = &c.unscanned_imports[&(Language::Python, s("requests"))];
+    assert_eq!(rec.specifiers.len(), 1);
+    assert!(rec.specifiers.contains("requests.utils.quote"), "{rec:?}");
+    assert!(
+        rec.members.contains("utils") && rec.members.contains("quote"),
+        "{rec:?}"
+    );
+    assert_eq!(deps(&c), vec![s("requests")]);
 }
 
 #[test]

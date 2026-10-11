@@ -80,6 +80,13 @@ pub trait Frontend: Send + Sync {
         None
     }
 
+    /// Specifier rules for a dependency pass over `import_root` (KTD10).
+    /// `None` keeps the rules [`Frontend::link`] and
+    /// [`Frontend::repo_rules`] build from the scoped discovery.
+    fn dependency_rules(&self, _import_root: &[u8]) -> Option<Box<dyn SpecifierRules>> {
+        None
+    }
+
     /// Runs once after every file is lowered and before classification,
     /// with this frontend's lowered files. A frontend may add facts only the
     /// whole program reveals and return specifier rules built from the
@@ -108,6 +115,12 @@ impl Frontend for Python {
 
     fn specifier_rules(&self) -> Option<&dyn SpecifierRules> {
         Some(&self.0)
+    }
+
+    fn dependency_rules(&self, import_root: &[u8]) -> Option<Box<dyn SpecifierRules>> {
+        Some(Box::new(egress_python::DependencyPythonRules {
+            import_root: import_root.to_vec(),
+        }))
     }
 }
 

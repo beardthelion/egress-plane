@@ -179,6 +179,53 @@ fn package_imports_and_workspace_names_resolve_into_the_index() {
 }
 
 #[test]
+fn dependency_package_resolves_its_own_name_and_leaves_others_external() {
+    // Inside `node_modules/leftpad/` the package resolves its own name
+    // through `package.json` `main` then `index`, as the dependency
+    // pass reuses these rules over the scoped discovery (KTD10).
+    let idx = index(&[
+        "node_modules/leftpad/index.js",
+        "node_modules/leftpad/api.js",
+    ]);
+    let m = Manifests {
+        package_json: vec![pkg(
+            "node_modules/leftpad/package.json",
+            Some("leftpad"),
+            Some("node_modules/leftpad/index.js"),
+            &[],
+        )],
+        ..Manifests::default()
+    };
+    let rules = JsRules::from_parts(&idx, &m);
+    assert_eq!(
+        hit(&rules, &idx, "node_modules/leftpad/api.js", "leftpad").as_deref(),
+        Some("node_modules/leftpad/index.js")
+    );
+    assert_eq!(
+        rules.classify(b"node_modules/leftpad/api.js", "padder"),
+        SpecifierKind::Bare {
+            probes: Vec::new(),
+            module: "padder".into()
+        }
+    );
+    // Without `main`, the package's own name falls back to `index`.
+    let m = Manifests {
+        package_json: vec![pkg(
+            "node_modules/leftpad/package.json",
+            Some("leftpad"),
+            None,
+            &[],
+        )],
+        ..Manifests::default()
+    };
+    let rules = JsRules::from_parts(&idx, &m);
+    assert_eq!(
+        hit(&rules, &idx, "node_modules/leftpad/api.js", "leftpad").as_deref(),
+        Some("node_modules/leftpad/index.js")
+    );
+}
+
+#[test]
 fn tsconfig_paths_and_base_url_resolve_and_fall_back_to_bare() {
     let idx = index(&["src/net/http.ts", "src/lib/util.ts"]);
     let m = Manifests {

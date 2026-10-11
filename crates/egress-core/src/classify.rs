@@ -45,11 +45,32 @@ pub struct Classified {
     pub sites: Vec<Site>,
     pub blind_spots: Vec<BlindSpot>,
     pub unscanned_dependencies: Vec<UnscannedDependency>,
+    /// Per unscanned (language, package), the module specifiers and
+    /// member names that produced it (KTD10). The dependency closure
+    /// reads this; it is not serialized.
+    pub unscanned_imports: BTreeMap<(Language, String), UnscannedImports>,
     /// Indexed non-code files loaded as code; each is skipped under
     /// `unsupported` in coverage.
     pub loaded_as_code: u64,
     pub resolver_budget_exceeded: bool,
     pub resolver_steps: u64,
+}
+
+/// What produced one unscanned-dependency entry (KTD10): the full
+/// module specifiers and the member names below them, which the
+/// dependency closure needs for PEP 420 namespace keys. `from google
+/// import auth` records specifier `google.auth` with member `auth`, and
+/// inside the `google.auth` package that is the package's own key, so
+/// the closure drops it (AE14).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct UnscannedImports {
+    /// Full module specifiers in runtime form: the resolved module
+    /// with its member path appended (`import a.b` gives `a.b`;
+    /// `from a import b` gives `a.b`; a use of `a.b.c` gives `a.b.c`).
+    pub specifiers: BTreeSet<String>,
+    /// The member names below those modules (`b` for `from a
+    /// import b`).
+    pub members: BTreeSet<String>,
 }
 
 /// Depth limit for evaluating a destination expression through locals and
@@ -455,7 +476,23 @@ impl<'p, 'a> State<'p, 'a> {
         self.blind_at(cx, &rf.symbol, rf.location, kind, &rf.text, false);
     }
 
-    fn dep(&mut self, cx: Ctx<'p, 'a>, package: String) {
+    /// Records `package` as imported by this file. `module` and
+    /// `members` are the resolved module and member path that produced
+    /// the entry; the closure needs them for namespace keys (KTD10).
+    fn dep(&mut self, cx: Ctx<'p, 'a>, package: String, module: &str, members: &[String]) {
+        let rec = self
+            .out
+            .unscanned_imports
+            .entry((cx.lang(), package.clone()))
+            .or_default();
+        let sep = separator(cx.lang());
+        let mut specifier = module.to_string();
+        for m in members {
+            specifier.push_str(sep);
+            specifier.push_str(m);
+            rec.members.insert(m.clone());
+        }
+        rec.specifiers.insert(specifier);
         self.deps
             .entry((cx.lang(), package))
             .or_default()
@@ -591,7 +628,7 @@ impl<'p, 'a> State<'p, 'a> {
                     return;
                 }
                 if !known_module(cx.rt, cx.lang(), &module, &members) {
-                    self.dep(cx, package_name(cx.lang(), &module));
+                    self.dep(cx, package_name(cx.lang(), &module), &module, &members);
                 }
             }
             _ => {}
@@ -1082,12 +1119,12 @@ impl<'p, 'a> State<'p, 'a> {
                 if chain.is_empty() && module_segments(cx.lang(), module).len() == 1 {
                     self.escape(cx, rf, module, false);
                 } else {
-                    self.dep(cx, name);
+                    self.dep(cx, name, module, chain);
                 }
             }
             None => {
                 if !ambient {
-                    self.dep(cx, package_name(cx.lang(), module));
+                    self.dep(cx, package_name(cx.lang(), module), module, chain);
                 }
             }
         }
@@ -1125,9 +1162,9 @@ impl<'p, 'a> State<'p, 'a> {
             let mechanism = format!("{}:{module}", cx.lang().as_str());
             self.site(cx, rf, bucket, &mechanism, destination::expr(&rf.text));
         } else if let Some(p) = package {
-            self.dep(cx, p);
+            self.dep(cx, p, module, &[]);
         } else if rt.module(module).is_none() {
-            self.dep(cx, package_name(cx.lang(), module));
+            self.dep(cx, package_name(cx.lang(), module), module, &[]);
         }
     }
 

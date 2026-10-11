@@ -111,3 +111,50 @@ impl SpecifierRules for PythonRules {
         }
     }
 }
+
+/// Specifier rules for code inside an installed package (KTD10), used by
+/// the per-instance dependency pass. A relative specifier resolves
+/// exactly as under [`PythonRules`]. An absolute specifier probes
+/// `import_root` only, never the scan root, `src/`, or the importing
+/// file's ancestors, so a sibling `http.py` can never shadow
+/// `http.client` (AE15) and every module outside the install root stays
+/// external for the closure to resolve.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DependencyPythonRules {
+    /// The directory absolute specifiers probe, as an index path:
+    /// empty when the discovered root is itself the import root.
+    pub import_root: Vec<u8>,
+}
+
+impl SpecifierRules for DependencyPythonRules {
+    fn classify(&self, from: &[u8], specifier: &str) -> SpecifierKind {
+        let dots = specifier.len() - specifier.trim_start_matches('.').len();
+        if dots > 0 {
+            return PythonRules.classify(from, specifier);
+        }
+        let module: Vec<&str> = specifier.split('.').collect();
+        if module.iter().any(|m| m.is_empty()) {
+            // `a..b` names no module.
+            return SpecifierKind::Bare {
+                probes: Vec::new(),
+                module: specifier.to_string(),
+            };
+        }
+        // `import_root` is a directory: every component counts.
+        let root: Vec<&[u8]> = self
+            .import_root
+            .split(|b| *b == b'/')
+            .filter(|p| !p.is_empty())
+            .collect();
+        let mut probes = Vec::new();
+        module_probes(&root, &module, &mut probes);
+        SpecifierKind::Bare {
+            probes,
+            module: specifier.to_string(),
+        }
+    }
+
+    fn submodule(&self, specifier: &str, member: &str) -> Option<String> {
+        PythonRules.submodule(specifier, member)
+    }
+}
