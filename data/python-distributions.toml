@@ -1,0 +1,261 @@
+# Python distribution-to-import mapping for the KTD17 distribution signal.
+#
+# A top-level import name (a Python identifier, spelled as source writes it)
+# maps to the candidate distributions that install it when the import and
+# distribution names differ. Names compare under PEP 503 normalization, are
+# emitted as declared (the table's spelling when undeclared), and several
+# candidates emit as a sorted list, never a guess. Each entry's `fixture`
+# names the corpus case that exercises it; the data guards check that the
+# case exists and labels the import with these distributions.
+#
+# The table is hand-curated common mismatches.
+
+[[mapping]]
+import = "argon2"
+distributions = ["argon2-cffi"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "attr"
+distributions = ["attrs"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "Bio"
+distributions = ["biopython"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "bson"
+distributions = ["bson", "pymongo"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "bs4"
+distributions = ["beautifulsoup4"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "cairo"
+distributions = ["pycairo"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "cassandra"
+distributions = ["cassandra-driver"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "charset_normalizer"
+distributions = ["charset-normalizer"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "Crypto"
+distributions = ["pycrypto", "pycryptodome"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "Cryptodome"
+distributions = ["pycryptodomex"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "cv2"
+distributions = ["opencv-contrib-python", "opencv-python", "opencv-python-headless"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "dateutil"
+distributions = ["python-dateutil"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "dns"
+distributions = ["dnspython"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "docx"
+distributions = ["python-docx"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "dotenv"
+distributions = ["python-dotenv"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "fitz"
+distributions = ["PyMuPDF"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "flask_sqlalchemy"
+distributions = ["Flask-SQLAlchemy"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "fpdf"
+distributions = ["fpdf", "fpdf2"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "gi"
+distributions = ["PyGObject"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "git"
+distributions = ["GitPython"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "grpc"
+distributions = ["grpcio"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "IPython"
+distributions = ["ipython"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "jose"
+distributions = ["python-jose"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "jwt"
+distributions = ["PyJWT", "jwt"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "kafka"
+distributions = ["kafka-python"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "ldap"
+distributions = ["python-ldap"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "magic"
+distributions = ["python-magic"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "MySQLdb"
+distributions = ["mysql-python", "mysqlclient"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "nacl"
+distributions = ["PyNaCl"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "OpenGL"
+distributions = ["PyOpenGL"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "OpenSSL"
+distributions = ["pyOpenSSL"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "PIL"
+distributions = ["Pillow"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "pkg_resources"
+distributions = ["setuptools"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "pptx"
+distributions = ["python-pptx"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "psycopg2"
+distributions = ["psycopg2", "psycopg2-binary"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "rest_framework"
+distributions = ["djangorestframework"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "serial"
+distributions = ["pyserial"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "skimage"
+distributions = ["scikit-image"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "sklearn"
+distributions = ["scikit-learn"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "slugify"
+distributions = ["python-slugify"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "snappy"
+distributions = ["python-snappy"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "socketio"
+distributions = ["python-socketio"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "socks"
+distributions = ["PySocks"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "usb"
+distributions = ["pyusb"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "vcr"
+distributions = ["vcrpy"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "web"
+distributions = ["web.py"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "websocket"
+distributions = ["websocket-client"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "wx"
+distributions = ["wxPython"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "yaml"
+distributions = ["PyYAML"]
+fixture = "python/dependencies/curated-distribution-names"
+
+[[mapping]]
+import = "zmq"
+distributions = ["pyzmq"]
+fixture = "python/dependencies/curated-distribution-names"

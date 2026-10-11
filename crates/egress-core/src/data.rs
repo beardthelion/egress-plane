@@ -68,6 +68,7 @@ pub const EMBEDDED: &[DataFile] = &[
     embed!("data/primitives/javascript.toml"),
     embed!("data/primitives/python.toml"),
     embed!("data/primitives/rust.toml"),
+    embed!("data/python-distributions.toml"),
 ];
 
 /// Separator between module and member segments in entry IDs.
@@ -106,6 +107,20 @@ pub struct Data {
     pub python: RuntimeData,
     pub javascript: RuntimeData,
     pub rust: RuntimeData,
+    /// The curated Python distribution-to-import mapping (KTD17).
+    pub python_distributions: Vec<DistributionMapping>,
+}
+
+/// One `data/python-distributions.toml` entry: a top-level import name
+/// and the candidate distributions that install it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DistributionMapping {
+    /// The import name as source writes it (`yaml`, `PIL`).
+    pub import: String,
+    /// Candidate declaring distributions, in table order.
+    pub distributions: Vec<String>,
+    /// The corpus case that exercises this mapping.
+    pub fixture: String,
 }
 
 impl Data {
@@ -681,6 +696,13 @@ pub fn load(files: &[(&str, &str)]) -> Result<Data, String> {
     let rust = runtimes.pop().unwrap_or_else(|| unreachable!());
     let javascript = runtimes.pop().unwrap_or_else(|| unreachable!());
     let python = runtimes.pop().unwrap_or_else(|| unreachable!());
+    let python_distributions = match files
+        .iter()
+        .find(|(p, _)| *p == "data/python-distributions.toml")
+    {
+        Some((path, text)) => parse_distributions(path, text)?,
+        None => Vec::new(),
+    };
     Ok(Data {
         runtime_range: RuntimeRange {
             python: python.runtime_range.clone(),
@@ -691,7 +713,54 @@ pub fn load(files: &[(&str, &str)]) -> Result<Data, String> {
         python,
         javascript,
         rust,
+        python_distributions,
     })
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawDistributions {
+    #[serde(default)]
+    mapping: Vec<RawDistributionMapping>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawDistributionMapping {
+    import: String,
+    distributions: Vec<String>,
+    fixture: String,
+}
+
+/// Parses `data/python-distributions.toml`: each `[[mapping]]` needs a
+/// nonempty import, at least one nonempty distribution, and a corpus
+/// fixture. Duplicate imports are rejected.
+fn parse_distributions(path: &str, text: &str) -> Result<Vec<DistributionMapping>, String> {
+    let raw: RawDistributions =
+        toml::from_str(text).map_err(|e| format!("{path}: malformed: {e}"))?;
+    let mut seen = BTreeSet::new();
+    let mut out = Vec::new();
+    for m in raw.mapping {
+        let import = m.import.trim();
+        if import.is_empty() {
+            return Err(format!("{path}: a mapping has an empty import"));
+        }
+        if !seen.insert(import.to_string()) {
+            return Err(format!("{path}: duplicate import {import}"));
+        }
+        if m.distributions.is_empty() || m.distributions.iter().any(|d| d.trim().is_empty()) {
+            return Err(format!("{path}: mapping {import} has no distribution"));
+        }
+        if m.fixture.trim().is_empty() {
+            return Err(format!("{path}: mapping {import} has no fixture"));
+        }
+        out.push(DistributionMapping {
+            import: import.to_string(),
+            distributions: m.distributions,
+            fixture: m.fixture,
+        });
+    }
+    Ok(out)
 }
 
 /// Loads one runtime from its three files.
@@ -1314,6 +1383,137 @@ pub mod guards {
                 &n.fixture,
                 Want::Mention(n.name.clone()),
             );
+        }
+        out
+    }
+
+    /// Every `data/python-distributions.toml` entry's `fixture` names an
+    /// existing case whose labels give its import the entry's
+    /// distributions. Labels compare under PEP 503, since a scan emits
+    /// the declared spelling (KTD17).
+    pub fn python_distributions(
+        mappings: &[DistributionMapping],
+        corpus_root: &Path,
+    ) -> Vec<String> {
+        let mut out = Vec::new();
+        for m in mappings {
+            let what = format!("python-distributions import {}", m.import);
+            if !case_exists(corpus_root, &m.fixture) {
+                out.push(format!("{what}: fixture {} does not exist", m.fixture));
+                continue;
+            }
+            let text =
+                match std::fs::read_to_string(corpus_root.join(&m.fixture).join("expected.toml")) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        out.push(format!("{what}: cannot read expected.toml: {e}"));
+                        continue;
+                    }
+                };
+            let v: toml::Table = match toml::from_str(&text) {
+                Ok(v) => v,
+                Err(e) => {
+                    out.push(format!("{what}: malformed expected.toml: {e}"));
+                    continue;
+                }
+            };
+            let want: Vec<String> = m
+                .distributions
+                .iter()
+                .map(|d| crate::deps::version::pep503(d))
+                .collect();
+            let labels_it = |e: &toml::Value| {
+                e.get("package").and_then(|p| p.as_str()) == Some(m.import.as_str())
+                    && e.get("distribution")
+                        .and_then(|d| d.as_array())
+                        .is_some_and(|ds| {
+                            let got: Vec<String> = ds
+                                .iter()
+                                .filter_map(|x| x.as_str())
+                                .map(crate::deps::version::pep503)
+                                .collect();
+                            want.iter().all(|w| got.contains(w))
+                        })
+            };
+            let found = ["unscanned_dependencies", "dependencies"]
+                .iter()
+                .any(|table| {
+                    v.get(*table)
+                        .and_then(|t| t.as_array())
+                        .is_some_and(|a| a.iter().any(labels_it))
+                });
+            if !found {
+                out.push(format!(
+                    "{what}: fixture {} labels no entry for it with these distributions",
+                    m.fixture
+                ));
+            }
+        }
+        out
+    }
+
+    /// Every `distribution` label on an `[[unscanned_dependencies]]` or
+    /// `[[dependencies]]` corpus entry names a distribution the table
+    /// maps, so a deleted mapping cannot leave a stale label.
+    pub fn labeled_distributions(
+        mappings: &[DistributionMapping],
+        corpus_root: &Path,
+    ) -> Vec<String> {
+        let known: BTreeSet<String> = mappings
+            .iter()
+            .flat_map(|m| m.distributions.iter())
+            .map(|d| crate::deps::version::pep503(d))
+            .collect();
+        let mut out = Vec::new();
+        let mut stack = vec![corpus_root.to_path_buf()];
+        while let Some(dir) = stack.pop() {
+            let Ok(rd) = std::fs::read_dir(&dir) else {
+                continue;
+            };
+            for e in rd.flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    stack.push(p);
+                    continue;
+                }
+                if p.file_name().is_none_or(|n| n != "expected.toml") {
+                    continue;
+                }
+                let rel = p
+                    .strip_prefix(corpus_root)
+                    .map(|r| r.display().to_string())
+                    .unwrap_or_else(|_| p.display().to_string());
+                let Ok(text) = std::fs::read_to_string(&p) else {
+                    continue;
+                };
+                let Ok(v) = toml::from_str::<toml::Table>(&text) else {
+                    continue;
+                };
+                for table in ["unscanned_dependencies", "dependencies"] {
+                    for entry in v
+                        .get(table)
+                        .and_then(|t| t.as_array())
+                        .into_iter()
+                        .flatten()
+                    {
+                        let package = entry.get("package").and_then(|x| x.as_str()).unwrap_or("?");
+                        for d in entry
+                            .get("distribution")
+                            .and_then(|x| x.as_array())
+                            .into_iter()
+                            .flatten()
+                            .filter_map(|x| x.as_str())
+                        {
+                            if !known.contains(&crate::deps::version::pep503(d)) {
+                                out.push(format!(
+                                    "{rel}: {table} entry {package} labels distribution \
+                                     {d}, which no python-distributions mapping names"
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
         }
         out
     }

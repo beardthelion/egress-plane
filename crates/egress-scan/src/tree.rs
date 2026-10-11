@@ -11,12 +11,10 @@ use egress_core::classify::{Classified, classify};
 use egress_core::data::Data;
 use egress_core::discover::completeness::counts_mut;
 use egress_core::discover::labels::content_labels;
-use egress_core::discover::{
-    Discovery, WORKER_STACK_BYTES, guard, whole_file_blind_spot,
-};
+use egress_core::discover::{Discovery, WORKER_STACK_BYTES, guard, whole_file_blind_spot};
 use egress_core::ir::FileIr;
-use egress_core::model::{BlindSpot, BlindSpotKind, BudgetReason, Label, Language, ToolError};
 use egress_core::model::Coverage;
+use egress_core::model::{BlindSpot, BlindSpotKind, BudgetReason, Label, Language, ToolError};
 use egress_core::prescan;
 use egress_core::resolve::{Program, ProgramFile, SpecifierRules};
 
@@ -157,7 +155,11 @@ fn merge(mut a: Vec<Label>, b: Vec<Label>) -> Vec<Label> {
     a
 }
 
-fn process(registry: &crate::registry::Registry, f: &egress_core::discover::SourceFile, text: &str) -> Outcome {
+fn process(
+    registry: &crate::registry::Registry,
+    f: &egress_core::discover::SourceFile,
+    text: &str,
+) -> Outcome {
     let labels = merge(f.labels.clone(), content_labels(text));
     if prescan::too_deep(f.language, text) {
         return Outcome::Failed {

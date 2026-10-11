@@ -676,7 +676,10 @@ fn scoped_prefix_indexes_only_the_package() {
     );
     // A nested node_modules inside the prefix is classified as an
     // install output like it is under full discovery.
-    assert!(d.excluded_dirs.contains(b"node_modules/leftpad/node_modules".as_slice()));
+    assert!(
+        d.excluded_dirs
+            .contains(b"node_modules/leftpad/node_modules".as_slice())
+    );
 }
 
 #[test]
@@ -741,11 +744,7 @@ fn pyc_and_so_are_per_file_gaps_while_the_py_scans() {
     t.file("pkg/orphan.pyc", "\x00\x01");
     t.file("pkg/native.so", "\x00\x01");
     let d = scoped(&t, &["pkg"]);
-    let sources: Vec<String> = d
-        .sources
-        .iter()
-        .map(|s| s.file.display.clone())
-        .collect();
+    let sources: Vec<String> = d.sources.iter().map(|s| s.file.display.clone()).collect();
     // Compiled caches and natives are never sources; each shows up as
     // a per-file unsupported gap.
     assert_eq!(sources, vec!["pkg/six.py".to_string()]);

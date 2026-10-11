@@ -17,9 +17,11 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use egress_core::data::Data;
+use egress_core::deps::inventory::Inventory;
 use egress_core::discover::budgets::{DependencyBudgets, apply_findings_budget};
 use egress_core::discover::completeness::{caveats, state};
 use egress_core::discover::dependency_roots;
+use egress_core::discover::dependency_roots::NamedRoot;
 use egress_core::discover::{Config, Discovery, discover};
 use egress_core::identity::{EncodedPath, finalize};
 use egress_core::ir::FileIr;
@@ -115,6 +117,18 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
     let mut budget_exceeded = pass.budget_exceeded;
     let classified = pass.classified;
 
+    // Named dependency roots open and inventory now: a rejected root is
+    // a tool error before anything is printed either way (KTD13), and
+    // installed metadata feeds the KTD17 distribution signal on
+    // top-level entries.
+    let mut named_roots: Vec<NamedRoot> = Vec::new();
+    let mut inventories: Vec<Inventory> = Vec::new();
+    if !options.dependency_roots.is_empty() {
+        named_roots = dependency_roots::open(discovery.root_dir(), &options.dependency_roots)?;
+        inventories =
+            dependency_roots::inventory(&named_roots, &discovery, &options.dependency_budgets)?;
+    }
+
     let mut report = Report {
         schema_version: SCHEMA_VERSION,
         tool: Tool {
@@ -135,6 +149,14 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
         excluded: discovery.excluded.clone(),
         dependencies: None,
     };
+    // The KTD17 distribution signal annotates Python entries; it never
+    // changes the state (R19).
+    egress_core::names::apply_unscanned(
+        &mut report.unscanned_dependencies,
+        &inventories,
+        &discovery.manifests.python_declarations,
+        &data.python_distributions,
+    );
     finalize(&mut report);
     if apply_findings_budget(&mut report, options.config.budgets.findings) {
         budget_exceeded.push(BudgetReason::Findings);
@@ -149,15 +171,11 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
 
     // Named dependency roots are opened and validated only after the
     // first-party report is final (KTD13): a rejected root is a tool
-    // error and nothing is printed. Inventory (U4) runs here for its
-    // ambiguity tool errors; its instances feed the selection pass in
-    // U8, so for now the section carries the roots and no packages.
+    // error and nothing is printed. The section carries the roots for
+    // now; the instances feed the selection pass in U8.
     if !options.dependency_roots.is_empty() {
-        let roots = dependency_roots::open(discovery.root_dir(), &options.dependency_roots)?;
-        let _instances =
-            dependency_roots::inventory(&roots, &discovery, &options.dependency_budgets)?;
         report.dependencies = Some(DependencySection {
-            roots: roots
+            roots: named_roots
                 .iter()
                 .map(|r| DependencyRoot {
                     label: r.label.clone(),

@@ -3,8 +3,23 @@ exit_code = 0
 
 [[unscanned_dependencies]]
 language = "python"
-package = "PIL"
-distribution = ["Pillow"]
+package = "argon2"
+distribution = ["argon2-cffi"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "attr"
+distribution = ["attrs"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "Bio"
+distribution = ["biopython"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "bson"
+distribution = ["bson", "pymongo"]
 
 [[unscanned_dependencies]]
 language = "python"
@@ -13,13 +28,163 @@ distribution = ["beautifulsoup4"]
 
 [[unscanned_dependencies]]
 language = "python"
-package = "cv2"
-distribution = ["opencv-python"]
+package = "cairo"
+distribution = ["pycairo"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "cassandra"
+distribution = ["cassandra-driver"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "charset_normalizer"
+distribution = ["charset-normalizer"]
 
 [[unscanned_dependencies]]
 language = "python"
 package = "Crypto"
-distribution = ["pycryptodome"]
+distribution = ["pycrypto", "pycryptodome"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "Cryptodome"
+distribution = ["pycryptodomex"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "cv2"
+distribution = ["opencv-contrib-python", "opencv-python", "opencv-python-headless"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "dateutil"
+distribution = ["python-dateutil"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "dns"
+distribution = ["dnspython"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "docx"
+distribution = ["python-docx"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "dotenv"
+distribution = ["python-dotenv"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "fitz"
+distribution = ["PyMuPDF"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "flask_sqlalchemy"
+distribution = ["Flask-SQLAlchemy"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "fpdf"
+distribution = ["fpdf", "fpdf2"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "gi"
+distribution = ["PyGObject"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "git"
+distribution = ["GitPython"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "grpc"
+distribution = ["grpcio"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "IPython"
+distribution = ["ipython"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "jose"
+distribution = ["python-jose"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "jwt"
+distribution = ["PyJWT", "jwt"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "kafka"
+distribution = ["kafka-python"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "ldap"
+distribution = ["python-ldap"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "magic"
+distribution = ["python-magic"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "MySQLdb"
+distribution = ["mysql-python", "mysqlclient"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "nacl"
+distribution = ["PyNaCl"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "OpenGL"
+distribution = ["PyOpenGL"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "OpenSSL"
+distribution = ["pyOpenSSL"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "PIL"
+distribution = ["Pillow"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "pkg_resources"
+distribution = ["setuptools"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "pptx"
+distribution = ["python-pptx"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "psycopg2"
+distribution = ["psycopg2", "psycopg2-binary"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "rest_framework"
+distribution = ["djangorestframework"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "serial"
+distribution = ["pyserial"]
 
 [[unscanned_dependencies]]
 language = "python"
@@ -33,23 +198,38 @@ distribution = ["scikit-learn"]
 
 [[unscanned_dependencies]]
 language = "python"
-package = "dateutil"
-distribution = ["python-dateutil"]
+package = "slugify"
+distribution = ["python-slugify"]
 
 [[unscanned_dependencies]]
 language = "python"
-package = "jwt"
-distribution = ["PyJWT"]
+package = "snappy"
+distribution = ["python-snappy"]
 
 [[unscanned_dependencies]]
 language = "python"
-package = "docx"
-distribution = ["python-docx"]
+package = "socketio"
+distribution = ["python-socketio"]
 
 [[unscanned_dependencies]]
 language = "python"
-package = "serial"
-distribution = ["pyserial"]
+package = "socks"
+distribution = ["PySocks"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "usb"
+distribution = ["pyusb"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "vcr"
+distribution = ["vcrpy"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "web"
+distribution = ["web.py"]
 
 [[unscanned_dependencies]]
 language = "python"
@@ -58,20 +238,15 @@ distribution = ["websocket-client"]
 
 [[unscanned_dependencies]]
 language = "python"
-package = "git"
-distribution = ["GitPython"]
-
-[[unscanned_dependencies]]
-language = "python"
-package = "OpenSSL"
-distribution = ["pyOpenSSL"]
-
-[[unscanned_dependencies]]
-language = "python"
-package = "magic"
-distribution = ["python-magic"]
+package = "wx"
+distribution = ["wxPython"]
 
 [[unscanned_dependencies]]
 language = "python"
 package = "yaml"
 distribution = ["PyYAML"]
+
+[[unscanned_dependencies]]
+language = "python"
+package = "zmq"
+distribution = ["pyzmq"]

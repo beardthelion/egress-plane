@@ -1,4 +1,4 @@
 [project]
 name = "fixture"
 version = "0.1.0"
-dependencies = ["Pillow", "beautifulsoup4", "opencv-python", "pycryptodome", "scikit-image", "scikit-learn", "python-dateutil", "PyJWT", "python-docx", "pyserial", "websocket-client", "GitPython", "pyOpenSSL", "python-magic", "PyYAML"]
+dependencies = ["argon2-cffi", "attrs", "biopython", "bson", "pymongo", "beautifulsoup4", "pycairo", "cassandra-driver", "charset-normalizer", "pycrypto", "pycryptodome", "pycryptodomex", "opencv-contrib-python", "opencv-python", "opencv-python-headless", "python-dateutil", "dnspython", "python-docx", "python-dotenv", "PyMuPDF", "Flask-SQLAlchemy", "fpdf", "fpdf2", "PyGObject", "GitPython", "grpcio", "ipython", "python-jose", "PyJWT", "jwt", "kafka-python", "python-ldap", "python-magic", "mysql-python", "mysqlclient", "PyNaCl", "PyOpenGL", "pyOpenSSL", "Pillow", "setuptools", "python-pptx", "psycopg2", "psycopg2-binary", "djangorestframework", "pyserial", "scikit-image", "scikit-learn", "python-slugify", "python-snappy", "python-socketio", "PySocks", "pyusb", "vcrpy", "web.py", "websocket-client", "wxPython", "PyYAML", "pyzmq"]

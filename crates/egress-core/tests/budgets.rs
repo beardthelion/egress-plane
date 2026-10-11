@@ -220,7 +220,10 @@ use egress_core::discover::budgets::{DEPENDENCY_BUDGETS_TOML, DependencyBudgets}
 #[test]
 fn embedded_dependency_budgets_load() {
     let b = DependencyBudgets::embedded();
-    assert_eq!(b, DependencyBudgets::parse(DEPENDENCY_BUDGETS_TOML).unwrap());
+    assert_eq!(
+        b,
+        DependencyBudgets::parse(DEPENDENCY_BUDGETS_TOML).unwrap()
+    );
     assert!(b.packages > 0 && b.files > 0 && b.bytes > 0);
     assert!(b.inventory_entries > 0 && b.lockfile_bytes > 0 && b.metadata_bytes > 0);
 }

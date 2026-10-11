@@ -12,6 +12,7 @@ pub mod identity;
 pub mod ir;
 pub mod json;
 pub mod model;
+pub mod names;
 pub mod paths;
 pub mod prescan;
 pub mod redact;

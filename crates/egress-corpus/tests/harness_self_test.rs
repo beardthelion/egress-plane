@@ -1196,10 +1196,15 @@ fn dependency_budgets_unknown_key_is_a_harness_error() {
 }
 
 /// Every dependency case must sit in the pending ledger while the scan
-/// stub stands, except `leftpad-no-root`, which matches today's output and
-/// is never pending.
+/// is still in flight, except the cases a landed unit already reports:
+/// `leftpad-no-root` (U7) and the two U10 curated-distribution cases.
 #[test]
-fn dependency_cases_are_pending_except_leftpad_no_root() {
+fn dependency_cases_are_pending_except_landed_ones() {
+    let landed = [
+        "javascript/dependencies/leftpad-no-root",
+        "python/dependencies/curated-distribution-names",
+        "python/dependencies/pyyaml-curated-no-root",
+    ];
     let real = load_pending(&corpus_root().join("pending.toml")).expect("pending.toml loads");
     let cases = discover_cases(&corpus_root()).expect("corpus discovers");
     let deps: Vec<_> = cases
@@ -1208,7 +1213,7 @@ fn dependency_cases_are_pending_except_leftpad_no_root() {
         .collect();
     assert!(!deps.is_empty(), "no dependency cases discovered");
     for c in &deps {
-        if c.id == "javascript/dependencies/leftpad-no-root" {
+        if landed.contains(&c.id.as_str()) {
             assert!(!real.cases.contains(&c.id), "{} must not be pending", c.id);
         } else {
             assert!(real.cases.contains(&c.id), "{} is not pending", c.id);

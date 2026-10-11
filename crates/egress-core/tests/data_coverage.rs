@@ -684,9 +684,11 @@ fn initial_catalog_packages_are_present() {
 fn dependency_budgets_file_is_embedded_and_digested() {
     // The dependency budget table is in EMBEDDED so the digest moves
     // when it changes (KTD14, U6).
-    assert!(EMBEDDED
-        .iter()
-        .any(|f| f.path == "data/dependency-budgets.toml"));
+    assert!(
+        EMBEDDED
+            .iter()
+            .any(|f| f.path == "data/dependency-budgets.toml")
+    );
     let files: Vec<(&str, &str)> = EMBEDDED.iter().map(|f| (f.path, f.text)).collect();
     let with = data_digest(&files);
     let without = data_digest(
@@ -697,4 +699,90 @@ fn dependency_budgets_file_is_embedded_and_digested() {
             .collect::<Vec<_>>(),
     );
     assert_ne!(with, without);
+}
+
+// ---- python-distributions table (KTD17) --------------------------------------
+
+#[test]
+fn every_python_distribution_mapping_names_an_exercising_case() {
+    let d = data();
+    assert!(
+        !d.python_distributions.is_empty(),
+        "the curated table must hold entries"
+    );
+    assert_clean(
+        "python-distributions",
+        guards::python_distributions(&d.python_distributions, &corpus()),
+    );
+}
+
+#[test]
+fn a_missing_case_or_missing_label_turns_the_distribution_guard_red() {
+    let d = data();
+    // A fixture that names no case fails the guard.
+    let mut missing = d.python_distributions.clone();
+    missing[0].fixture = "python/dependencies/does-not-exist".into();
+    let v = guards::python_distributions(&missing, &corpus());
+    assert!(
+        v.iter()
+            .any(|s| s.contains(&missing[0].import) && s.contains("does-not-exist")),
+        "{v:?}"
+    );
+    // A fixture whose labels do not cover the entry's distributions
+    // fails too: `jwt` maps two candidates but pyyaml-curated-no-root
+    // labels `yaml`, not `jwt`.
+    let mut relabeled = d.python_distributions.clone();
+    let jwt = relabeled
+        .iter_mut()
+        .find(|m| m.import == "jwt")
+        .unwrap_or_else(|| panic!("no jwt mapping"));
+    jwt.fixture = "python/dependencies/pyyaml-curated-no-root".into();
+    let v = guards::python_distributions(&relabeled, &corpus());
+    assert!(
+        v.iter()
+            .any(|s| s.contains("jwt") && s.contains("pyyaml-curated-no-root")),
+        "{v:?}"
+    );
+}
+
+#[test]
+fn every_corpus_distribution_label_names_a_table_entry() {
+    let d = data();
+    assert_clean(
+        "distribution labels",
+        guards::labeled_distributions(&d.python_distributions, &corpus()),
+    );
+}
+
+#[test]
+fn deleting_a_mapping_turns_the_labeled_distributions_guard_red() {
+    let d = data();
+    // `PyYAML` is labeled by pyyaml-curated-no-root; dropping the `yaml`
+    // mapping must flag it.
+    let mut m = d.python_distributions.clone();
+    m.retain(|x| x.import != "yaml");
+    let v = guards::labeled_distributions(&m, &corpus());
+    assert!(v.iter().any(|s| s.contains("PyYAML")), "{v:?}");
+}
+
+#[test]
+fn the_distribution_table_is_embedded_and_moves_the_digest() {
+    assert!(
+        EMBEDDED
+            .iter()
+            .any(|f| f.path == "data/python-distributions.toml")
+    );
+    let files: Vec<(&str, &str)> = EMBEDDED.iter().map(|f| (f.path, f.text)).collect();
+    let with = data_digest(&files);
+    let changed: Vec<(&str, &str)> = files
+        .iter()
+        .map(|(p, t)| {
+            if *p == "data/python-distributions.toml" {
+                (*p, "# touched\n")
+            } else {
+                (*p, *t)
+            }
+        })
+        .collect();
+    assert_ne!(with, data_digest(&changed));
 }

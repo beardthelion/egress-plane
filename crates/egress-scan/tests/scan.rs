@@ -464,3 +464,81 @@ fn hostile_repository_finishes_without_control_characters() {
     );
     assert!(!json.contains("/net/host") && !json.contains("share/x.py"));
 }
+
+// ---- KTD17: the Python distribution signal ----------------------------------
+
+/// `import yaml` with `PyYAML` declared gets the distribution, source
+/// curated, and the state stays complete (AE7, R19).
+#[test]
+fn declared_distribution_lands_on_the_unscanned_entry() {
+    let t = Tree::new("dist-declared");
+    t.file("app.py", "import yaml\n").file(
+        "pyproject.toml",
+        "[project]\nname = \"a\"\ndependencies = [\"PyYAML\"]\n",
+    );
+    let r = scan(&t.root).unwrap();
+    assert_eq!(r.completeness.state, CompletenessState::Complete);
+    let yaml = r
+        .unscanned_dependencies
+        .iter()
+        .find(|d| d.package == "yaml")
+        .unwrap_or_else(|| panic!("{:#?}", r.unscanned_dependencies));
+    assert_eq!(yaml.distribution, ["PyYAML"]);
+    assert_eq!(yaml.distribution_source, Some(DistributionSource::Curated));
+    assert!(yaml.mark.is_none());
+}
+
+/// With no declaration file the table's spelling stands; declarations
+/// that omit the candidate drop it.
+#[test]
+fn undeclared_uses_table_spelling_and_filtered_candidates() {
+    let t = Tree::new("dist-table");
+    t.file("app.py", "import yaml\nimport cv2\n");
+    let r = scan(&t.root).unwrap();
+    let find = |p: &str| {
+        r.unscanned_dependencies
+            .iter()
+            .find(|d| d.package == p)
+            .unwrap_or_else(|| panic!("{p}: {:#?}", r.unscanned_dependencies))
+    };
+    assert_eq!(find("yaml").distribution, ["PyYAML"]);
+    assert_eq!(
+        find("cv2").distribution,
+        [
+            "opencv-contrib-python",
+            "opencv-python",
+            "opencv-python-headless"
+        ]
+    );
+    let t = Tree::new("dist-omitted");
+    t.file("app.py", "import yaml\n")
+        .file("requirements.txt", "requests\n");
+    let r = scan(&t.root).unwrap();
+    let yaml = &r.unscanned_dependencies[0];
+    assert!(yaml.distribution.is_empty() && yaml.distribution_source.is_none());
+}
+
+/// `must_not_change_state_on_unreadable_declarations` (R19): a
+/// declaration file the scan cannot read contributes nothing, adds no
+/// blind spot, and leaves the state and the curated attribution as if
+/// the file were not there.
+#[test]
+fn must_not_change_state_on_unreadable_declarations() {
+    if support::privileged() {
+        return;
+    }
+    let t = Tree::new("unreadable-decl");
+    t.file("app.py", "import yaml\n")
+        .file("requirements.txt", "requests\n");
+    t.chmod("requirements.txt", 0o000);
+    let r = scan(&t.root).unwrap();
+    assert_eq!(r.completeness.state, CompletenessState::Complete);
+    assert!(
+        !r.blind_spots.iter().any(|b| b.file == "requirements.txt"),
+        "{:?}",
+        r.blind_spots
+    );
+    let yaml = &r.unscanned_dependencies[0];
+    assert_eq!(yaml.distribution, ["PyYAML"]);
+    assert_eq!(yaml.distribution_source, Some(DistributionSource::Curated));
+}

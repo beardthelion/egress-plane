@@ -124,6 +124,17 @@ pub struct PyProject {
     pub build_backend: Option<String>,
     /// In-root `backend-path` entries.
     pub backend_path: Vec<Vec<u8>>,
+    /// Declared distribution names (KTD17) from `[project] dependencies`
+    /// and `[tool.poetry.dependencies]`, as written.
+    pub declared: Vec<String>,
+}
+
+/// Parsed `setup.cfg` facts (KTD17).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SetupCfg {
+    pub path: Vec<u8>,
+    /// `[options] install_requires` distribution names, as written.
+    pub declared: Vec<String>,
 }
 
 /// Parsed manifest facts later stages map into the file index.
@@ -133,6 +144,10 @@ pub struct Manifests {
     pub package_json: Vec<PackageJson>,
     pub tsconfig: Vec<TsConfig>,
     pub pyproject: Vec<PyProject>,
+    pub setup_cfg: Vec<SetupCfg>,
+    /// Declared Python distribution names from `pyproject.toml`,
+    /// `setup.cfg`, and `requirements*.txt`, in index order (KTD17).
+    pub python_declarations: Vec<String>,
 }
 
 /// npm scripts that run on install or publish.
@@ -152,7 +167,7 @@ pub enum Parsed {
     PackageJson(PackageJson),
     TsConfig(TsConfig),
     PyProject(PyProject),
-    SetupCfg,
+    SetupCfg(SetupCfg),
 }
 
 /// The parse result: the manifest and the keys that named an out-of-root
@@ -207,10 +222,7 @@ pub fn parse(kind: ManifestKind, path: &[u8], text: &str) -> Result<ParseOutcome
         ManifestKind::PackageJson => Parsed::PackageJson(package_json(path, text, &mut refs)?),
         ManifestKind::TsConfig => Parsed::TsConfig(tsconfig(path, &parse_jsonc(text)?, &mut refs)),
         ManifestKind::PyProject => Parsed::PyProject(pyproject(path, text, &mut refs)?),
-        ManifestKind::SetupCfg => {
-            ini(text)?;
-            Parsed::SetupCfg
-        }
+        ManifestKind::SetupCfg => Parsed::SetupCfg(setup_cfg(path, text)?),
     };
     Ok((parsed, refs.outside))
 }
@@ -465,6 +477,33 @@ fn pyproject(path: &[u8], text: &str, refs: &mut Refs<'_>) -> Result<PyProject, 
         .filter_map(toml::Value::as_str)
         .filter_map(|p| refs.add("build-system.backend-path", p))
         .collect();
+    // KTD17 declarations: `[project] dependencies` PEP 508 strings and
+    // `[tool.poetry.dependencies]` keys (`python` is the interpreter
+    // constraint, never a package).
+    let mut declared = Vec::new();
+    if let Some(deps) = t
+        .get("project")
+        .and_then(|p| p.get("dependencies"))
+        .and_then(toml::Value::as_array)
+    {
+        declared.extend(
+            deps.iter()
+                .filter_map(toml::Value::as_str)
+                .filter_map(requirement_name),
+        );
+    }
+    if let Some(deps) = t
+        .get("tool")
+        .and_then(|x| x.get("poetry"))
+        .and_then(|p| p.get("dependencies"))
+        .and_then(toml::Value::as_table)
+    {
+        declared.extend(
+            deps.keys()
+                .filter(|k| crate::deps::version::pep503(k) != "python")
+                .cloned(),
+        );
+    }
     Ok(PyProject {
         path: path.to_vec(),
         build_backend: bs
@@ -472,7 +511,99 @@ fn pyproject(path: &[u8], text: &str, refs: &mut Refs<'_>) -> Result<PyProject, 
             .and_then(toml::Value::as_str)
             .map(str::to_string),
         backend_path,
+        declared,
     })
+}
+
+/// `[options] install_requires` from a `setup.cfg` (KTD17). The key's
+/// value is one requirement per line; continuation lines are indented.
+fn setup_cfg(path: &[u8], text: &str) -> Result<SetupCfg, Malformed> {
+    ini(text)?;
+    let mut in_options = false;
+    let mut collecting = false;
+    let mut declared = Vec::new();
+    for line in text.lines() {
+        let t = line.trim();
+        if !line.starts_with([' ', '\t']) {
+            collecting = false;
+            if t.starts_with('[') {
+                in_options = t == "[options]";
+                continue;
+            }
+            if in_options
+                && !t.is_empty()
+                && !t.starts_with('#')
+                && !t.starts_with(';')
+                && let Some((key, value)) = t.split_once(['=', ':'])
+                && key.trim() == "install_requires"
+            {
+                collecting = true;
+                if let Some(n) = requirement_name(value) {
+                    declared.push(n);
+                }
+            }
+        } else if in_options
+            && collecting
+            && let Some(n) = requirement_name(t)
+        {
+            declared.push(n);
+        }
+    }
+    Ok(SetupCfg {
+        path: path.to_vec(),
+        declared,
+    })
+}
+
+/// The distribution name a PEP 508 requirement string declares:
+/// `PyYAML` from `PyYAML>=6; python_version>"3"`, `name` from
+/// `name[extra]`, `name (>=1)`, or `name @ url`. A bare URL, path, or
+/// line holding no requirement yields `None`.
+pub fn requirement_name(text: &str) -> Option<String> {
+    let t = text.trim().trim_end_matches('\\').trim_end();
+    let mut end = 0;
+    for (i, c) in t.char_indices() {
+        if c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.') {
+            end = i + c.len_utf8();
+        } else {
+            break;
+        }
+    }
+    if end == 0 || !t.as_bytes()[0].is_ascii_alphanumeric() {
+        return None;
+    }
+    let name = &t[..end];
+    match t[end..].trim_start().chars().next() {
+        // `name` alone, then extras, a version spec or parenthesized
+        // spec, a marker, or a direct `name @ url` reference.
+        None => Some(name.to_string()),
+        Some(c) if "([<>=!~;@".contains(c) => Some(name.to_string()),
+        _ => None,
+    }
+}
+
+/// Declared distribution names in a `requirements*.txt` file (KTD17):
+/// one requirement per line. Option lines (`-r`, `-e`, `--hash`, `-i`),
+/// bare URLs and paths, comments, and blank lines contribute nothing;
+/// a `#` at the line start or after whitespace begins a comment, and a
+/// trailing `\` continues the line.
+pub fn requirements(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    for raw in text.lines() {
+        let line = raw
+            .char_indices()
+            .find(|(i, c)| *c == '#' && (*i == 0 || raw.as_bytes()[i - 1].is_ascii_whitespace()))
+            .map(|(i, _)| &raw[..i])
+            .unwrap_or(raw);
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('-') {
+            continue;
+        }
+        if let Some(n) = requirement_name(line) {
+            out.push(n);
+        }
+    }
+    out
 }
 
 /// Checks INI syntax as `configparser` reads it: sections, `key = value` or

@@ -57,8 +57,7 @@ pub struct DependencyBudgets {
 }
 
 /// The embedded `data/dependency-budgets.toml` text (KTD14).
-pub const DEPENDENCY_BUDGETS_TOML: &str =
-    include_str!("../../../../data/dependency-budgets.toml");
+pub const DEPENDENCY_BUDGETS_TOML: &str = include_str!("../../../../data/dependency-budgets.toml");
 
 impl DependencyBudgets {
     pub fn parse(text: &str) -> Result<DependencyBudgets, String> {
@@ -66,7 +65,8 @@ impl DependencyBudgets {
     }
 
     pub fn embedded() -> DependencyBudgets {
-        DependencyBudgets::parse(DEPENDENCY_BUDGETS_TOML).expect("embedded data/dependency-budgets.toml")
+        DependencyBudgets::parse(DEPENDENCY_BUDGETS_TOML)
+            .expect("embedded data/dependency-budgets.toml")
     }
 }
 

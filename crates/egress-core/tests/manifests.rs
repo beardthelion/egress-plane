@@ -214,3 +214,47 @@ fn jsonc_parser_accepts_comments_and_trailing_commas_only() {
     assert!(parse_jsonc("{,}").is_err());
     assert!(parse_jsonc(&"[".repeat(100_000)).is_err());
 }
+
+// ---- KTD17: declared Python distribution names ------------------------------
+
+#[test]
+fn pyproject_project_and_poetry_declarations_are_collected() {
+    let t = Tree::new("pyproject-declared");
+    t.file(
+        "pyproject.toml",
+        "[project]\nname = \"a\"\ndependencies = [\"PyYAML>=6\", \"requests[security]\", \"httpx @ https://x/r.whl\"]\n\n[tool.poetry.dependencies]\npython = \"^3.9\"\nPyJWT = \"^2\"\n",
+    );
+    let d = run(&t);
+    assert_eq!(
+        d.manifests.pyproject[0].declared,
+        ["PyYAML", "requests", "httpx", "PyJWT"]
+    );
+    assert_eq!(
+        d.manifests.python_declarations,
+        ["PyYAML", "requests", "httpx", "PyJWT"]
+    );
+}
+
+#[test]
+fn setup_cfg_install_requires_is_collected() {
+    let t = Tree::new("setup-cfg-declared");
+    t.file(
+        "setup.cfg",
+        "[metadata]\nname = a\n\n[options]\ninstall_requires =\n    PyYAML>=6\n    requests; python_version>\"3\"\nzip_safe = False\n",
+    );
+    let d = run(&t);
+    assert_eq!(d.manifests.setup_cfg[0].declared, ["PyYAML", "requests"]);
+    assert_eq!(d.manifests.python_declarations, ["PyYAML", "requests"]);
+}
+
+#[test]
+fn a_malformed_pyproject_contributes_no_declarations() {
+    let t = Tree::new("bad-pyproject-decl");
+    t.file("pyproject.toml", "[project\nname = \"a\"\n");
+    let d = run(&t);
+    assert_eq!(
+        spots(&d),
+        vec![("pyproject.toml".into(), BlindSpotKind::ManifestParseError)]
+    );
+    assert!(d.manifests.python_declarations.is_empty());
+}

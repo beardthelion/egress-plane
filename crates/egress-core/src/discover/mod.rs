@@ -464,13 +464,8 @@ impl Walk<'_> {
             let st = match self.root.lstat(prefix) {
                 Ok(st) => st,
                 Err(_) => {
-                    self.blind_spots.push(spot(
-                        prefix,
-                        BlindSpotKind::Unreadable,
-                        None,
-                        true,
-                        "",
-                    ));
+                    self.blind_spots
+                        .push(spot(prefix, BlindSpotKind::Unreadable, None, true, ""));
                     continue;
                 }
             };
@@ -781,8 +776,16 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
                         ts_queue.extend(t.extends.iter().cloned());
                         manifests.tsconfig.push(t);
                     }
-                    Parsed::PyProject(p) => manifests.pyproject.push(p),
-                    Parsed::SetupCfg => {}
+                    Parsed::PyProject(p) => {
+                        manifests.python_declarations.extend(p.declared.clone());
+                        manifests.pyproject.push(p);
+                    }
+                    Parsed::SetupCfg(s) => {
+                        manifests
+                            .python_declarations
+                            .extend(s.declared.iter().cloned());
+                        manifests.setup_cfg.push(s);
+                    }
                 }
             }
             Err(k) => {
@@ -831,6 +834,26 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
             }
             Err(k) => w.blind_spots.push(spot(&target, k, None, true, "")),
         }
+    }
+
+    // `requirements*.txt` declaration files (KTD17): indexed files read
+    // through the safe path under the file cap. An unreadable,
+    // oversized, or non-UTF-8 file contributes nothing and no blind
+    // spot (R19).
+    for path in index.keys() {
+        let name = file_name(path);
+        if !(name.starts_with(b"requirements") && name.ends_with(b".txt")) {
+            continue;
+        }
+        let Ok(bytes) = w.read(path, MAX_FILE_BYTES) else {
+            continue;
+        };
+        let Ok(text) = String::from_utf8(bytes) else {
+            continue;
+        };
+        manifests
+            .python_declarations
+            .extend(manifests::requirements(&text));
     }
 
     // Hooks.
