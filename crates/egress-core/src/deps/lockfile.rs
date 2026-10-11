@@ -111,3 +111,153 @@ pub fn rust_eq(a: &str, b: &str) -> bool {
         .all(|(x, y)| x == y || { (x == b'-' || x == b'_') && (y == b'-' || y == b'_') })
         && a.len() == b.len()
 }
+
+// ---- ecosystem lockfiles (U5, the support matrix) ----------------------------
+
+/// A supported lockfile parse result; the support matrix's middle and
+/// right columns map onto the other variants.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LockfileResult<T> {
+    Parsed(T),
+    /// The file exists but its format version is treated as no
+    /// supported lockfile (Cargo v1/v2, package-lock v1, poetry 1.x).
+    NotSupported,
+    /// Parse failure, an unknown version, or over-cap bytes.
+    Unreadable,
+}
+
+/// The npm `package-lock.json` package set: `lockfileVersion` 2 or 3,
+/// read from the `packages` map. The package name is the last
+/// `node_modules/` segments of the key unless the entry holds a `name`
+/// field (an alias maps to the real name).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NpmLock {
+    pub packages: Vec<(String, String)>,
+}
+
+pub fn package_lock(bytes: &[u8]) -> LockfileResult<NpmLock> {
+    let v: serde_json::Value = match serde_json::from_slice(bytes) {
+        Ok(v) => v,
+        Err(_) => return LockfileResult::Unreadable,
+    };
+    let version = v.get("lockfileVersion").and_then(|v| v.as_u64());
+    match version {
+        Some(2) | Some(3) => {}
+        Some(1) => return LockfileResult::NotSupported,
+        _ => return LockfileResult::Unreadable,
+    }
+    let Some(packages) = v.get("packages").and_then(|p| p.as_object()) else {
+        return LockfileResult::Unreadable;
+    };
+    let mut out = Vec::new();
+    for (key, entry) in packages {
+        if key.is_empty() {
+            continue;
+        }
+        // The name: `name` field when present, else the last
+        // `node_modules/` segments of the key (a scoped name keeps its
+        // two segments).
+        let name = entry
+            .get("name")
+            .and_then(|n| n.as_str())
+            .map(str::to_string)
+            .unwrap_or_else(|| {
+                let segs = key.split("node_modules/");
+                let mut last = String::new();
+                for s in segs {
+                    if !s.is_empty() {
+                        last = s.to_string();
+                    }
+                }
+                last
+            });
+        let Some(version) = entry.get("version").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        out.push((name, version.to_string()));
+    }
+    LockfileResult::Parsed(NpmLock { packages: out })
+}
+
+/// `poetry.lock`: `[[package]]` entries under `lock-version` 2.x.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PythonLock {
+    pub packages: Vec<(String, String)>,
+}
+
+pub fn poetry_lock(bytes: &[u8]) -> LockfileResult<PythonLock> {
+    let t: toml::Table = match std::str::from_utf8(bytes)
+        .ok()
+        .and_then(|s| toml::from_str(s).ok())
+    {
+        Some(t) => t,
+        None => return LockfileResult::Unreadable,
+    };
+    let version = t
+        .get("metadata")
+        .and_then(|m| m.get("lock-version"))
+        .and_then(|v| {
+            v.as_str()
+                .map(str::to_string)
+                .or_else(|| v.as_integer().map(|i| i.to_string()))
+        });
+    match version.as_deref().and_then(|v| v.split('.').next()) {
+        Some("1") => return LockfileResult::NotSupported,
+        Some("2") => {}
+        _ => return LockfileResult::Unreadable,
+    }
+    let mut packages = Vec::new();
+    for p in t
+        .get("package")
+        .and_then(|p| p.as_array())
+        .cloned()
+        .unwrap_or_default()
+    {
+        let Some(name) = p.get("name").and_then(|n| n.as_str()) else {
+            continue;
+        };
+        let Some(version) = p.get("version").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        packages.push((name.to_string(), version.to_string()));
+    }
+    LockfileResult::Parsed(PythonLock { packages })
+}
+
+/// `uv.lock`: `version = 1`, `[[package]]` entries.
+pub fn uv_lock(bytes: &[u8]) -> LockfileResult<PythonLock> {
+    let t: toml::Table = match std::str::from_utf8(bytes)
+        .ok()
+        .and_then(|s| toml::from_str(s).ok())
+    {
+        Some(t) => t,
+        None => return LockfileResult::Unreadable,
+    };
+    if t.get("version").and_then(|v| v.as_integer()) != Some(1) {
+        return LockfileResult::Unreadable;
+    }
+    let mut packages = Vec::new();
+    for p in t
+        .get("package")
+        .and_then(|p| p.as_array())
+        .cloned()
+        .unwrap_or_default()
+    {
+        let Some(name) = p.get("name").and_then(|n| n.as_str()) else {
+            continue;
+        };
+        let Some(version) = p.get("version").and_then(|v| v.as_str()) else {
+            continue;
+        };
+        packages.push((name.to_string(), version.to_string()));
+    }
+    LockfileResult::Parsed(PythonLock { packages })
+}
+
+/// A Cargo git checkout's short rev is a prefix of the lock source's
+/// `#<sha>` (KTD7).
+pub fn rev_matches(checkout_rev: &str, source: &str) -> bool {
+    source
+        .rsplit_once('#')
+        .is_some_and(|(_, sha)| sha.starts_with(checkout_rev))
+}

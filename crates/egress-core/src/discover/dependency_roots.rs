@@ -664,10 +664,16 @@ fn vendor_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
             },
             _ => flags.unsupported = Some("unreadable-metadata".to_string()),
         }
-        if let Some(Ok(bytes)) = read_meta(&root.dir, &join(name, b"Cargo.toml"), budgets)
-            && let Ok((_n, v)) = metadata::cargo_toml_name_version(&bytes)
-        {
-            version = v;
+        let mut imports = vec![pkg.clone()];
+        if let Some(Ok(bytes)) = read_meta(&root.dir, &join(name, b"Cargo.toml"), budgets) {
+            if let Ok((_n, v)) = metadata::cargo_toml_name_version(&bytes) {
+                version = v;
+            }
+            if let Some(lib) = metadata::cargo_toml_lib_name(&bytes) {
+                if lib != pkg {
+                    imports.push(lib);
+                }
+            }
         }
         if version.is_empty() {
             version = name
@@ -681,7 +687,7 @@ fn vendor_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
             locator: pkg.clone(),
             version,
             rel: name.clone(),
-            imports: vec![pkg],
+            imports,
             distribution: None,
             record,
             package_checksum: checksum,
@@ -754,12 +760,19 @@ fn registry_inventory(
                     .collect();
                 checksum = c.package;
             }
+            let mut imports = vec![name.clone()];
+            if let Some(Ok(bytes)) = read_meta(&root.dir, &join(&rel, b"Cargo.toml"), budgets)
+                && let Some(lib) = metadata::cargo_toml_lib_name(&bytes)
+                && lib != *name
+            {
+                imports.push(lib);
+            }
             instances.push(Instance {
                 package: name.clone(),
                 locator: name.clone(),
                 version: version.clone(),
                 rel,
-                imports: vec![name.clone()],
+                imports,
                 distribution: None,
                 record,
                 package_checksum: checksum,
@@ -838,12 +851,18 @@ fn git_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
                 if clean_name(&m).is_none() {
                     flags.escaped_name = true;
                 }
+                let mut imports = vec![name.clone()];
+                if let Some(lib) = metadata::cargo_toml_lib_name(&bytes) {
+                    if lib != name {
+                        imports.push(lib);
+                    }
+                }
                 instances.push(Instance {
                     package: name.clone(),
                     locator: name.clone(),
                     version,
                     rel: rel.clone(),
-                    imports: vec![name],
+                    imports,
                     distribution: None,
                     record: Vec::new(),
                     package_checksum: None,

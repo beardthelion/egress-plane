@@ -6,4 +6,5 @@ pub mod inventory;
 pub mod locator;
 pub mod lockfile;
 pub mod metadata;
+pub mod verify;
 pub mod version;

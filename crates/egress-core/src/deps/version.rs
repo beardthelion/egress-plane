@@ -109,3 +109,85 @@ impl PartialOrd for Pre {
         Some(self.cmp(other))
     }
 }
+
+// ---- ecosystem comparison (U5) ---------------------------------------------
+
+/// npm version equality: exact after stripping `+build` metadata.
+pub fn npm_eq(installed: &str, locked: &str) -> bool {
+    installed.split('+').next().unwrap_or("") == locked.split('+').next().unwrap_or("")
+}
+
+/// PEP 503 normalization: lowercase and runs of `-`, `_`, `.` to `-`.
+pub fn pep503(name: &str) -> String {
+    let mut out = String::with_capacity(name.len());
+    let mut last_dash = false;
+    for c in name.chars() {
+        if c == '-' || c == '_' || c == '.' {
+            if !last_dash {
+                out.push('-');
+            }
+            last_dash = true;
+        } else {
+            out.push(c.to_ascii_lowercase());
+            last_dash = false;
+        }
+    }
+    out
+}
+
+/// The PEP 440 comparison subset (KTD7): lowercase, a leading `v`
+/// dropped, release segments zero-padded so `1.0` equals `1.0.0`, and
+/// a `+local` segment kept and compared. Versions that do not parse
+/// compare by exact string.
+pub fn pep440_eq(installed: &str, locked: &str) -> bool {
+    match (pep440(installed), pep440(locked)) {
+        (Some(a), Some(b)) => a == b,
+        _ => installed == locked,
+    }
+}
+
+/// A parsed PEP 440 subset version: the release tuple and optional
+/// local segment.
+#[derive(Debug, Clone)]
+struct Pep440 {
+    release: Vec<u64>,
+    local: Option<String>,
+}
+
+fn pep440(v: &str) -> Option<Pep440> {
+    let v = v.trim().to_ascii_lowercase();
+    let v = v.strip_prefix('v').unwrap_or(&v);
+    let (release, local) = match v.split_once('+') {
+        Some((r, l)) => (r, Some(l.to_string())),
+        None => (v, None),
+    };
+    if release.is_empty() {
+        return None;
+    }
+    let mut nums = Vec::new();
+    for seg in release.split('.') {
+        // A non-numeric release segment leaves the version unparsed
+        // so it compares exactly (`1.0rc1` never equals `1.0`).
+        if !seg.chars().all(|c| c.is_ascii_digit()) {
+            return None;
+        }
+        nums.push(seg.parse().ok()?);
+    }
+    Some(Pep440 {
+        release: nums,
+        local,
+    })
+}
+
+impl PartialEq for Pep440 {
+    fn eq(&self, other: &Self) -> bool {
+        // Release tuples compare with zero padding on the shorter.
+        let n = self.release.len().max(other.release.len());
+        let pad = |v: &Vec<u64>| {
+            (0..n)
+                .map(|i| *v.get(i).unwrap_or(&0))
+                .collect::<Vec<u64>>()
+        };
+        pad(&self.release) == pad(&other.release) && self.local == other.local
+    }
+}
