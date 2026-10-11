@@ -1,0 +1,22 @@
+# Dependency pass budgets (KTD14). These count only dependency work, so a
+# large install tree cannot reduce first-party coverage. An exhausted
+# budget is listed in the dependency section's `budget_exceeded` and marks
+# the affected package, never the top-level account.
+
+# Installed package instances admitted to the closure, in breadth-first
+# order sorted by (depth, language, package, locator).
+packages = 20000
+# Dependency source files parsed across admitted packages.
+files = 20000
+# Dependency source bytes parsed.
+bytes = 1048576
+# Dependency findings kept in the report.
+findings = 200000
+# Resolver steps inside dependency code.
+resolver_steps = 20000000
+# Directory entries listed across all named roots during inventory.
+inventory_entries = 1000000
+# Largest lockfile read, in bytes (32 MiB).
+lockfile_bytes = 33554432
+# Largest package metadata file read, in bytes (8 MiB).
+metadata_bytes = 8388608

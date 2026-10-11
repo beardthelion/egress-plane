@@ -11,28 +11,22 @@
 
 mod js;
 pub mod registry;
+pub mod tree;
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Condvar, Mutex, OnceLock};
+use std::sync::OnceLock;
 
-use egress_core::classify::classify;
 use egress_core::data::Data;
 use egress_core::discover::budgets::{DependencyBudgets, apply_findings_budget};
-use egress_core::discover::completeness::{caveats, counts_mut, state};
+use egress_core::discover::completeness::{caveats, state};
 use egress_core::discover::dependency_roots;
-use egress_core::discover::labels::content_labels;
-use egress_core::discover::{
-    Config, Discovery, SourceFile, WORKER_STACK_BYTES, discover, guard, whole_file_blind_spot,
-};
+use egress_core::discover::{Config, Discovery, discover};
 use egress_core::identity::{EncodedPath, finalize};
 use egress_core::ir::FileIr;
 use egress_core::model::{
-    BlindSpotKind, BudgetReason, Completeness, DependencyRoot, DependencySection, Label, Language,
-    Report, SCHEMA_VERSION, Tool, ToolError,
+    BudgetReason, Completeness, DependencyRoot, DependencySection, Label, Language, Report,
+    SCHEMA_VERSION, Tool, ToolError,
 };
-use egress_core::prescan;
-use egress_core::resolve::{Program, ProgramFile};
 
 pub use registry::{Frontend, FrontendError, Registry, SourceInput};
 
@@ -102,219 +96,24 @@ fn data() -> Result<&'static Data, ToolError> {
         .map_err(|_| ToolError::Internal("embedded data failed to load"))
 }
 
-enum Outcome {
-    /// Read and pre-scanned; `ir` is `None` when no frontend is registered.
-    Scanned {
-        labels: Vec<Label>,
-        ir: Option<Box<FileIr>>,
-    },
-    Failed {
-        kind: BlindSpotKind,
-        labels: Vec<Label>,
-    },
-}
-
-fn merge(mut a: Vec<Label>, b: Vec<Label>) -> Vec<Label> {
-    a.extend(b);
-    a.sort();
-    a.dedup();
-    a
-}
-
-fn process(registry: &Registry, f: &SourceFile, text: &str) -> Outcome {
-    let labels = merge(f.labels.clone(), content_labels(text));
-    if prescan::too_deep(f.language, text) {
-        return Outcome::Failed {
-            kind: BlindSpotKind::TooDeeplyNested,
-            labels,
-        };
-    }
-    let Some(fe) = registry.get(f.language) else {
-        return Outcome::Scanned { labels, ir: None };
-    };
-    let input = SourceInput {
-        path: &f.path,
-        file: &f.file.display,
-        language: f.language,
-        text,
-    };
-    let kind = match guard(|| fe.lower(&input)) {
-        Some(Ok(ir)) => {
-            return Outcome::Scanned {
-                labels,
-                ir: Some(Box::new(ir)),
-            };
-        }
-        Some(Err(FrontendError::Parse)) => BlindSpotKind::ParseError,
-        Some(Err(FrontendError::TooDeeplyNested)) => BlindSpotKind::TooDeeplyNested,
-        None => BlindSpotKind::FrontendFailure,
-    };
-    Outcome::Failed { kind, labels }
-}
-
-/// Bounds the source bytes held by workers at once.
-struct Gate {
-    used: Mutex<u64>,
-    freed: Condvar,
-    cap: u64,
-}
-
-impl Gate {
-    fn acquire(&self, n: u64) {
-        let mut used = self.used.lock().unwrap_or_else(|e| e.into_inner());
-        while *used > 0 && *used + n > self.cap {
-            used = self.freed.wait(used).unwrap_or_else(|e| e.into_inner());
-        }
-        *used += n;
-    }
-
-    fn release(&self, n: u64) {
-        let mut used = self.used.lock().unwrap_or_else(|e| e.into_inner());
-        *used -= n;
-        self.freed.notify_all();
-    }
-}
-
-fn run_workers(d: &Discovery, options: &ScanOptions) -> Result<Vec<Outcome>, ToolError> {
-    let n = d.sources.len();
-    let next = AtomicUsize::new(0);
-    let results: Mutex<Vec<Option<Outcome>>> = Mutex::new((0..n).map(|_| None).collect());
-    let gate = Gate {
-        used: Mutex::new(0),
-        freed: Condvar::new(),
-        cap: options.in_flight_bytes.max(1),
-    };
-    let work = || {
-        loop {
-            let i = next.fetch_add(1, Ordering::SeqCst);
-            let Some(f) = d.sources.get(i) else { break };
-            let mut held = f.size.max(1);
-            gate.acquire(held);
-            let outcome = match d.read_source(f) {
-                Err(kind) => Outcome::Failed {
-                    kind,
-                    labels: f.labels.clone(),
-                },
-                Ok(text) => {
-                    let actual = (text.len() as u64).max(1);
-                    if actual > held {
-                        // The file grew after the walk; charge its real size.
-                        gate.release(held);
-                        held = actual;
-                        gate.acquire(held);
-                    }
-                    guard(|| process(&options.registry, f, &text)).unwrap_or(Outcome::Failed {
-                        kind: BlindSpotKind::FrontendFailure,
-                        labels: f.labels.clone(),
-                    })
-                }
-            };
-            gate.release(held);
-            results.lock().unwrap_or_else(|e| e.into_inner())[i] = Some(outcome);
-        }
-    };
-    let workers = options.workers.clamp(1, n.max(1));
-    std::thread::scope(|s| {
-        let mut handles = Vec::new();
-        for _ in 0..workers {
-            let h = std::thread::Builder::new()
-                .stack_size(WORKER_STACK_BYTES)
-                .spawn_scoped(s, work)
-                .map_err(|_| ToolError::Internal("cannot start a worker thread"))?;
-            handles.push(h);
-        }
-        for h in handles {
-            h.join()
-                .map_err(|_| ToolError::Internal("a worker thread failed"))?;
-        }
-        Ok(())
-    })?;
-    results
-        .into_inner()
-        .unwrap_or_else(|e| e.into_inner())
-        .into_iter()
-        .map(|o| o.ok_or(ToolError::Internal("a source file was not processed")))
-        .collect()
-}
-
 /// Scans `root` with explicit options.
 pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolError> {
     let data = data()?;
     let discovery = discover(root, &options.config)?;
-    let outcomes = run_workers(&discovery, options)?;
-
-    let mut coverage = discovery.coverage.clone();
-    let mut blind_spots = discovery.blind_spots.clone();
-    let mut files = Vec::new();
-    for (f, outcome) in discovery.sources.iter().zip(outcomes) {
-        match outcome {
-            Outcome::Scanned { labels, ir } => {
-                counts_mut(&mut coverage, Some(f.language)).scanned += 1;
-                if let Some(ir) = ir {
-                    files.push(LoweredFile {
-                        path: f.path.clone(),
-                        file: f.file.clone(),
-                        language: f.language,
-                        labels,
-                        ir: *ir,
-                    });
-                }
-            }
-            Outcome::Failed { kind, labels } => {
-                counts_mut(&mut coverage, Some(f.language)).skipped += 1;
-                let mut b = whole_file_blind_spot(&f.path, kind, Some(f.language));
-                b.labels = labels;
-                blind_spots.push(b);
-            }
-        }
-    }
-
-    let mut budget_exceeded = discovery.budget_exceeded.clone();
-    let mut linked = Vec::new();
-    for lang in Language::ALL {
-        if let Some(fe) = options.registry.get(lang) {
-            let mut view: Vec<(&[u8], &mut FileIr)> = files
-                .iter_mut()
-                .filter(|f| f.language == lang)
-                .map(|f| (f.path.as_slice(), &mut f.ir))
-                .collect();
-            if let Some(rules) = fe.link(&discovery.manifests, &discovery.index, &mut view) {
-                linked.push((lang, rules));
-            } else if let Some(rules) = fe.repo_rules(&discovery) {
-                linked.push((lang, rules));
-            }
-        }
-    }
-    let mut program = Program::new(&discovery.index, &discovery.excluded_dirs);
-    for lang in Language::ALL {
-        if let Some((_, rules)) = linked.iter().find(|(l, _)| *l == lang) {
-            program.set_rules(lang, rules.as_ref());
-        } else if let Some(rules) = options.registry.get(lang).and_then(|f| f.specifier_rules()) {
-            program.set_rules(lang, rules);
-        }
-    }
-    for f in &files {
-        program.add_file(
-            f.path.clone(),
-            ProgramFile {
-                file: f.file.clone(),
-                language: f.language,
-                labels: f.labels.clone(),
-                ir: &f.ir,
-            },
-        );
-    }
-    let classified = classify(data, &program, options.config.budgets.resolver_steps);
-    drop(program);
-    blind_spots.extend(classified.blind_spots);
-    coverage.unsupported.skipped += classified.loaded_as_code;
-    // Discovery charges symlink resolution against the same budget and may
-    // already have recorded it.
-    if classified.resolver_budget_exceeded
-        && !budget_exceeded.contains(&BudgetReason::ResolverSteps)
-    {
-        budget_exceeded.push(BudgetReason::ResolverSteps);
-    }
+    let pass = tree::run(
+        data,
+        &discovery,
+        options,
+        &tree::TreeOptions {
+            overrides: &[],
+            resolver_budget: options.config.budgets.resolver_steps,
+        },
+    )?;
+    let coverage = pass.coverage;
+    let blind_spots = pass.blind_spots;
+    let files = pass.files;
+    let mut budget_exceeded = pass.budget_exceeded;
+    let classified = pass.classified;
 
     let mut report = Report {
         schema_version: SCHEMA_VERSION,

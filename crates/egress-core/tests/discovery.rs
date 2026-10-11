@@ -627,3 +627,156 @@ fn directory_whose_entries_cannot_be_statted_is_an_unreadable_gap() {
     assert_eq!(spots(&d), vec![("half".into(), BlindSpotKind::Unreadable)]);
     assert!(d.blind_spots[0].coverage_gap);
 }
+
+// ---- U6: scoped discovery ---------------------------------------------------
+
+use egress_core::discover::open::RootDir;
+use egress_core::discover::{ScopedRule, discover_scoped};
+
+fn scoped(t: &Tree, prefixes: &[&str]) -> egress_core::discover::Discovery {
+    let root = RootDir::open(&t.root).unwrap();
+    let ps: Vec<&[u8]> = prefixes.iter().map(|p| p.as_bytes()).collect();
+    discover_scoped(&root, &ps, &Config::default(), None).unwrap()
+}
+
+fn scoped_with_rule(
+    t: &Tree,
+    prefixes: &[&str],
+    rule: &egress_core::discover::FileRule<'_>,
+) -> egress_core::discover::Discovery {
+    let root = RootDir::open(&t.root).unwrap();
+    let ps: Vec<&[u8]> = prefixes.iter().map(|p| p.as_bytes()).collect();
+    discover_scoped(&root, &ps, &Config::default(), Some(rule)).unwrap()
+}
+
+fn names(d: &egress_core::discover::Discovery) -> Vec<String> {
+    let mut v: Vec<String> = d
+        .index
+        .keys()
+        .map(|k| String::from_utf8_lossy(k).into_owned())
+        .collect();
+    v.sort();
+    v
+}
+
+#[test]
+fn scoped_prefix_indexes_only_the_package() {
+    let t = Tree::new("scoped-npm");
+    t.file("node_modules/leftpad/index.js", "module.exports = 1;\n");
+    t.file("node_modules/leftpad/package.json", "{}");
+    t.file("node_modules/leftpad/node_modules/inner/index.js", "x");
+    t.file("other/app.js", "x");
+    let d = scoped(&t, &["node_modules/leftpad"]);
+    assert_eq!(
+        names(&d),
+        vec![
+            "node_modules/leftpad/index.js".to_string(),
+            "node_modules/leftpad/package.json".to_string(),
+        ]
+    );
+    // A nested node_modules inside the prefix is classified as an
+    // install output like it is under full discovery.
+    assert!(d.excluded_dirs.contains(b"node_modules/leftpad/node_modules".as_slice()));
+}
+
+#[test]
+fn scoped_file_prefixes_index_exactly_those_paths() {
+    let t = Tree::new("scoped-venv");
+    t.file("lib/python3.12/site-packages/six.py", "x=1\n");
+    t.file("lib/python3.12/site-packages/requests/__init__.py", "x=1\n");
+    t.file("lib/python3.12/site-packages/requests/api.py", "x=1\n");
+    t.file("lib/python3.12/site-packages/other.py", "x=1\n");
+    let d = scoped(
+        &t,
+        &[
+            "lib/python3.12/site-packages/six.py",
+            "lib/python3.12/site-packages/requests",
+        ],
+    );
+    assert_eq!(
+        names(&d),
+        vec![
+            "lib/python3.12/site-packages/requests/__init__.py".to_string(),
+            "lib/python3.12/site-packages/requests/api.py".to_string(),
+            "lib/python3.12/site-packages/six.py".to_string(),
+        ]
+    );
+}
+
+#[test]
+fn must_not_walk_outside_prefix() {
+    let t = Tree::new("scoped-outside");
+    t.file("pkg/a.py", "x=1\n");
+    t.file("sibling/evil.py", "x=1\n");
+    let d = scoped(&t, &["pkg"]);
+    assert_eq!(names(&d), vec!["pkg/a.py".to_string()]);
+    assert!(d.blind_spots.is_empty());
+}
+
+#[test]
+fn rust_prefixes_skip_tests_benches_examples() {
+    let t = Tree::new("scoped-rust");
+    t.file("src/lib.rs", "pub fn x() {}\n");
+    t.file("build.rs", "fn main() {}\n");
+    t.file("Cargo.toml", "[package]\nname=\"x\"\nversion=\"1\"\n");
+    t.file("tests/t.rs", "fn t() {}\n");
+    t.file("benches/b.rs", "fn b() {}\n");
+    t.file("examples/e.rs", "fn e() {}\n");
+    let d = scoped(&t, &["src", "build.rs", "Cargo.toml"]);
+    assert_eq!(
+        names(&d),
+        vec![
+            "Cargo.toml".to_string(),
+            "build.rs".to_string(),
+            "src/lib.rs".to_string(),
+        ]
+    );
+}
+
+#[test]
+fn pyc_and_so_are_per_file_gaps_while_the_py_scans() {
+    let t = Tree::new("scoped-pyc");
+    t.file("pkg/six.py", "x=1\n");
+    t.file("pkg/six.pyc", "\x00\x01");
+    t.file("pkg/orphan.pyc", "\x00\x01");
+    t.file("pkg/native.so", "\x00\x01");
+    let d = scoped(&t, &["pkg"]);
+    let sources: Vec<String> = d
+        .sources
+        .iter()
+        .map(|s| s.file.display.clone())
+        .collect();
+    // Compiled caches and natives are never sources; each shows up as
+    // a per-file unsupported gap.
+    assert_eq!(sources, vec!["pkg/six.py".to_string()]);
+    let gaps: Vec<String> = d
+        .blind_spots
+        .iter()
+        .filter(|b| b.kind == BlindSpotKind::UnsupportedFileType)
+        .map(|b| b.file.clone())
+        .collect();
+    assert_eq!(gaps.len(), 3);
+}
+
+#[test]
+fn the_scoped_file_rule_drops_and_gaps_sources() {
+    let t = Tree::new("scoped-rule");
+    t.file("pkg/a.py", "x=1\n");
+    t.file("pkg/b.py", "x=1\n");
+    let rule = |p: &[u8]| match p {
+        b"pkg/a.py" => ScopedRule::Skip,
+        b"pkg/b.py" => ScopedRule::Gap,
+        _ => ScopedRule::Include,
+    };
+    let d = scoped_with_rule(&t, &["pkg"], &rule);
+    assert!(d.sources.is_empty());
+    let gaps: Vec<String> = d
+        .blind_spots
+        .iter()
+        .filter(|b| b.kind == BlindSpotKind::UnsupportedFileType)
+        .map(|b| b.file.clone())
+        .collect();
+    assert_eq!(gaps, vec!["pkg/b.py".to_string()]);
+    // Both files stay indexed so resolution still sees them.
+    assert!(names(&d).contains(&"pkg/a.py".to_string()));
+}

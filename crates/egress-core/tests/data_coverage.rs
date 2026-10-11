@@ -679,3 +679,22 @@ fn initial_catalog_packages_are_present() {
         }
     }
 }
+
+#[test]
+fn dependency_budgets_file_is_embedded_and_digested() {
+    // The dependency budget table is in EMBEDDED so the digest moves
+    // when it changes (KTD14, U6).
+    assert!(EMBEDDED
+        .iter()
+        .any(|f| f.path == "data/dependency-budgets.toml"));
+    let files: Vec<(&str, &str)> = EMBEDDED.iter().map(|f| (f.path, f.text)).collect();
+    let with = data_digest(&files);
+    let without = data_digest(
+        &files
+            .iter()
+            .filter(|(p, _)| *p != "data/dependency-budgets.toml")
+            .cloned()
+            .collect::<Vec<_>>(),
+    );
+    assert_ne!(with, without);
+}

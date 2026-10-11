@@ -141,6 +141,18 @@ pub struct RootDir {
     path: PathBuf,
 }
 
+impl RootDir {
+    /// A second handle on the same root directory, so a scoped
+    /// discovery can own its handle while the caller keeps theirs.
+    pub fn try_clone(&self) -> io::Result<RootDir> {
+        let fd = self.fd.try_clone()?;
+        Ok(RootDir {
+            fd,
+            path: self.path.clone(),
+        })
+    }
+}
+
 fn cstr(name: &[u8]) -> io::Result<CString> {
     CString::new(name).map_err(|_| io::Error::from(io::ErrorKind::InvalidInput))
 }

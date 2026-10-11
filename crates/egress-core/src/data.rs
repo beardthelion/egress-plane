@@ -54,6 +54,7 @@ macro_rules! embed {
 /// `data_digest` covers them.
 pub const EMBEDDED: &[DataFile] = &[
     embed!("data/budgets.toml"),
+    embed!("data/dependency-budgets.toml"),
     embed!("data/caveats.toml"),
     embed!("data/labels.toml"),
     embed!("data/unsupported-file-types.toml"),

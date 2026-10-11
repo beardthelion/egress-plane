@@ -56,19 +56,23 @@ pub struct DependencyBudgets {
     pub metadata_bytes: u64,
 }
 
+/// The embedded `data/dependency-budgets.toml` text (KTD14).
+pub const DEPENDENCY_BUDGETS_TOML: &str =
+    include_str!("../../../../data/dependency-budgets.toml");
+
+impl DependencyBudgets {
+    pub fn parse(text: &str) -> Result<DependencyBudgets, String> {
+        toml::from_str(text).map_err(|e| format!("malformed budget table: {e}"))
+    }
+
+    pub fn embedded() -> DependencyBudgets {
+        DependencyBudgets::parse(DEPENDENCY_BUDGETS_TOML).expect("embedded data/dependency-budgets.toml")
+    }
+}
+
 impl Default for DependencyBudgets {
     fn default() -> Self {
-        let b = Budgets::embedded();
-        DependencyBudgets {
-            packages: 20_000,
-            files: b.files,
-            bytes: b.bytes,
-            findings: b.findings,
-            resolver_steps: b.resolver_steps,
-            inventory_entries: 1_000_000,
-            lockfile_bytes: 32 * 1024 * 1024,
-            metadata_bytes: 8 * 1024 * 1024,
-        }
+        Self::embedded()
     }
 }
 

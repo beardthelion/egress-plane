@@ -403,7 +403,12 @@ impl Walk<'_> {
         // The root is listed here; every other directory carries the listing
         // its classification took.
         let root = self.root.list_dir(b"").map_err(|_| ());
-        let mut stack: Vec<(Vec<u8>, Listing)> = vec![(Vec::new(), root)];
+        self.drain(vec![(Vec::new(), root)])
+    }
+
+    /// Drains the directory stack; the root's own listing failure is a
+    /// tool error, every deeper failure is a blind spot.
+    fn drain(&mut self, mut stack: Vec<(Vec<u8>, Listing)>) -> Result<(), ToolError> {
         while let Some((dir, listing)) = stack.pop() {
             let entries = match listing {
                 Ok(e) => e,
@@ -447,6 +452,42 @@ impl Walk<'_> {
     }
 }
 
+impl Walk<'_> {
+    /// `walk` seeded from an explicit prefix set rather than the root
+    /// listing (KTD24): a directory prefix is walked with the same
+    /// rules; a file, link, or special entry is recorded directly. A
+    /// missing or unreadable prefix is a blind spot, and a prefix that
+    /// escapes the root is never opened.
+    fn walk_scoped(&mut self, prefixes: &[&[u8]]) {
+        let mut stack: Vec<(Vec<u8>, Listing)> = Vec::new();
+        for prefix in prefixes {
+            let st = match self.root.lstat(prefix) {
+                Ok(st) => st,
+                Err(_) => {
+                    self.blind_spots.push(spot(
+                        prefix,
+                        BlindSpotKind::Unreadable,
+                        None,
+                        true,
+                        "",
+                    ));
+                    continue;
+                }
+            };
+            match st.kind {
+                EntryType::Dir => {
+                    let listing = self.root.list_dir(prefix).map_err(|_| ());
+                    stack.push((prefix.to_vec(), listing));
+                }
+                EntryType::File => self.files.push((prefix.to_vec(), st.size)),
+                EntryType::Symlink => self.links.push(prefix.to_vec()),
+                EntryType::Other => self.specials.push(prefix.to_vec()),
+            }
+        }
+        let _ = self.drain(stack);
+    }
+}
+
 fn manifest_read_kind(kind: BlindSpotKind) -> BlindSpotKind {
     match kind {
         BlindSpotKind::TooLarge => BlindSpotKind::ManifestParseError,
@@ -469,6 +510,101 @@ pub fn discover(root: &Path, config: &Config) -> Result<Discovery, ToolError> {
         blind_spots: Vec::new(),
     };
     w.walk()?;
+    finish(w, config)
+}
+
+/// How a scoped file-rule treats one indexed file (KTD15): admitted
+/// sources are scanned, `Skip` stays in the index but is never read,
+/// and `Gap` is a per-file unsupported blind spot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScopedRule {
+    /// Take the file through the ordinary `kind_by_name` path.
+    Include,
+    /// Index it but never admit it as a source (a `.pyc` beside its
+    /// `.py`, or a `tests/` file the ecosystem rules drop).
+    Skip,
+    /// A per-file unsupported gap the package's own state carries (an
+    /// orphan `.pyc`, a native `.so`).
+    Gap,
+}
+
+/// The caller-supplied KTD15 file rule for `discover_scoped`: given an
+/// indexed path, decides whether it is admitted as a source.
+pub type FileRule<'a> = dyn Fn(&[u8]) -> ScopedRule + 'a;
+
+/// Discovers only the paths under `prefixes` inside an already-open
+/// root (KTD24): each prefix is a directory walked recursively, a file
+/// indexed directly, a symlink resolved, or a special entry. A prefix
+/// that does not exist or cannot be read contributes a blind spot, and
+/// nothing outside the prefixes is ever listed or opened. `file_rule`,
+/// supplied by the caller per KTD15, decides which indexed files are
+/// admitted as sources; `None` admits the `kind_by_name` set.
+pub fn discover_scoped(
+    rootdir: &RootDir,
+    prefixes: &[&[u8]],
+    config: &Config,
+    file_rule: Option<&FileRule<'_>>,
+) -> Result<Discovery, ToolError> {
+    let unsafe_open = config.force_unsafe_open_unavailable;
+    let mut w = Walk {
+        root: rootdir,
+        unsafe_open,
+        files: Vec::new(),
+        links: Vec::new(),
+        specials: Vec::new(),
+        excluded: Vec::new(),
+        excluded_dirs: BTreeSet::new(),
+        blind_spots: Vec::new(),
+    };
+    w.walk_scoped(prefixes);
+    finish_scoped(w, config, file_rule)
+}
+
+/// `finish` plus the caller-supplied KTD15 file rule for the scoped
+/// pass: `Skip` files stay indexed but never admitted; `Gap` files
+/// become per-file unsupported blind spots.
+fn finish_scoped(
+    w: Walk<'_>,
+    config: &Config,
+    file_rule: Option<&FileRule<'_>>,
+) -> Result<Discovery, ToolError> {
+    let mut d = finish(w, config)?;
+    let Some(rule) = file_rule else { return Ok(d) };
+    // The rule sees every indexed file, source or not: a `Gap` entry
+    // is a per-file unsupported blind spot, a `Skip` stays indexed but
+    // drops out of `sources` when it was admitted.
+    let mut kept = Vec::with_capacity(d.sources.len());
+    for f in std::mem::take(&mut d.sources) {
+        match rule(&f.path) {
+            ScopedRule::Include => kept.push(f),
+            ScopedRule::Skip => {
+                counts_mut(&mut d.coverage, Some(f.language)).skipped += 1;
+            }
+            ScopedRule::Gap => {
+                counts_mut(&mut d.coverage, Some(f.language)).skipped += 1;
+                d.blind_spots.push(spot(
+                    &f.path,
+                    BlindSpotKind::UnsupportedFileType,
+                    Some(f.language),
+                    true,
+                    "",
+                ));
+            }
+        }
+    }
+    d.sources = kept;
+    Ok(d)
+}
+
+/// The shared tail of `discover`/`discover_scoped`: classify the walked
+/// files, resolve links, parse manifests, attach hook labels, charge
+/// budgets, and assemble the Discovery.
+fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
+    let unsafe_open = w.unsafe_open;
+    let rootdir = w
+        .root
+        .try_clone()
+        .map_err(|_| ToolError::Internal("cannot share the root handle"))?;
     w.files.sort();
     w.links.sort();
     w.specials.sort();

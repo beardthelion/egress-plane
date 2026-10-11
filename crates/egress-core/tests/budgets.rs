@@ -212,3 +212,27 @@ fn deep_self_referencing_links_are_bounded_by_the_budget() {
             .any(|b| b.kind == BlindSpotKind::ResolutionLimit && b.coverage_gap)
     );
 }
+
+// ---- U6: dependency budgets -------------------------------------------------
+
+use egress_core::discover::budgets::{DEPENDENCY_BUDGETS_TOML, DependencyBudgets};
+
+#[test]
+fn embedded_dependency_budgets_load() {
+    let b = DependencyBudgets::embedded();
+    assert_eq!(b, DependencyBudgets::parse(DEPENDENCY_BUDGETS_TOML).unwrap());
+    assert!(b.packages > 0 && b.files > 0 && b.bytes > 0);
+    assert!(b.inventory_entries > 0 && b.lockfile_bytes > 0 && b.metadata_bytes > 0);
+}
+
+#[test]
+fn malformed_dependency_budget_tables_are_rejected() {
+    // A missing key fails; an unknown key fails (deny_unknown_fields).
+    assert!(DependencyBudgets::parse("packages = 1\n").is_err());
+    assert!(
+        DependencyBudgets::parse(
+            "packages = 1\nfiles = 1\nbytes = 1\nfindings = 1\nresolver_steps = 1\ninventory_entries = 1\nlockfile_bytes = 1\nmetadata_bytes = 1\nextra = 2\n"
+        )
+        .is_err()
+    );
+}
