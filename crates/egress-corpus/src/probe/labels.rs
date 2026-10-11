@@ -1013,7 +1013,8 @@ pub fn parse_manifest(text: &str, origin: &str) -> Result<Manifest, String> {
 }
 
 /// Checks manifest nodes against `tree/`: virtual nodes (socket, fifo, char,
-/// block) must not exist there, and `meta` nodes must.
+/// block) must not exist there, and `meta` nodes must — unless the node is
+/// a synthesized directory, which the manifest's own descendants imply.
 pub fn check_manifest_tree(manifest: &Manifest, tree: &Path, origin: &str) -> Result<(), String> {
     for n in &manifest.nodes {
         let exists = tree.join(&n.path).symlink_metadata().is_ok();
@@ -1026,10 +1027,16 @@ pub fn check_manifest_tree(manifest: &Manifest, tree: &Path, origin: &str) -> Re
                 ));
             }
             NodeKind::Meta if !exists => {
-                return Err(format!(
-                    "{origin}: meta node {:?} does not exist in tree/",
-                    n.path
-                ));
+                let has_descendants = manifest
+                    .nodes
+                    .iter()
+                    .any(|m| m.path != n.path && m.path.starts_with(&format!("{}/", n.path)));
+                if !has_descendants {
+                    return Err(format!(
+                        "{origin}: meta node {:?} does not exist in tree/",
+                        n.path
+                    ));
+                }
             }
             _ => {}
         }

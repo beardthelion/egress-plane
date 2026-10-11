@@ -116,8 +116,9 @@ pub enum NodeAccess {
 #[derive(Debug, Default)]
 pub struct Manifest {
     nodes: BTreeMap<Vec<u8>, ManifestNode>,
-    /// Joined parent path -> names of virtual child nodes.
-    virtual_children: BTreeMap<Vec<u8>, Vec<Vec<u8>>>,
+    /// Joined parent path -> names of declared child nodes (any kind,
+    /// implied intermediate dirs included).
+    children: BTreeMap<Vec<u8>, Vec<Vec<u8>>>,
 }
 
 #[derive(Deserialize)]
@@ -231,12 +232,15 @@ impl Manifest {
                 fs: n.fs,
                 errno,
             };
-            if node.kind.is_virtual() {
-                manifest
-                    .virtual_children
-                    .entry(join(&path[..path.len() - 1]))
-                    .or_default()
-                    .push(path.last().unwrap().clone());
+            // Every ancestor link: `dev/net/tun` makes `net` a child of
+            // `dev` as well as `tun` a child of `dev/net`, so listings
+            // of synthesized parents name their implied subdirs.
+            for i in 1..path.len() {
+                let parent = join(&path[..i]);
+                let kids = manifest.children.entry(parent).or_default();
+                if !kids.contains(&path[i]) {
+                    kids.push(path[i].clone());
+                }
             }
             manifest.nodes.insert(join(&path), node);
         }
@@ -281,6 +285,34 @@ impl SnapshotBackend {
 
     fn node_at(&self, comps: &[Vec<u8>]) -> Option<&ManifestNode> {
         self.manifest.nodes.get(&join(comps))
+    }
+
+    /// True when the manifest declares a child under `comps`: the path
+    /// is a directory the overlay synthesizes even though `tree/` has
+    /// no entry for it. Fixture authors declare children only; the
+    /// parents exist because the manifest says so, so a fresh checkout
+    /// never depends on empty directories git cannot track.
+    fn declared_dir(&self, comps: &[Vec<u8>]) -> bool {
+        self.manifest.children.contains_key(&join(comps))
+    }
+
+    /// Metadata for a directory the manifest implies: a plain dir, then
+    /// a `meta` node's overlays when the node itself is declared.
+    fn synth_dir_meta(&self, node: Option<&ManifestNode>) -> Meta {
+        let mut meta = Meta {
+            kind: NodeType::Dir,
+            mode: 0o755,
+            uid: 0,
+            gid: 0,
+            size: 0,
+            device: None,
+        };
+        if let Some(node) = node
+            && node.kind == ManifestKind::Meta
+        {
+            Self::apply_overlays(node, &mut meta);
+        }
+        meta
     }
 
     /// The errno of the first `error` node on the path, if any.
@@ -420,13 +452,23 @@ impl Backend for SnapshotBackend {
         let mut real = Vec::new();
         let st = self.fs.metadata(path, &mut real);
         self.finish_fs(&comps, comps.len().saturating_sub(1), &real, fs);
-        let mut meta = st?;
-        if let Some(node) = &node
-            && node.kind == ManifestKind::Meta
-        {
-            Self::apply_overlays(node, &mut meta);
+        match st {
+            Ok(mut meta) => {
+                if let Some(node) = &node
+                    && node.kind == ManifestKind::Meta
+                {
+                    Self::apply_overlays(node, &mut meta);
+                }
+                Ok(meta)
+            }
+            // A directory the manifest implies is synthesized; a
+            // `meta` node absent from `tree/` gets its overlays on the
+            // synthesized dir.
+            Err(Fail::Errno(e)) if e == libc::ENOENT && self.declared_dir(&comps) => {
+                Ok(self.synth_dir_meta(node.as_ref()))
+            }
+            Err(e) => Err(e),
         }
-        Ok(meta)
     }
 
     fn read(&mut self, path: &[u8], limit: u64, fs: &mut Vec<String>) -> Result<Vec<u8>, Fail> {
@@ -462,8 +504,14 @@ impl Backend for SnapshotBackend {
         let mut real = Vec::new();
         let result = self.fs.list(path, &mut real);
         self.finish_fs(&comps, comps.len(), &real, fs);
-        let mut entries = result?;
-        // Apply `meta` overrides to real children and merge virtual ones.
+        // A declared parent absent from `tree/` lists its manifest
+        // children; a truly undeclared absence stays absent.
+        let mut entries = match result {
+            Ok(e) => e,
+            Err(Fail::Errno(e)) if e == libc::ENOENT && self.declared_dir(&comps) => Vec::new(),
+            Err(e) => return Err(e),
+        };
+        // Apply `meta` overrides to real children and merge declared ones.
         for (name, st) in &mut entries {
             let mut child = comps.clone();
             child.push(name.clone());
@@ -473,16 +521,21 @@ impl Backend for SnapshotBackend {
                 Self::apply_overlays(node, st);
             }
         }
-        if let Some(virtuals) = self.manifest.virtual_children.get(path) {
-            for name in virtuals {
+        if let Some(declared) = self.manifest.children.get(path) {
+            for name in declared {
                 if entries.iter().any(|(n, _)| n == name) {
                     continue;
                 }
                 let mut child = comps.clone();
                 child.push(name.clone());
-                if let Some(node) = self.node_at(&child) {
-                    entries.push((name.clone(), Self::synth_meta(node)));
-                }
+                // A declared node lists as its kind; a name that is
+                // only an intermediate parent lists as a directory.
+                let meta = match self.node_at(&child) {
+                    Some(node) if node.kind.is_virtual() => Self::synth_meta(node),
+                    Some(node) => self.synth_dir_meta(Some(node)),
+                    None => self.synth_dir_meta(None),
+                };
+                entries.push((name.clone(), meta));
             }
             entries.sort_by(|a, b| a.0.cmp(&b.0));
         }
@@ -509,7 +562,12 @@ impl Backend for SnapshotBackend {
         let mut real = Vec::new();
         let result = self.fs.access(path, mask, &mut real);
         self.finish_fs(&comps, comps.len().saturating_sub(1), &real, fs);
-        result
+        match result {
+            Err(Fail::Errno(e)) if e == libc::ENOENT && self.declared_dir(&comps) => {
+                Ok(AccessResult::Granted)
+            }
+            other => other,
+        }
     }
 
     fn readlink(&mut self, path: &[u8], fs: &mut Vec<String>) -> Result<Vec<u8>, Fail> {
@@ -527,7 +585,14 @@ impl Backend for SnapshotBackend {
         let mut real = Vec::new();
         let result = self.fs.readlink(path, &mut real);
         self.finish_fs(&comps, comps.len().saturating_sub(1), &real, fs);
-        result
+        // A directory the manifest implies is not a symlink: readlink
+        // answers EINVAL so path resolution keeps it un-hopped.
+        match result {
+            Err(Fail::Errno(e)) if e == libc::ENOENT && self.declared_dir(&comps) => {
+                Err(Fail::Errno(libc::EINVAL))
+            }
+            other => other,
+        }
     }
 
     fn set_mounts(&mut self, mounts: &[Mount]) {
