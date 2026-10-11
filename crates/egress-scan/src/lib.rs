@@ -350,10 +350,13 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
 
     // Named dependency roots are opened and validated only after the
     // first-party report is final (KTD13): a rejected root is a tool
-    // error and nothing is printed. Package inventory lands in U4; for
-    // now the section carries the validated roots and no packages.
+    // error and nothing is printed. Inventory (U4) runs here for its
+    // ambiguity tool errors; its instances feed the selection pass in
+    // U8, so for now the section carries the roots and no packages.
     if !options.dependency_roots.is_empty() {
         let roots = dependency_roots::open(discovery.root_dir(), &options.dependency_roots)?;
+        let _instances =
+            dependency_roots::inventory(&roots, &discovery, &options.dependency_budgets)?;
         report.dependencies = Some(DependencySection {
             roots: roots
                 .iter()

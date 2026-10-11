@@ -207,3 +207,706 @@ pub fn open(scan_root: &RootDir, roots: &[PathBuf]) -> Result<Vec<NamedRoot>, To
     }
     Ok(out)
 }
+
+// ---------------------------------------------------------------------------
+// Inventory (U4): the package instances each kind of root holds.
+// ---------------------------------------------------------------------------
+
+use crate::deps::inventory::{Instance, InstanceFlags, Inventory};
+use crate::deps::locator::{instance_locator, strip_version};
+use crate::deps::metadata;
+use crate::escape::needs_escape;
+use crate::model::DependencyRootKind::*;
+
+use super::Discovery;
+use super::budgets::DependencyBudgets;
+
+/// A name that is not UTF-8, or that holds an `escape::needs_escape`
+/// character, is never emitted raw (KTD24). The instance is flagged
+/// unsupported and its names are escaped.
+fn clean_name(raw: &[u8]) -> Option<String> {
+    let s = std::str::from_utf8(raw).ok()?;
+    if s.chars().any(needs_escape) {
+        return None;
+    }
+    Some(s.to_string())
+}
+
+/// The escaped display form KTD24 allows for a flagged name.
+pub fn escaped_name(raw: &[u8]) -> String {
+    crate::escape::escape(&String::from_utf8_lossy(raw))
+}
+
+/// Reads one file inside a root under the `metadata_bytes` cap. An
+/// absent file yields `Ok(None)`; anything over cap or unreadable is
+/// `Err` and flags the instance, not the root.
+fn read_meta(
+    dir: &RootDir,
+    rel: &[u8],
+    budgets: &DependencyBudgets,
+) -> Option<Result<Vec<u8>, ()>> {
+    match dir.read_file(rel, budgets.metadata_bytes) {
+        Ok(bytes) => Some(Ok(bytes)),
+        Err(super::open::ReadError::NotRegular) => None,
+        Err(_) => Some(Err(())),
+    }
+}
+
+/// Inventory every root; the ambiguity errors of KTD4 and KTD5 run over
+/// the joined result. `discovery` reads in-root lockfiles.
+pub fn inventory(
+    roots: &[NamedRoot],
+    discovery: &Discovery,
+    budgets: &DependencyBudgets,
+) -> Result<Vec<Inventory>, ToolError> {
+    let mut out = Vec::new();
+    for root in roots {
+        out.push(match root.kind {
+            Npm => npm_inventory(root, budgets),
+            Python => python_inventory(root, budgets),
+            CargoVendor => vendor_inventory(root, budgets),
+            CargoRegistry => registry_inventory(root, discovery, budgets),
+            CargoGit => git_inventory(root, budgets),
+        });
+    }
+    // KTD5: two Python roots holding the same top-level import name.
+    let pythons: Vec<usize> = roots
+        .iter()
+        .enumerate()
+        .filter(|(_, r)| r.kind == Python)
+        .map(|(i, _)| i)
+        .collect();
+    for &i in &pythons {
+        for &j in &pythons {
+            if j <= i {
+                continue;
+            }
+            let clash = out[i].instances.iter().any(|a| {
+                a.imports
+                    .iter()
+                    .any(|n| out[j].instances.iter().any(|b| b.imports.contains(n)))
+            });
+            if clash {
+                return Err(ToolError::DependencyRoot {
+                    ordinal: roots[j].ordinal,
+                    problem: DependencyRootProblem::AmbiguousEnvironment,
+                });
+            }
+        }
+    }
+    // KTD4/AE11: two roots OUTSIDE the scan root of the same kind and
+    // language holding the same locator are a tool error.
+    for i in 0..out.len() {
+        for j in (i + 1)..out.len() {
+            if roots[i].kind != roots[j].kind {
+                continue;
+            }
+            if !roots[i].canonical.starts_with(discovery.root_dir().path())
+                && !roots[j].canonical.starts_with(discovery.root_dir().path())
+            {
+                let clash = out[i]
+                    .instances
+                    .iter()
+                    .any(|a| out[j].instances.iter().any(|b| a.locator == b.locator));
+                if clash {
+                    return Err(ToolError::DependencyRoot {
+                        ordinal: roots[j].ordinal,
+                        problem: DependencyRootProblem::AmbiguousRoots,
+                    });
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
+/// npm: package children, `@scope` children, and nested `node_modules`
+/// recursively (KTD4 chain). `.pnpm` marks the root as the pnpm store
+/// layout; symlinked package dirs are never followed or listed (KTD5).
+fn npm_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
+    struct Acc<'a> {
+        budgets: &'a DependencyBudgets,
+        instances: Vec<Instance>,
+        entries: u64,
+        exceeded: bool,
+        store_layout: bool,
+    }
+
+    impl Acc<'_> {
+        fn list(&mut self, dir: &RootDir, rel: &[u8]) -> Vec<(Vec<u8>, super::open::Stat)> {
+            let Ok(v) = dir.list_dir(rel) else {
+                return Vec::new();
+            };
+            self.entries = self.entries.saturating_add(v.len() as u64);
+            if self.entries > self.budgets.inventory_entries {
+                self.exceeded = true;
+            }
+            v
+        }
+
+        /// Walk `<parent>`'s children as packages at depth `chain`.
+        fn walk(&mut self, dir: &RootDir, parent: &[u8], chain: &mut [String]) {
+            for (name, st) in self.list(dir, parent).clone() {
+                if name.as_slice() == b".pnpm" {
+                    self.store_layout = true;
+                    continue;
+                }
+                if st.kind != super::open::EntryType::Dir {
+                    continue;
+                }
+                let rel = join(parent, &name);
+                if name.starts_with(b"@") {
+                    for (sub, sst) in self.list(dir, &rel).clone() {
+                        if sst.kind != super::open::EntryType::Dir {
+                            continue;
+                        }
+                        let mut parts = chain.to_vec();
+                        parts.push(format!(
+                            "{}/{}",
+                            String::from_utf8_lossy(&name),
+                            String::from_utf8_lossy(&sub)
+                        ));
+                        self.one(dir, &join(&rel, &sub), &parts);
+                    }
+                    continue;
+                }
+                let mut parts = chain.to_vec();
+                parts.push(String::from_utf8_lossy(&name).into_owned());
+                self.one(dir, &rel, &parts);
+            }
+        }
+
+        /// Record one package instance at `rel` whose chain is `parts`,
+        /// then descend into its nested `node_modules`.
+        fn one(&mut self, dir: &RootDir, rel: &[u8], parts: &[String]) {
+            let mut flags = InstanceFlags::default();
+            let dir_name = rel.rsplit(|c| *c == b'/').next().unwrap_or(rel);
+            if clean_name(dir_name).is_none() {
+                flags.escaped_name = true;
+            }
+            let (pkg_name, version) =
+                match read_meta(dir, &join(rel, b"package.json"), self.budgets) {
+                    Some(Ok(bytes)) => match metadata::package_json(&bytes) {
+                        Ok(m) => (m.name, m.version),
+                        Err(_) => {
+                            flags.unsupported = Some("unreadable-metadata".to_string());
+                            (
+                                clean_name(dir_name).unwrap_or_else(|| escaped_name(dir_name)),
+                                String::new(),
+                            )
+                        }
+                    },
+                    _ => {
+                        flags.unsupported = Some("unreadable-metadata".to_string());
+                        (
+                            clean_name(dir_name).unwrap_or_else(|| escaped_name(dir_name)),
+                            String::new(),
+                        )
+                    }
+                };
+            let mut parts = parts.to_vec();
+            if parts.last().is_some_and(|p| p != &pkg_name) && !pkg_name.is_empty() {
+                // The display chain ends on the package name from
+                // package.json.
+                *parts.last_mut().unwrap() = pkg_name.clone();
+            }
+            self.instances.push(Instance {
+                package: pkg_name.clone(),
+                locator: instance_locator(Npm, &parts),
+                version,
+                rel: rel.to_vec(),
+                imports: vec![pkg_name],
+                distribution: None,
+                record: Vec::new(),
+                package_checksum: None,
+                flags,
+            });
+            let mut chain = parts;
+            self.walk(dir, &join(rel, b"node_modules"), &mut chain);
+        }
+    }
+
+    let mut acc = Acc {
+        budgets,
+        instances: Vec::new(),
+        entries: 0,
+        exceeded: false,
+        store_layout: false,
+    };
+    acc.walk(&root.dir, b"", &mut Vec::new());
+    if acc.store_layout {
+        for i in &mut acc.instances {
+            i.flags.store_layout = true;
+        }
+    }
+    Inventory {
+        kind: Npm,
+        instances: acc.instances,
+        entries_exceeded: acc.exceeded,
+    }
+}
+
+/// Python: the import root of the venv or site-packages, the dist-info
+/// mapping, and the loose top-level names (KTD5).
+fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
+    let mut instances = Vec::new();
+    let mut entries = 0u64;
+    let mut exceeded = false;
+    let mut import_root: Vec<u8> = Vec::new();
+
+    let is_venv = matches!(
+        root.dir.lstat(b"pyvenv.cfg"),
+        Ok(st) if st.kind == super::open::EntryType::File
+    );
+    if is_venv {
+        // `lib/python<X.Y>/site-packages`; more than one python* dir is
+        // the ambiguous-environment tool error.
+        if let Ok(libs) = root.dir.list_dir(b"lib") {
+            entries += libs.len() as u64;
+            let pythons: Vec<Vec<u8>> = libs
+                .iter()
+                .filter(|(n, st)| {
+                    n.starts_with(b"python") && st.kind == super::open::EntryType::Dir
+                })
+                .map(|(n, _)| n.clone())
+                .collect();
+            if let Some(p) = pythons.first() {
+                import_root = join(b"lib", &join(p, b"site-packages"));
+            }
+        }
+    }
+
+    let Ok(listing) = root.dir.list_dir(&import_root) else {
+        return Inventory {
+            kind: Python,
+            instances,
+            entries_exceeded: exceeded,
+        };
+    };
+    entries += listing.len() as u64;
+    if entries > budgets.inventory_entries {
+        exceeded = true;
+    }
+
+    let mut dist_tops: Vec<(Vec<u8>, Vec<String>)> = Vec::new();
+    for (name, st) in &listing {
+        if st.kind != super::open::EntryType::Dir {
+            continue;
+        }
+        let dir = join(&import_root, name);
+        if name.ends_with(b".dist-info") {
+            let meta_rel = join(&dir, b"METADATA");
+            let (pkg, version) = match read_meta(&root.dir, &meta_rel, budgets) {
+                Some(Ok(bytes)) => match metadata::metadata(&bytes) {
+                    Ok(m) => (m.name, m.version),
+                    Err(_) => (
+                        clean_name(name.trim_ascii_end()).unwrap_or_else(|| escaped_name(name)),
+                        String::new(),
+                    ),
+                },
+                _ => (String::new(), String::new()),
+            };
+            let record_rel = join(&dir, b"RECORD");
+            let rows = match read_meta(&root.dir, &record_rel, budgets) {
+                Some(Ok(bytes)) => metadata::record(&bytes).unwrap_or_default(),
+                _ => Vec::new(),
+            };
+            let mut tops = metadata::top_level_names(&rows);
+            let top_rel = join(&dir, b"top_level.txt");
+            if let Some(Ok(bytes)) = read_meta(&root.dir, &top_rel, budgets) {
+                for t in metadata::top_level(&bytes) {
+                    if !tops.contains(&t) {
+                        tops.push(t);
+                    }
+                }
+            }
+            dist_tops.push((name.clone(), tops.clone()));
+            let mut flags = InstanceFlags::default();
+            if pkg.is_empty() {
+                flags.unsupported = Some("unreadable-metadata".to_string());
+            }
+            if clean_name(name).is_none() {
+                flags.escaped_name = true;
+            }
+            instances.push(Instance {
+                package: pkg.clone(),
+                locator: pkg.clone(),
+                version,
+                rel: dir,
+                imports: tops,
+                distribution: Some(pkg),
+                record: rows
+                    .iter()
+                    .filter_map(|r| {
+                        r.sha256
+                            .as_ref()
+                            .map(|h| (r.path.clone().into_bytes(), h.clone()))
+                    })
+                    .collect(),
+                package_checksum: None,
+                flags,
+            });
+        }
+    }
+
+    // Loose names: top-level packages, modules, and special layouts a
+    // dist-info's RECORD does not cover.
+    let covered: Vec<&str> = dist_tops
+        .iter()
+        .flat_map(|(_, t)| t.iter().map(String::as_str))
+        .collect();
+    for (name, st) in &listing {
+        let dir = join(&import_root, name);
+        let Some(name_str) = clean_name(name) else {
+            continue;
+        };
+        if covered.contains(&name_str.split('.').next().unwrap_or(&name_str))
+            || name.ends_with(b".dist-info")
+            || name == b"bin"
+            || name == b"__pycache__"
+        {
+            continue;
+        }
+        let mut flags = InstanceFlags::default();
+        let mut imports = Vec::new();
+        let mut package = name_str.clone();
+        if name.ends_with(b".egg") {
+            flags.unsupported = Some("archive-only-install".to_string());
+            let stem = name
+                .strip_suffix(b".egg")
+                .unwrap_or(name)
+                .split(|c| *c == b'-')
+                .next()
+                .unwrap_or(name);
+            package = String::from_utf8_lossy(stem).into_owned();
+            imports.push(package.clone());
+        } else if name.ends_with(b".egg-info") || name.starts_with(b"__editable__") {
+            flags.unsupported = Some("unsupported-layout".to_string());
+            imports.push(package.clone());
+        } else if name.ends_with(b".pth") {
+            // A .pth file is an auto-run artifact, not a package; its
+            // trigger lines are inventoried by U9.
+            continue;
+        } else if st.kind == super::open::EntryType::Dir {
+            // Top-level package with no dist-info: namespace or orphan.
+            imports.push(name_str.clone());
+        } else if name.ends_with(b".py") {
+            package = name_str.trim_end_matches(".py").to_string();
+            imports.push(package.clone());
+        } else {
+            continue;
+        }
+        instances.push(Instance {
+            package,
+            locator: name_str.clone(),
+            version: String::new(),
+            rel: dir,
+            imports,
+            distribution: None,
+            record: Vec::new(),
+            package_checksum: None,
+            flags,
+        });
+    }
+
+    Inventory {
+        kind: Python,
+        instances,
+        entries_exceeded: exceeded,
+    }
+}
+
+/// cargo-vendor: `<name>-<version>` directories holding
+/// `.cargo-checksum.json`.
+fn vendor_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
+    let mut instances = Vec::new();
+    let mut entries = 0u64;
+    let mut exceeded = false;
+    let Ok(listing) = root.dir.list_dir(b"") else {
+        return Inventory {
+            kind: CargoVendor,
+            instances,
+            entries_exceeded: exceeded,
+        };
+    };
+    entries += listing.len() as u64;
+    if entries > budgets.inventory_entries {
+        exceeded = true;
+    }
+    for (name, st) in &listing {
+        if st.kind != super::open::EntryType::Dir {
+            continue;
+        }
+        if !is_kind(
+            &root.dir,
+            &join(name, b".cargo-checksum.json"),
+            &[super::open::EntryType::File],
+        ) {
+            continue;
+        }
+        let mut flags = InstanceFlags::default();
+        if clean_name(name).is_none() {
+            flags.escaped_name = true;
+        }
+        let pkg = strip_version(&String::from_utf8_lossy(name));
+        let (mut version, mut record, mut checksum) = (String::new(), Vec::new(), None);
+        match read_meta(&root.dir, &join(name, b".cargo-checksum.json"), budgets) {
+            Some(Ok(bytes)) => match metadata::cargo_checksum(&bytes) {
+                Ok(c) => {
+                    record = c
+                        .files
+                        .iter()
+                        .map(|(p, h)| (p.clone().into_bytes(), h.clone()))
+                        .collect();
+                    checksum = c.package;
+                }
+                Err(_) => flags.unsupported = Some("unreadable-metadata".to_string()),
+            },
+            _ => flags.unsupported = Some("unreadable-metadata".to_string()),
+        }
+        if let Some(Ok(bytes)) = read_meta(&root.dir, &join(name, b"Cargo.toml"), budgets)
+            && let Ok((_n, v)) = metadata::cargo_toml_name_version(&bytes)
+        {
+            version = v;
+        }
+        if version.is_empty() {
+            version = name
+                .rsplit(|c| *c == b'-')
+                .next()
+                .map(|v| String::from_utf8_lossy(v).into_owned())
+                .unwrap_or_default();
+        }
+        instances.push(Instance {
+            package: pkg.clone(),
+            locator: pkg.clone(),
+            version,
+            rel: name.clone(),
+            imports: vec![pkg],
+            distribution: None,
+            record,
+            package_checksum: checksum,
+            flags,
+        });
+    }
+    Inventory {
+        kind: CargoVendor,
+        instances,
+        entries_exceeded: exceeded,
+    }
+}
+
+/// cargo-registry: probe only the `<name>-<version>` directories a
+/// supported `Cargo.lock` in the scan root lists, under each index
+/// directory (KTD6's cost bound).
+fn registry_inventory(
+    root: &NamedRoot,
+    discovery: &Discovery,
+    budgets: &DependencyBudgets,
+) -> Inventory {
+    let mut instances = Vec::new();
+    let mut exceeded = false;
+    // The scan root's supported Cargo.lock files.
+    let lock = lock_names(discovery, budgets);
+    let Ok(indexes) = root.dir.list_dir(b"") else {
+        return Inventory {
+            kind: CargoRegistry,
+            instances,
+            entries_exceeded: exceeded,
+        };
+    };
+    let mut entries = indexes.len() as u64;
+    if entries > budgets.inventory_entries {
+        exceeded = true;
+    }
+    let mut seen: Vec<(String, String, Vec<u8>)> = Vec::new();
+    for (index, st) in &indexes {
+        if st.kind != super::open::EntryType::Dir {
+            continue;
+        }
+        for (name, version) in &lock {
+            let dir = format!("{}-{}", name, version);
+            let rel = join(index, dir.as_bytes());
+            if !matches!(root.dir.lstat(&rel), Ok(s) if s.kind == super::open::EntryType::Dir) {
+                continue;
+            }
+            entries += 1;
+            if entries > budgets.inventory_entries {
+                exceeded = true;
+            }
+            let mut flags = InstanceFlags::default();
+            if seen
+                .iter()
+                .any(|(n, v, i)| n == name && v == version && i != index)
+            {
+                flags.duplicate_index = true;
+            }
+            seen.push((name.clone(), version.clone(), index.clone()));
+            let mut record = Vec::new();
+            let mut checksum = None;
+            if let Some(Ok(bytes)) =
+                read_meta(&root.dir, &join(&rel, b".cargo-checksum.json"), budgets)
+                && let Ok(c) = metadata::cargo_checksum(&bytes)
+            {
+                record = c
+                    .files
+                    .iter()
+                    .map(|(p, h)| (p.clone().into_bytes(), h.clone()))
+                    .collect();
+                checksum = c.package;
+            }
+            instances.push(Instance {
+                package: name.clone(),
+                locator: name.clone(),
+                version: version.clone(),
+                rel,
+                imports: vec![name.clone()],
+                distribution: None,
+                record,
+                package_checksum: checksum,
+                flags,
+            });
+        }
+    }
+    Inventory {
+        kind: CargoRegistry,
+        instances,
+        entries_exceeded: exceeded,
+    }
+}
+
+/// cargo-git: `<repo>-<hash>/<rev>` checkouts; the package name comes
+/// from the checkout's `Cargo.toml`.
+fn git_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
+    let mut instances = Vec::new();
+    let mut entries = 0u64;
+    let mut exceeded = false;
+    let Ok(repos) = root.dir.list_dir(b"") else {
+        return Inventory {
+            kind: CargoGit,
+            instances,
+            entries_exceeded: exceeded,
+        };
+    };
+    for (repo, st) in &repos {
+        if st.kind != super::open::EntryType::Dir {
+            continue;
+        }
+        let Ok(revs) = root.dir.list_dir(repo) else {
+            continue;
+        };
+        entries += revs.len() as u64;
+        if entries > budgets.inventory_entries {
+            exceeded = true;
+        }
+        for (rev, rst) in &revs {
+            if rst.kind != super::open::EntryType::Dir {
+                continue;
+            }
+            let rel = join(repo, rev);
+            // The checkout may hold multiple manifests; a package's
+            // name comes from each `Cargo.toml` under the checkout.
+            let mut found = Vec::new();
+            collect_manifests(&root.dir, &rel, &mut found, 0);
+            // A checkout holding more than one package manifest is
+            // unsupported layout (U4 test matrix).
+            if found.len() > 1 {
+                let flags = InstanceFlags {
+                    unsupported: Some("unsupported-layout".to_string()),
+                    ..Default::default()
+                };
+                instances.push(Instance {
+                    package: String::from_utf8_lossy(repo).into_owned(),
+                    locator: String::from_utf8_lossy(repo).into_owned(),
+                    version: String::new(),
+                    rel: rel.clone(),
+                    imports: Vec::new(),
+                    distribution: None,
+                    record: Vec::new(),
+                    package_checksum: None,
+                    flags,
+                });
+                continue;
+            }
+            for m in found {
+                let Some(Ok(bytes)) = read_meta(&root.dir, &m, budgets) else {
+                    continue;
+                };
+                let Ok((name, version)) = metadata::cargo_toml_name_version(&bytes) else {
+                    continue;
+                };
+                let mut flags = InstanceFlags::default();
+                if clean_name(&m).is_none() {
+                    flags.escaped_name = true;
+                }
+                instances.push(Instance {
+                    package: name.clone(),
+                    locator: name.clone(),
+                    version,
+                    rel: rel.clone(),
+                    imports: vec![name],
+                    distribution: None,
+                    record: Vec::new(),
+                    package_checksum: None,
+                    flags,
+                });
+            }
+        }
+    }
+    Inventory {
+        kind: CargoGit,
+        instances,
+        entries_exceeded: exceeded,
+    }
+}
+
+/// Depth-capped manifest walk inside a git checkout: `Cargo.toml` files
+/// only, at most depth 4.
+fn collect_manifests(dir: &RootDir, rel: &[u8], out: &mut Vec<Vec<u8>>, depth: u8) {
+    if depth > 4 {
+        return;
+    }
+    if is_kind(
+        dir,
+        &join(rel, b"Cargo.toml"),
+        &[super::open::EntryType::File],
+    ) {
+        out.push(join(rel, b"Cargo.toml"));
+    }
+    let Ok(entries) = dir.list_dir(rel) else {
+        return;
+    };
+    for (name, st) in &entries {
+        if st.kind != super::open::EntryType::Dir || name.starts_with(b".") {
+            continue;
+        }
+        collect_manifests(dir, &join(rel, name), out, depth + 1);
+    }
+}
+
+/// The (name, version) pairs a supported `Cargo.lock` in the scan root
+/// lists, read through the discovery index under `lockfile_bytes`
+/// (KTD24).
+fn lock_names(discovery: &Discovery, budgets: &DependencyBudgets) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    for path in discovery.index.keys() {
+        let name = path.rsplit(|c| *c == b'/').next().unwrap_or(path);
+        if name != b"Cargo.lock" {
+            continue;
+        }
+        let Ok(bytes) = discovery.read_indexed(path, budgets.lockfile_bytes) else {
+            continue;
+        };
+        let Ok(lock) = crate::deps::lockfile::cargo_lock(&bytes) else {
+            continue;
+        };
+        for p in &lock.packages {
+            if p.source
+                .as_deref()
+                .is_some_and(|s| s.starts_with("registry+"))
+            {
+                out.push((p.name.clone(), p.version.clone()));
+            }
+        }
+    }
+    out
+}

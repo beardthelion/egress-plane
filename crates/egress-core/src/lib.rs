@@ -4,6 +4,7 @@
 
 pub mod classify;
 pub mod data;
+pub mod deps;
 pub mod destination;
 pub mod discover;
 pub mod escape;

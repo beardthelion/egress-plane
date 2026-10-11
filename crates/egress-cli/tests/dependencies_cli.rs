@@ -355,23 +355,23 @@ fn an_outside_npm_root_off_the_lookup_path_is_an_error() {
 /// Covers AE11. The inventory check that distinguishes this from two
 /// unrelated roots lands in U4; this test is ignored until then and must
 /// pass by the end of U4.
-#[ignore = "AE11 completes in U4"]
+
 #[test]
 fn two_outside_npm_roots_holding_the_same_package_are_ambiguous() {
     let t = Temp::new("deps-ambiguous");
     let wrap = mkdir(&t.path("wrap"));
     let root = mkdir(&wrap.join("proj"));
     std::fs::write(root.join("app.js"), "const x = 1;\n").unwrap();
-    // Both parents (`wrap` and `wrap/mid`) are ancestors of the scan root,
-    // so each npm root is on the lookup path and holds `leftpad` at
+    // `wrap` and the temp base are both ancestors of the scan root, so
+    // each npm root is on the lookup path and holds `leftpad` at
     // locator `leftpad`.
-    for dir in [wrap.clone(), wrap.join("mid")] {
+    for dir in [wrap.clone(), t.base.clone()] {
         mkdir(&dir.join("node_modules"));
         mkfile(&dir.join("node_modules/leftpad/package.json"));
     }
     let r = deps_run(
         &root,
-        &[&wrap.join("node_modules"), &wrap.join("mid/node_modules")],
+        &[&wrap.join("node_modules"), &t.base.join("node_modules")],
     );
     assert_eq!(r.code, 1, "{}", r.stderr);
     assert!(r.stdout.is_empty(), "{:?}", r.stdout);

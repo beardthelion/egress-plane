@@ -358,3 +358,363 @@ fn the_first_bad_argument_in_order_is_the_error() {
     let bad2 = t.outside.join("nope2");
     expect_err(&t, &[bad1, bad2], 1, DependencyRootProblem::NotFound);
 }
+
+// ---- U4: inventory ----------------------------------------------------------
+
+use egress_core::discover::budgets::DependencyBudgets;
+use egress_core::discover::dependency_roots::inventory;
+use egress_core::discover::{Config, discover};
+
+fn disc(t: &Tree) -> egress_core::discover::Discovery {
+    discover(&t.root, &Config::default()).unwrap()
+}
+
+fn base_file(t: &Tree, rel: &str, contents: impl AsRef<[u8]>) -> PathBuf {
+    let p = t.base.join(rel);
+    std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+    std::fs::write(&p, contents).unwrap();
+    p
+}
+
+fn inv(t: &Tree, roots: &[PathBuf]) -> Vec<egress_core::deps::inventory::Inventory> {
+    let d = disc(t);
+    let named = open_with(t, roots).unwrap();
+    inventory(&named, &d, &DependencyBudgets::default()).unwrap()
+}
+
+#[test]
+fn npm_nested_and_scoped_packages_give_chain_locators() {
+    let t = Tree::new("inv-npm");
+    let nm = t.base.join("node_modules");
+    base_file(
+        &t,
+        "node_modules/a/package.json",
+        r#"{"name":"a","version":"1.0.0"}"#,
+    );
+    base_file(
+        &t,
+        "node_modules/a/node_modules/leftpad/package.json",
+        r#"{"name":"leftpad","version":"2.0.0"}"#,
+    );
+    base_file(
+        &t,
+        "node_modules/@s/n/package.json",
+        r#"{"name":"@s/n","version":"3.0.0"}"#,
+    );
+    let inv = inv(&t, &[nm]);
+    let locs: Vec<&str> = inv[0]
+        .instances
+        .iter()
+        .map(|i| i.locator.as_str())
+        .collect();
+    assert!(locs.contains(&"a"));
+    assert!(locs.contains(&"a/leftpad"));
+    assert!(locs.contains(&"@s/n"));
+}
+
+#[test]
+fn a_pnpm_child_marks_every_instance_store_layout() {
+    let t = Tree::new("inv-pnpm");
+    let nm = t.base.join("node_modules");
+    base_file(
+        &t,
+        "node_modules/.pnpm/leftpad@2.0.0/node_modules/leftpad/package.json",
+        r#"{"name":"leftpad","version":"2.0.0"}"#,
+    );
+    let inv = inv(&t, &[nm]);
+    assert!(inv[0].instances.iter().all(|i| i.flags.store_layout));
+}
+
+#[test]
+fn must_not_follow_link_in_root() {
+    let t = Tree::new("inv-link");
+    let nm = t.base.join("node_modules");
+    base_file(
+        &t,
+        "node_modules/leftpad/package.json",
+        r#"{"name":"leftpad","version":"2.0.0"}"#,
+    );
+    // A symlinked package dir is never listed or read.
+    let outside = t.outside.join("realpkg");
+    std::fs::create_dir_all(&outside).unwrap();
+    symlink(&outside, nm.join("linked")).unwrap();
+    let inv = inv(&t, &[nm]);
+    assert_eq!(inv[0].instances.len(), 1);
+    assert_eq!(inv[0].instances[0].package, "leftpad");
+}
+
+#[test]
+fn package_json_over_metadata_bytes_is_unsupported() {
+    let t = Tree::new("inv-meta-cap");
+    let nm = t.base.join("node_modules");
+    base_file(
+        &t,
+        "node_modules/big/package.json",
+        format!(
+            "{{\"name\":\"big\",\"version\":\"1.0.0\",\"x\":\"{}\"}}",
+            "y".repeat(64)
+        ),
+    );
+    let d = disc(&t);
+    let named = open_with(&t, &[nm]).unwrap();
+    let budgets = DependencyBudgets {
+        metadata_bytes: 8,
+        ..Default::default()
+    };
+    let inv = inventory(&named, &d, &budgets).unwrap();
+    assert_eq!(
+        inv[0].instances[0].flags.unsupported.as_deref(),
+        Some("unreadable-metadata")
+    );
+}
+
+#[test]
+fn root_listing_over_inventory_entries_flags_the_root() {
+    let t = Tree::new("inv-entries-cap");
+    let nm = t.base.join("node_modules");
+    for n in ["a", "b", "c"] {
+        base_file(
+            &t,
+            &format!("node_modules/{n}/package.json"),
+            format!("{{\"name\":\"{n}\",\"version\":\"1.0.0\"}}"),
+        );
+    }
+    let d = disc(&t);
+    let named = open_with(&t, &[nm]).unwrap();
+    let budgets = DependencyBudgets {
+        inventory_entries: 2,
+        ..Default::default()
+    };
+    let inv = inventory(&named, &d, &budgets).unwrap();
+    assert!(inv[0].entries_exceeded);
+}
+
+#[test]
+fn python_dist_info_maps_distribution_and_top_levels() {
+    let t = Tree::new("inv-py");
+    let sitepk = t.outside.join("sitepk");
+    t.outside_file(
+        "sitepk/leftpy-1.0.0.dist-info/METADATA",
+        "Metadata-Version: 2.1\nName: leftpy\nVersion: 1.0.0\n",
+    );
+    t.outside_file(
+        "sitepk/leftpy-1.0.0.dist-info/RECORD",
+        "leftpy/__init__.py,sha256=a,1\nleftpy/mod.py,sha256=b,1\nleftpy-1.0.0.dist-info/RECORD,,\n",
+    );
+    mkdir(&sitepk.join("leftpy"));
+    let inv = inv(&t, &[sitepk]);
+    let inst = &inv[0].instances[0];
+    assert_eq!(inst.package, "leftpy");
+    assert_eq!(inst.version, "1.0.0");
+    assert_eq!(inst.imports, ["leftpy"]);
+    assert_eq!(inst.distribution.as_deref(), Some("leftpy"));
+    assert_eq!(inst.record.len(), 2);
+}
+
+#[test]
+fn python_orphan_module_has_no_distribution() {
+    let t = Tree::new("inv-py-orphan");
+    let sitepk = t.outside.join("sitepk");
+    t.outside_file(
+        "sitepk/leftpy-1.0.0.dist-info/METADATA",
+        "Name: leftpy\nVersion: 1.0.0\n",
+    );
+    t.outside_file(
+        "sitepk/leftpy-1.0.0.dist-info/RECORD",
+        "leftpy/__init__.py,sha256=a,1\n",
+    );
+    t.outside_file("sitepk/orphanmod.py", "x=1\n");
+    let inv = inv(&t, &[sitepk]);
+    let orphan = inv[0]
+        .instances
+        .iter()
+        .find(|i| i.package == "orphanmod")
+        .unwrap();
+    assert_eq!(orphan.distribution, None);
+}
+
+#[test]
+fn python_egg_and_egg_info_are_flagged() {
+    let t = Tree::new("inv-py-egg");
+    let sitepk = t.outside.join("sitepk");
+    mkdir(&sitepk.join("leftpy-1.0-py3.13.egg"));
+    mkdir(&sitepk.join("other.egg-info"));
+    // A dist-info child makes the root detect Python.
+    mkdir(&sitepk.join("otherdist-1.0.dist-info"));
+    let inv = inv(&t, &[sitepk]);
+    let egg = inv[0]
+        .instances
+        .iter()
+        .find(|i| i.locator.ends_with(".egg"))
+        .unwrap();
+    assert_eq!(
+        egg.flags.unsupported.as_deref(),
+        Some("archive-only-install")
+    );
+    let info = inv[0]
+        .instances
+        .iter()
+        .find(|i| i.locator.ends_with(".egg-info"))
+        .unwrap();
+    assert_eq!(
+        info.flags.unsupported.as_deref(),
+        Some("unsupported-layout")
+    );
+}
+
+#[test]
+fn vendor_instances_strip_versions() {
+    let t = Tree::new("inv-vendor");
+    let v = t.outside.join("vendor");
+    t.outside_file(
+        "vendor/serde-1.0.200/.cargo-checksum.json",
+        r#"{"files":{"src/lib.rs":"aa"},"package":"cc"}"#,
+    );
+    t.outside_file(
+        "vendor/serde-1.0.200/Cargo.toml",
+        "[package]\nname = \"serde\"\nversion = \"1.0.200\"\n",
+    );
+    let inv = inv(&t, &[v]);
+    assert_eq!(inv[0].instances[0].locator, "serde");
+    assert_eq!(inv[0].instances[0].version, "1.0.200");
+    assert_eq!(inv[0].instances[0].package_checksum.as_deref(), Some("cc"));
+}
+
+#[test]
+fn registry_probes_only_lock_listed_names() {
+    let t = Tree::new("inv-registry");
+    t.file(
+        "Cargo.lock",
+        "version = 3\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.200\"\nsource = \"registry+x\"\n",
+    );
+    let reg = t.outside.join("registry/src");
+    mkdir(&reg.join("index.crates.io-a1b2/serde-1.0.200"));
+    mkdir(&reg.join("index.crates.io-a1b2/cached-never-listed-9.9.9"));
+    // detection needs the .cargo-ok + Cargo.toml.orig markers
+    t.outside_file(
+        "registry/src/index.crates.io-a1b2/serde-1.0.200/.cargo-ok",
+        "",
+    );
+    t.outside_file(
+        "registry/src/index.crates.io-a1b2/serde-1.0.200/Cargo.toml.orig",
+        "",
+    );
+    let inv = inv(&t, &[reg]);
+    assert_eq!(inv[0].instances.len(), 1);
+    assert_eq!(inv[0].instances[0].package, "serde");
+}
+
+#[test]
+fn registry_duplicate_index_is_flagged() {
+    let t = Tree::new("inv-dup");
+    t.file(
+        "Cargo.lock",
+        "version = 3\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.200\"\nsource = \"registry+x\"\n",
+    );
+    let reg = t.outside.join("registry/src");
+    for idx in ["a-idx", "b-idx"] {
+        t.outside_file(&format!("registry/src/{idx}/serde-1.0.200/.cargo-ok"), "");
+        t.outside_file(
+            &format!("registry/src/{idx}/serde-1.0.200/Cargo.toml.orig"),
+            "",
+        );
+    }
+    let inv = inv(&t, &[reg]);
+    assert!(inv[0].instances.iter().any(|i| i.flags.duplicate_index));
+}
+
+#[test]
+fn git_checkout_uses_the_package_name() {
+    let t = Tree::new("inv-git");
+    let g = t.outside.join("git/checkouts");
+    mkdir(&g.join("ruff-b18f69e2b025fac7/0be08a2/.git"));
+    t.outside_file("git/checkouts/ruff-b18f69e2b025fac7/0be08a2/.cargo-ok", "");
+    t.outside_file(
+        "git/checkouts/ruff-b18f69e2b025fac7/0be08a2/crates/x/Cargo.toml",
+        "[package]\nname = \"x\"\nversion = \"0.1.0\"\n",
+    );
+    let inv = inv(&t, &[g]);
+    assert_eq!(inv[0].instances.len(), 1);
+    assert_eq!(inv[0].instances[0].locator, "x");
+}
+
+#[test]
+fn git_checkout_with_two_manifests_is_unsupported() {
+    let t = Tree::new("inv-git2");
+    let g = t.outside.join("git/checkouts");
+    mkdir(&g.join("repo-aabb/abc1234/.git"));
+    t.outside_file("git/checkouts/repo-aabb/abc1234/.cargo-ok", "");
+    t.outside_file(
+        "git/checkouts/repo-aabb/abc1234/a/Cargo.toml",
+        "[package]\nname = \"a\"\nversion = \"1\"\n",
+    );
+    t.outside_file(
+        "git/checkouts/repo-aabb/abc1234/b/Cargo.toml",
+        "[package]\nname = \"b\"\nversion = \"1\"\n",
+    );
+    let inv = inv(&t, &[g]);
+    assert_eq!(inv[0].instances.len(), 1);
+    assert_eq!(
+        inv[0].instances[0].flags.unsupported.as_deref(),
+        Some("unsupported-layout")
+    );
+}
+
+#[test]
+fn two_outside_npm_roots_holding_the_same_locator_are_ambiguous() {
+    let t = Tree::new("inv-ae11");
+    // `.package-lock.json` marks the root npm without a node_modules
+    // basename, so both roots share the lookup-path parent.
+    let nm1 = t.base.join("nm1");
+    let nm2 = t.base.join("nm2");
+    base_file(&t, "nm1/.package-lock.json", "{}");
+    base_file(&t, "nm2/.package-lock.json", "{}");
+    base_file(
+        &t,
+        "nm1/leftpad/package.json",
+        r#"{"name":"leftpad","version":"1.0.0"}"#,
+    );
+    base_file(
+        &t,
+        "nm2/leftpad/package.json",
+        r#"{"name":"leftpad","version":"1.0.0"}"#,
+    );
+    let d = disc(&t);
+    let named = open_with(&t, &[nm1, nm2]).unwrap();
+    let e = inventory(&named, &d, &DependencyBudgets::default()).unwrap_err();
+    assert_eq!(
+        e,
+        ToolError::DependencyRoot {
+            ordinal: 2,
+            problem: DependencyRootProblem::AmbiguousRoots,
+        }
+    );
+}
+
+#[test]
+fn two_python_roots_holding_the_same_import_are_ambiguous() {
+    let t = Tree::new("inv-ambiguous-env");
+    let s1 = t.outside.join("s1");
+    let s2 = t.outside.join("s2");
+    for s in ["s1", "s2"] {
+        t.outside_file(
+            &format!("{s}/yaml-1.dist-info/METADATA"),
+            "Name: PyYAML\nVersion: 1.0\n",
+        );
+        t.outside_file(
+            &format!("{s}/yaml-1.dist-info/RECORD"),
+            "yaml/__init__.py,sha256=a,1\n",
+        );
+        mkdir(&t.outside.join(format!("{s}/yaml")));
+    }
+    let d = disc(&t);
+    let named = open_with(&t, &[s1, s2]).unwrap();
+    let e = inventory(&named, &d, &DependencyBudgets::default()).unwrap_err();
+    assert_eq!(
+        e,
+        ToolError::DependencyRoot {
+            ordinal: 2,
+            problem: DependencyRootProblem::AmbiguousEnvironment,
+        }
+    );
+}

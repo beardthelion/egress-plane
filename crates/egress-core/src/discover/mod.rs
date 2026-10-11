@@ -784,6 +784,16 @@ impl Discovery {
         &self.root
     }
 
+    /// Reads an in-index file with `limit` bytes (KTD24): lockfiles and
+    /// declaration files in the scan root are read only through the
+    /// index, so a path discovery never indexed is never opened.
+    pub fn read_indexed(&self, rel: &[u8], limit: u64) -> Result<Vec<u8>, ReadError> {
+        if !self.index.contains_key(rel) {
+            return Err(ReadError::NotRegular);
+        }
+        self.root.read_file(rel, limit)
+    }
+
     /// Reads one source file through the safe open path, strips a UTF-8 BOM,
     /// and decodes it. UTF-8 is the only accepted encoding.
     pub fn read_source(&self, file: &SourceFile) -> Result<String, BlindSpotKind> {
