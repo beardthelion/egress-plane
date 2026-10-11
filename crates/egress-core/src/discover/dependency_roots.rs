@@ -669,10 +669,10 @@ fn vendor_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
             if let Ok((_n, v)) = metadata::cargo_toml_name_version(&bytes) {
                 version = v;
             }
-            if let Some(lib) = metadata::cargo_toml_lib_name(&bytes) {
-                if lib != pkg {
-                    imports.push(lib);
-                }
+            if let Some(lib) = metadata::cargo_toml_lib_name(&bytes)
+                && lib != pkg
+            {
+                imports.push(lib);
             }
         }
         if version.is_empty() {
@@ -852,10 +852,10 @@ fn git_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
                     flags.escaped_name = true;
                 }
                 let mut imports = vec![name.clone()];
-                if let Some(lib) = metadata::cargo_toml_lib_name(&bytes) {
-                    if lib != name {
-                        imports.push(lib);
-                    }
+                if let Some(lib) = metadata::cargo_toml_lib_name(&bytes)
+                    && lib != name
+                {
+                    imports.push(lib);
                 }
                 instances.push(Instance {
                     package: name.clone(),
