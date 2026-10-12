@@ -1220,19 +1220,31 @@ pub mod guards {
     }
 
     /// Fixture ledger for entries whose fixture case is not authored yet
-    /// (`fixtures/corpus/deferred.toml`). It must be empty at Definition of
-    /// Done.
+    /// (`fixtures/corpus/deferred.toml`), plus corpus categories that hold
+    /// no case yet. It must be empty at Definition of Done.
     #[derive(Debug, Clone, Default, PartialEq, Eq)]
     pub struct Deferred {
+        /// `<lang>/<category>/<case>` fixture IDs.
         pub cases: BTreeSet<String>,
+        /// `<lang>/<category>` category deferrals, each with its reason.
+        /// The conformance test reads these; the fixture guards ignore
+        /// them, since no data entry names a category as a fixture.
+        pub categories: BTreeMap<String, String>,
     }
 
     #[derive(Deserialize)]
     #[serde(deny_unknown_fields)]
     struct RawDeferred {
+        #[serde(default)]
         cases: Vec<String>,
+        #[serde(default)]
+        categories: Vec<toml::Table>,
     }
 
+    /// Parses `deferred.toml`. `cases` is a list of case IDs; `categories`
+    /// is a list of `{ id = "<lang>/<category>", reason = "..." }` tables.
+    /// A duplicate entry, a missing or empty `id` or `reason`, or an
+    /// unknown key fails, naming the entry.
     pub fn parse_deferred(text: &str) -> Result<Deferred, String> {
         let raw: RawDeferred =
             toml::from_str(text).map_err(|e| format!("deferred.toml: malformed: {e}"))?;
@@ -1242,7 +1254,37 @@ pub mod guards {
                 return Err(format!("deferred.toml: duplicate entry {c}"));
             }
         }
-        Ok(Deferred { cases })
+        let mut categories = BTreeMap::new();
+        for c in raw.categories {
+            let id = c
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or_default()
+                .to_string();
+            for k in c.keys() {
+                if k != "id" && k != "reason" {
+                    return Err(format!(
+                        "deferred.toml: category entry {id}: unknown key {k}"
+                    ));
+                }
+            }
+            if id.is_empty() {
+                return Err("deferred.toml: a category entry has no id".to_string());
+            }
+            let reason = c
+                .get("reason")
+                .and_then(|v| v.as_str())
+                .map(str::trim)
+                .unwrap_or_default();
+            if reason.is_empty() {
+                return Err(format!("deferred.toml: category entry {id} has no reason"));
+            }
+            if categories.contains_key(&id) {
+                return Err(format!("deferred.toml: duplicate category entry {id}"));
+            }
+            categories.insert(id, reason.to_string());
+        }
+        Ok(Deferred { cases, categories })
     }
 
     enum Want<'a> {
@@ -1503,8 +1545,10 @@ pub mod guards {
         out
     }
 
-    /// Deferred ledger entries that no data entry names, or that now exist as
-    /// cases (which must leave the ledger).
+    /// Deferred ledger case entries that no data entry names, or that now
+    /// exist as cases (which must leave the ledger). Category entries are
+    /// not checked here: no data entry names them, and the conformance
+    /// test owns their staleness.
     pub fn stale_deferred(
         all: &[&RuntimeData],
         corpus_root: &Path,

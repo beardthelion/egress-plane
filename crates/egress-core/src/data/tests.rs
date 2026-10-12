@@ -401,6 +401,7 @@ fn full_corpus(c: &TempCorpus) {
 fn deferred(cases: &[&str]) -> Deferred {
     Deferred {
         cases: cases.iter().map(|s| s.to_string()).collect(),
+        ..Deferred::default()
     }
 }
 
@@ -489,4 +490,53 @@ fn deferred_ledger_rejects_stale_and_existing_entries() {
         guards::parse_deferred("cases = [\"a/b/c\"]\n").map(|d| d.cases.len()),
         Ok(1)
     );
+}
+
+#[test]
+fn deferred_ledger_parses_category_entries_with_reasons() {
+    let d = guards::parse_deferred(
+        "cases = [\"a/b/c\"]\n\n[[categories]]\nid = \"zz/evasive\"\nreason = \"hardening plan\"\n",
+    )
+    .unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(d.cases.len(), 1);
+    assert_eq!(d.categories["zz/evasive"], "hardening plan");
+}
+
+#[test]
+fn deferred_ledger_rejects_bad_category_entries_naming_them() {
+    // An empty or missing reason.
+    for text in [
+        "[[categories]]\nid = \"zz/evasive\"\nreason = \"  \"\n",
+        "[[categories]]\nid = \"zz/evasive\"\n",
+    ] {
+        let e = guards::parse_deferred(text).unwrap_err();
+        assert!(e.contains("zz/evasive"), "{e}");
+    }
+    // A duplicate category id.
+    let e = guards::parse_deferred(
+        "[[categories]]\nid = \"zz/evasive\"\nreason = \"r\"\n\n\
+         [[categories]]\nid = \"zz/evasive\"\nreason = \"r\"\n",
+    )
+    .unwrap_err();
+    assert!(e.contains("zz/evasive") && e.contains("duplicate"), "{e}");
+    // An unknown key.
+    let e =
+        guards::parse_deferred("[[categories]]\nid = \"zz/evasive\"\nreason = \"r\"\nextra = 1\n")
+            .unwrap_err();
+    assert!(e.contains("zz/evasive") && e.contains("extra"), "{e}");
+    // A missing id.
+    let e = guards::parse_deferred("[[categories]]\nreason = \"r\"\n").unwrap_err();
+    assert!(e.contains("id"), "{e}");
+}
+
+#[test]
+fn stale_deferred_ignores_category_entries() {
+    let c = TempCorpus::new("category-deferred");
+    full_corpus(&c);
+    let r = ok();
+    let d = guards::parse_deferred(
+        "[[categories]]\nid = \"zz/evasive\"\nreason = \"hardening plan\"\n",
+    )
+    .unwrap_or_else(|e| panic!("{e}"));
+    assert!(guards::stale_deferred(&[&r], &c.0, &d).is_empty());
 }

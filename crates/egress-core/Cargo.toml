@@ -20,3 +20,5 @@ url = "=2.5.8"
 
 [dev-dependencies]
 boon = "=0.6.1"
+# Integration tests only: the conformance test reads Registry::builtin.
+egress-scan.workspace = true

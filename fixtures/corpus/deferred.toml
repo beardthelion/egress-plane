@@ -1,4 +1,36 @@
-# Fixture cases that data entries name but that are not authored yet.
+# Fixture cases that data entries name but that are not authored yet, and
+# corpus categories that hold no case yet.
+#
+# - `cases` entries are `<lang>/<category>/<case>` fixture IDs.
+# - `[[categories]]` entries are `{ id = "<lang>/<category>", reason = "..." }`
+#   tables; the reason must be non-empty. The conformance test requires every
+#   category to hold a case or appear here, and requires an entry to leave
+#   once its category holds a case.
+#
 # This ledger must be empty at Definition of Done.
 cases = [
 ]
+
+[[categories]]
+id = "python/evasive"
+reason = "The evasive category belongs to the code layer hardening plan; see README \"Limitations\"."
+
+[[categories]]
+id = "python/closure"
+reason = "The closure category belongs to the code layer hardening plan; see README \"Limitations\"."
+
+[[categories]]
+id = "javascript/evasive"
+reason = "The evasive category belongs to the code layer hardening plan; see README \"Limitations\"."
+
+[[categories]]
+id = "javascript/closure"
+reason = "The closure category belongs to the code layer hardening plan; see README \"Limitations\"."
+
+[[categories]]
+id = "rust/evasive"
+reason = "The evasive category belongs to the code layer hardening plan; see README \"Limitations\"."
+
+[[categories]]
+id = "rust/closure"
+reason = "The closure category belongs to the code layer hardening plan; see README \"Limitations\"."

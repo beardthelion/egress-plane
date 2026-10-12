@@ -12,6 +12,10 @@
 # - `max_line_chars`: the label applies when any line holds more characters
 #   than this.
 #
+# A `[<label>.<language>]` table adds patterns that apply only to files of
+# that language; the key must be a `Language` name. Every language gets a
+# `test` table, empty when it adds nothing.
+#
 # The Rust `#[cfg(test)]` scope rule for `test` is applied per site by the Rust
 # frontend, not here.
 
@@ -29,4 +33,12 @@ max_line_chars = 1000
 
 [test]
 dirs = ["tests", "__tests__"]
-name_globs = ["test_*.py", "*_test.py", "*.test.*", "*.spec.*", "conftest.py"]
+name_globs = ["*.test.*", "*.spec.*"]
+
+# Python-only test file names.
+[test.python]
+name_globs = ["test_*.py", "*_test.py", "conftest.py"]
+
+[test.javascript]
+
+[test.rust]
