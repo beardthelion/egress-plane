@@ -1,0 +1,306 @@
+//! The dependency pass: selection, closure, assembly, and the KTD13
+//! annotation of the finished first-party report.
+
+mod assemble;
+mod closure;
+mod select;
+
+use std::collections::BTreeMap;
+
+use egress_core::data::Data;
+use egress_core::deps::inventory::Inventory;
+use egress_core::discover::Discovery;
+use egress_core::discover::dependency_roots::NamedRoot;
+use egress_core::model::{
+    DependencyRootKind, DependencySection, Language, LockfileDiagnostic, Report, ToolError,
+    UnscannedReason,
+};
+
+use crate::ScanOptions;
+
+use closure::{Candidate, Closure, cargo_pin};
+use select::{Importer, Resolved};
+
+/// Runs the full dependency pass and returns the section plus the
+/// top-level unscanned annotations (KTD13).
+pub fn run(
+    data: &Data,
+    discovery: &Discovery,
+    roots: &[NamedRoot],
+    invs: &[Inventory],
+    classified: &egress_core::classify::Classified,
+    report: &mut Report,
+    options: &ScanOptions,
+) -> Result<DependencySection, ToolError> {
+    // Selection: each top-level unscanned entry resolves per importer
+    // file; a resolved instance becomes a depth-0 candidate, a reason
+    // annotates the entry.
+    let mut frontier: Vec<Candidate> = Vec::new();
+    let mut diagnostics: Vec<LockfileDiagnostic> = Vec::new();
+    let mut outcomes: BTreeMap<(Language, String), Vec<ImportOutcome>> = BTreeMap::new();
+    for u in &classified.unscanned_dependencies {
+        for file in &u.files {
+            let lock = select::governing_lock(
+                discovery,
+                file.as_bytes(),
+                kind_of(u.language),
+                options.dependency_budgets.lockfile_bytes,
+            );
+            if let select::Lock::Unreadable(d) = &lock {
+                diagnostics.push(d.clone());
+            }
+            let key = resolve_key(classified, u);
+            let importer_file = file.as_bytes().to_vec();
+            let pin = if u.language == Language::Rust {
+                crate_name(discovery, &importer_file).and_then(|n| cargo_pin(&lock, n, &key))
+            } else {
+                None
+            };
+            let outcome = match select::resolve(
+                roots,
+                invs,
+                discovery.root_dir(),
+                u.language,
+                &key,
+                &Importer::FirstParty(importer_file),
+                pin.as_ref().map(|(a, b)| (a.as_str(), b.as_str())),
+            ) {
+                Resolved::Instance { root, instance } => {
+                    let inst = &invs[root].instances[instance];
+                    // A candidate reached for the first time or by an
+                    // earlier importer joins the frontier.
+                    match frontier
+                        .iter_mut()
+                        .find(|c| c.root == root && c.instance == instance)
+                    {
+                        Some(c) => c.importers.push(file.clone()),
+                        None => frontier.push(Candidate {
+                            root,
+                            instance,
+                            depth: 0,
+                            importers: vec![file.clone()],
+                            importing_packages: Vec::new(),
+                            lock: lock.clone(),
+                        }),
+                    }
+                    let _ = inst;
+                    ImportOutcome::Reached(root, instance)
+                }
+                Resolved::Reason(r) => ImportOutcome::Reason(r),
+            };
+            outcomes
+                .entry((u.language, u.package.clone()))
+                .or_default()
+                .push(outcome);
+        }
+    }
+
+    // The inventory-entries budget: a root whose listing overflowed
+    // marks every instance budget-exhausted (KTD14).
+    for (ri, inv) in invs.iter().enumerate() {
+        if !inv.entries_exceeded {
+            continue;
+        }
+        for (ii, _) in inv.instances.iter().enumerate() {
+            frontier.retain(|c| !(c.root == ri && c.instance == ii));
+        }
+    }
+
+    let Closure {
+        verdicts,
+        diagnostics: mut diag,
+        budgets_exhausted: mut be,
+    } = closure::run(
+        data,
+        discovery,
+        roots,
+        invs,
+        frontier,
+        options,
+        &options.dependency_budgets,
+    )?;
+    diagnostics.append(&mut diag);
+    if invs.iter().any(|i| i.entries_exceeded) {
+        be.push(egress_core::model::DependencyBudgetReason::InventoryEntries);
+    }
+
+    // KTD13 annotation: an entry's imports all reaching scanned or
+    // linked instances drops it; otherwise its reason follows the
+    // precedence.
+    let mut annotation: BTreeMap<(Language, String), Option<UnscannedReason>> = BTreeMap::new();
+    for ((lang, package), outcomes) in &outcomes {
+        let mut reasons: Vec<UnscannedReason> = Vec::new();
+        let mut all_reached = !outcomes.is_empty();
+        for o in outcomes {
+            match o {
+                ImportOutcome::Reached(r, i) => {
+                    // The verdict on the reached instance decides:
+                    // a scanned (or linked) instance counts, an
+                    // unscanned verdict contributes its reason.
+                    match verdicts.get(&(*r, *i)) {
+                        Some(v) if v.pass.is_some() => {}
+                        Some(v) => {
+                            all_reached = false;
+                            if let Some(r) = v.reason {
+                                reasons.push(r);
+                            }
+                        }
+                        None => {
+                            all_reached = false;
+                        }
+                    }
+                }
+                ImportOutcome::Reason(r) => {
+                    all_reached = false;
+                    reasons.push(*r);
+                }
+            }
+        }
+        annotation.insert(
+            (*lang, package.clone()),
+            if all_reached {
+                None
+            } else {
+                reasons.sort_by_key(|r| reason_rank(*r));
+                reasons
+                    .first()
+                    .copied()
+                    .or(Some(UnscannedReason::NoSourceInNamedRoot))
+            },
+        );
+    }
+
+    // Apply: drop entries whose imports all reached scanned instances;
+    // set the reason on the rest.
+    report.unscanned_dependencies.retain_mut(|u| {
+        match annotation.get(&(u.language, u.package.clone())) {
+            Some(None) => false,
+            Some(Some(r)) => {
+                u.reason = Some(*r);
+                u.package = egress_core::escape::escape(&u.package);
+                true
+            }
+            None => true,
+        }
+    });
+
+    let outcome = assemble::run(
+        data,
+        discovery,
+        roots,
+        invs,
+        Closure {
+            verdicts,
+            diagnostics: diag,
+            budgets_exhausted: be,
+        },
+        report,
+        options,
+    )?;
+    let mut section = outcome.section;
+    section.diagnostics = diagnostics;
+    Ok(section)
+}
+
+enum ImportOutcome {
+    Reached(usize, usize),
+    Reason(UnscannedReason),
+}
+
+/// KTD13 precedence for mixed outcomes.
+fn reason_rank(r: UnscannedReason) -> u8 {
+    match r {
+        UnscannedReason::LockfileUnreadable => 0,
+        UnscannedReason::VersionMismatch => 1,
+        UnscannedReason::UnlockedSharedCache => 2,
+        UnscannedReason::ArchiveOnlyInstall => 3,
+        UnscannedReason::UnsupportedLayout => 4,
+        UnscannedReason::DependencyBudgetExhausted => 5,
+        UnscannedReason::NoSourceInNamedRoot => 6,
+    }
+}
+
+/// Applies the Yarn PnP reason to JavaScript unscanned entries when
+/// no dependency roots are named (KTD3): the detection lives at the
+/// scan root, so it runs with zero named roots.
+pub fn annotate_pnp(discovery: &Discovery, report: &mut Report) {
+    for u in report.unscanned_dependencies.iter_mut() {
+        if u.language != Language::Javascript || u.reason.is_some() {
+            continue;
+        }
+        if u.files
+            .iter()
+            .any(|f| select::pnp_ancestor(discovery.root_dir(), f.as_bytes()))
+        {
+            u.reason = Some(UnscannedReason::ArchiveOnlyInstall);
+        }
+    }
+}
+
+fn kind_of(lang: Language) -> DependencyRootKind {
+    match lang {
+        Language::Javascript => DependencyRootKind::Npm,
+        Language::Python => DependencyRootKind::Python,
+        Language::Rust => DependencyRootKind::CargoVendor,
+    }
+}
+
+/// The crate a first-party file belongs to: the Cargo manifest whose
+/// directory is the file's longest ancestor.
+fn crate_name<'d>(discovery: &'d Discovery, file: &[u8]) -> Option<&'d str> {
+    discovery
+        .manifests
+        .cargo
+        .iter()
+        .filter(|m| {
+            m.has_package
+                && m.name.is_some()
+                && file.starts_with(&[&parent_of(&m.path), b"/".as_slice()].concat())
+        })
+        .max_by_key(|m| m.path.len())
+        .and_then(|m| m.name.as_deref())
+}
+
+fn parent_of(p: &[u8]) -> Vec<u8> {
+    match p.iter().rposition(|c| *c == b'/') {
+        Some(i) => p[..i].to_vec(),
+        None => Vec::new(),
+    }
+}
+
+/// The key an import resolves under, per ecosystem: Python takes the
+/// longest recorded specifier (a dotted `google.auth`, not `google`);
+/// Rust the first `::` segment; JavaScript the package name (the
+/// `@scope/name` pair or the first path segment) (KTD10).
+fn resolve_key(
+    classified: &egress_core::classify::Classified,
+    u: &egress_core::model::UnscannedDependency,
+) -> String {
+    let spec = classified
+        .unscanned_imports
+        .get(&(u.language, u.package.clone()))
+        .and_then(|rec| rec.specifiers.iter().max_by_key(|s| s.len()).cloned());
+    let spec = spec.as_deref().unwrap_or(&u.package);
+    match u.language {
+        Language::Python => spec.to_string(),
+        Language::Rust => spec.split("::").next().unwrap_or(spec).to_string(),
+        Language::Javascript => {
+            // Member chains (`axios.isCancel`) and subpaths (`a/b`)
+            // resolve to the package: the `@scope/name` pair or the
+            // first `.`/`/` segment otherwise.
+            let mut it = spec.char_indices().skip(1).find(|(_, c)| *c == '.');
+            if spec.starts_with('@') {
+                it = spec
+                    .char_indices()
+                    .skip(1)
+                    .filter(|(_, c)| *c == '/')
+                    .nth(1)
+                    .or(it);
+            }
+            match it {
+                Some((i, _)) => spec[..i].to_string(),
+                None => spec.to_string(),
+            }
+        }
+    }
+}

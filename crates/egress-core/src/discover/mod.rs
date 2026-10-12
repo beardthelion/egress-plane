@@ -325,7 +325,28 @@ impl Walk<'_> {
             return DirClass::Exclude(ExcludedReason::Vcs);
         }
         if name == b"node_modules" {
-            return DirClass::Exclude(if has(parent, b"package.json") {
+            // Confirmed install output: the parent holds `package.json`,
+            // or every child directory is a package holding one itself
+            // (a `node_modules` holder need not sit beside its user's
+            // manifest, e.g. a workspace member's holder).
+            let packages = self
+                .root
+                .list_dir(path)
+                .ok()
+                .map(|children| {
+                    children.iter().any(|(_, st)| st.kind == EntryType::Dir)
+                        && children
+                            .iter()
+                            .filter(|(_, st)| st.kind == EntryType::Dir)
+                            .all(|(d, _)| {
+                                matches!(
+                                    self.root.lstat(&join(&join(path, d), b"package.json")),
+                                    Ok(s) if s.kind == EntryType::File
+                                )
+                            })
+                })
+                .unwrap_or(false);
+            return DirClass::Exclude(if has(parent, b"package.json") || packages {
                 ExcludedReason::InstallOutput
             } else {
                 ExcludedReason::UnconfirmedInstallOutput

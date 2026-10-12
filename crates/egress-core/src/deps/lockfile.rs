@@ -29,6 +29,33 @@ pub struct LockedPackage {
 /// The lockfile's own `version` key is 3 or 4; anything else (missing,
 /// or an unsupported number) is `Malformed`.
 pub fn cargo_lock(bytes: &[u8]) -> Result<CargoLock, Malformed> {
+    match cargo_lock_result(bytes) {
+        LockfileResult::Parsed(l) => Ok(l),
+        _ => Err(Malformed),
+    }
+}
+
+/// Cargo.lock with the matrix's three-way answer: versions 3 and 4
+/// parse, a missing version key or 1/2 is not supported, a parse
+/// failure or a version above 4 is unreadable.
+pub fn cargo_lock_result(bytes: &[u8]) -> LockfileResult<CargoLock> {
+    let t: toml::Table = match std::str::from_utf8(bytes)
+        .ok()
+        .and_then(|s| toml::from_str(s).ok())
+    {
+        Some(t) => t,
+        None => return LockfileResult::Unreadable,
+    };
+    let format = t.get("version").and_then(|v| v.as_integer());
+    match format {
+        None | Some(1) | Some(2) => return LockfileResult::NotSupported,
+        Some(v) if !(3..=4).contains(&v) => return LockfileResult::Unreadable,
+        _ => {}
+    }
+    cargo_lock_inner(bytes).map_or(LockfileResult::Unreadable, LockfileResult::Parsed)
+}
+
+fn cargo_lock_inner(bytes: &[u8]) -> Result<CargoLock, Malformed> {
     let t: toml::Table = std::str::from_utf8(bytes)
         .ok()
         .and_then(|s| toml::from_str(s).ok())

@@ -1200,10 +1200,16 @@ fn dependency_budgets_unknown_key_is_a_harness_error() {
 /// `leftpad-no-root` (U7) and the two U10 curated-distribution cases.
 #[test]
 fn dependency_cases_are_pending_except_landed_ones() {
-    let landed = [
-        "javascript/dependencies/leftpad-no-root",
-        "python/dependencies/curated-distribution-names",
-        "python/dependencies/pyyaml-curated-no-root",
+    let unlanded = [
+        "javascript/dependencies/non-ascii-npm-name",
+        "python/dependencies/cyrillic-requests-marked",
+        "python/dependencies/distutils-precedence-pth",
+        "python/dependencies/editable-finder-pth",
+        "python/dependencies/mixed-script-import-name",
+        "python/dependencies/must-not-mark-ascii-twin",
+        "python/dependencies/pth-auto-run-unimported",
+        "python/dependencies/stdlib-confusable",
+        "rust/dependencies/non-ascii-crate-name",
     ];
     let real = load_pending(&corpus_root().join("pending.toml")).expect("pending.toml loads");
     let cases = discover_cases(&corpus_root()).expect("corpus discovers");
@@ -1213,10 +1219,10 @@ fn dependency_cases_are_pending_except_landed_ones() {
         .collect();
     assert!(!deps.is_empty(), "no dependency cases discovered");
     for c in &deps {
-        if landed.contains(&c.id.as_str()) {
-            assert!(!real.cases.contains(&c.id), "{} must not be pending", c.id);
-        } else {
+        if unlanded.contains(&c.id.as_str()) {
             assert!(real.cases.contains(&c.id), "{} is not pending", c.id);
+        } else {
+            assert!(!real.cases.contains(&c.id), "{} must not be pending", c.id);
         }
     }
 }

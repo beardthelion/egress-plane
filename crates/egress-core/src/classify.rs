@@ -407,7 +407,13 @@ fn known_module(rt: &RuntimeData, lang: Language, module: &str, members: &[Strin
         .chain(members.iter())
         .map(String::as_str)
         .collect();
-    if rt.lookup(&segs[0], &rest).is_some() {
+    // A `Package` classification for a member chain means the member
+    // resolves through a catalogued package's own code with no
+    // catalogued classification: an uncatalogued member, listed as a
+    // dependency (KTD23). The bare package import stays known.
+    if let Some(c) = rt.lookup(&segs[0], &rest)
+        && !(matches!(c, Classification::Package(_)) && !rest.is_empty())
+    {
         return true;
     }
     lang == Language::Rust && {
@@ -1091,6 +1097,18 @@ impl<'p, 'a> State<'p, 'a> {
         }
         match Self::lookup(rt, cx.lang(), module, chain) {
             Some(Classification::Entry(e)) => {
+                // An inert member call on a catalogued package: the
+                // member's code runs with no egress classification, so
+                // the package joins the dependency list (KTD23). A
+                // value reference runs nothing.
+                if matches!(e.kind, EntryKind::Inert { .. })
+                    && is_call(rf.use_kind)
+                    && let Some(pkg) = rt.package_for(module)
+                {
+                    let name = pkg.name.clone();
+                    self.dep(cx, name, module, chain);
+                    return;
+                }
                 // Members past the entry's own path.
                 let mut full: Vec<String> = if ambient {
                     vec![module.to_string()]

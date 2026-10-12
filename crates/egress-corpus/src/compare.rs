@@ -150,7 +150,9 @@ pub fn compare(expected: &Expected, result: &Result<Report, ToolError>) -> CaseO
     compare_dependencies(expected, report, &mut out);
 
     // Opt-in rule (R1): a case that names no dependency root must produce
-    // no dependency section and no unscanned reason.
+    // no dependency section. A Yarn PnP `.pnp.cjs` at the scan root is
+    // detected without named roots (KTD3), so an `archive-only-install`
+    // reason the case itself labeled is legal here.
     if expected.dependency_roots.is_empty() {
         if report.dependencies.is_some() {
             out.failures.push(
@@ -160,12 +162,18 @@ pub fn compare(expected: &Expected, result: &Result<Report, ToolError>) -> CaseO
         }
         for d in &report.unscanned_dependencies {
             if let Some(r) = d.reason {
-                out.failures.push(format!(
-                    "unscanned dependency {} carries reason {} but the case names no \
-                     [[dependency_root]]",
-                    d.package,
-                    r.as_str()
-                ));
+                let labeled = expected
+                    .unscanned_dependencies
+                    .iter()
+                    .any(|e| e.package == d.package && e.reason == Some(r));
+                if !(r == egress_core::model::UnscannedReason::ArchiveOnlyInstall && labeled) {
+                    out.failures.push(format!(
+                        "unscanned dependency {} carries reason {} but the case names no \
+                         [[dependency_root]]",
+                        d.package,
+                        r.as_str()
+                    ));
+                }
             }
         }
     }

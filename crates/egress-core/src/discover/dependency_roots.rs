@@ -512,6 +512,16 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
                 _ => Vec::new(),
             };
             let mut tops = metadata::top_level_names(&rows);
+            // A `.py` module in the RECORD counts as a top-level of
+            // this dist only when its stem matches the dist's own
+            // normalized name; a module filed under an unrelated dist
+            // is a loose top-level module instead (KTD7).
+            let norm_pkg = crate::deps::version::pep503(&pkg);
+            tops.retain(|t| {
+                !rows.iter().any(|r| {
+                    r.path.rsplit('/').next() == Some(&format!("{t}.py")) && !r.path.contains('/')
+                }) || crate::deps::version::pep503(t) == norm_pkg
+            });
             let top_rel = join(&dir, b"top_level.txt");
             if let Some(Ok(bytes)) = read_meta(&root.dir, &top_rel, budgets) {
                 for t in metadata::top_level(&bytes) {
@@ -528,29 +538,43 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
             if clean_name(name).is_none() {
                 flags.escaped_name = true;
             }
-            instances.push(Instance {
-                package: pkg.clone(),
-                locator: pkg.clone(),
-                version,
-                rel: dir,
-                imports: tops,
-                distribution: Some(pkg),
-                record: rows
-                    .iter()
-                    .filter_map(|r| {
-                        r.sha256
-                            .as_ref()
-                            .map(|h| (r.path.clone().into_bytes(), h.clone()))
-                    })
-                    .collect(),
-                package_checksum: None,
-                flags,
-            });
+            // One instance per import key: each top-level name descends
+            // through namespace directories to the deepest package that
+            // holds `__init__.py`, so `google/` (no init) + `google/auth/`
+            // keys as `google.auth` at locator `google/auth` (KTD10).
+            let keys = python_keys(&root.dir, &import_root, &tops);
+            let record: Vec<(Vec<u8>, String)> = rows
+                .iter()
+                .filter_map(|r| {
+                    r.sha256
+                        .as_ref()
+                        .map(|h| (r.path.clone().into_bytes(), h.clone()))
+                })
+                .collect();
+            for (key, path) in keys {
+                // The locator is the path relative to the import root.
+                let locator_path = path[import_root.len()..]
+                    .strip_prefix(b"/")
+                    .unwrap_or(&path[import_root.len()..])
+                    .to_vec();
+                instances.push(Instance {
+                    package: key.clone(),
+                    locator: String::from_utf8_lossy(&locator_path).into_owned(),
+                    version: version.clone(),
+                    rel: join(&import_root, &locator_path),
+                    imports: vec![key.clone()],
+                    distribution: Some(pkg.clone()),
+                    record: record.clone(),
+                    package_checksum: None,
+                    flags: flags.clone(),
+                });
+            }
         }
     }
 
     // Loose names: top-level packages, modules, and special layouts a
-    // dist-info's RECORD does not cover.
+    // dist-info's RECORD does not cover. A `.py` file is covered only
+    // by a dist whose normalized name matches its stem (KTD7).
     let covered: Vec<&str> = dist_tops
         .iter()
         .flat_map(|(_, t)| t.iter().map(String::as_str))
@@ -582,6 +606,14 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
             imports.push(package.clone());
         } else if name.ends_with(b".egg-info") || name.starts_with(b"__editable__") {
             flags.unsupported = Some("unsupported-layout".to_string());
+            // `leftpy-1.0.egg-info` and `__editable__.leftpy-1.0` hold
+            // the import name minus the layout suffix and version.
+            let stem = name_str
+                .trim_end_matches(".egg-info")
+                .trim_start_matches("__editable__.")
+                .trim_end_matches(".pth");
+            let stem = stem.rsplit_once('-').map(|(n, _)| n).unwrap_or(stem);
+            package = stem.to_string();
             imports.push(package.clone());
         } else if name.ends_with(b".pth") {
             // A .pth file is an auto-run artifact, not a package; its
@@ -729,7 +761,29 @@ fn registry_inventory(
         if st.kind != super::open::EntryType::Dir {
             continue;
         }
-        for (name, version) in &lock {
+        // The name set: locked entries when a lock governs, or every
+        // `<name>-<version>` directory present when no lock does (the
+        // unlocked cache still resolves, KTD6). Metadata is read only
+        // for locked names (KTD6's cost bound).
+        let mut names: Vec<(String, String)> = lock.clone();
+        if lock.is_empty()
+            && let Ok(children) = root.dir.list_dir(index)
+        {
+            for (child, st) in &children {
+                if st.kind != super::open::EntryType::Dir {
+                    continue;
+                }
+                let child = String::from_utf8_lossy(child).into_owned();
+                if let Some(pos) = child.rfind('-') {
+                    let (n, v) = (child[..pos].to_string(), child[pos + 1..].to_string());
+                    if !names.iter().any(|(n2, v2)| n2 == &n && v2 == &v) {
+                        names.push((n, v));
+                    }
+                }
+            }
+        }
+        for (name, version) in &names {
+            let locked = lock.iter().any(|(n, v)| n == name && v == version);
             let dir = format!("{}-{}", name, version);
             let rel = join(index, dir.as_bytes());
             if !matches!(root.dir.lstat(&rel), Ok(s) if s.kind == super::open::EntryType::Dir) {
@@ -749,8 +803,9 @@ fn registry_inventory(
             seen.push((name.clone(), version.clone(), index.clone()));
             let mut record = Vec::new();
             let mut checksum = None;
-            if let Some(Ok(bytes)) =
-                read_meta(&root.dir, &join(&rel, b".cargo-checksum.json"), budgets)
+            if locked
+                && let Some(Ok(bytes)) =
+                    read_meta(&root.dir, &join(&rel, b".cargo-checksum.json"), budgets)
                 && let Ok(c) = metadata::cargo_checksum(&bytes)
             {
                 record = c
@@ -761,7 +816,8 @@ fn registry_inventory(
                 checksum = c.package;
             }
             let mut imports = vec![name.clone()];
-            if let Some(Ok(bytes)) = read_meta(&root.dir, &join(&rel, b"Cargo.toml"), budgets)
+            if locked
+                && let Some(Ok(bytes)) = read_meta(&root.dir, &join(&rel, b"Cargo.toml"), budgets)
                 && let Some(lib) = metadata::cargo_toml_lib_name(&bytes)
                 && lib != *name
             {
@@ -778,6 +834,23 @@ fn registry_inventory(
                 package_checksum: checksum,
                 flags,
             });
+        }
+    }
+    // Every copy of a name+version under more than one index
+    // directory is unsupported, not just the second (KTD6).
+    let counts: std::collections::BTreeMap<(String, String), usize> = instances
+        .iter()
+        .map(|i| ((i.package.clone(), i.version.clone()), 1))
+        .fold(std::collections::BTreeMap::new(), |mut m, (k, n)| {
+            *m.entry(k).or_insert(0) += n;
+            m
+        });
+    for i in instances.iter_mut() {
+        if counts
+            .get(&(i.package.clone(), i.version.clone()))
+            .is_some_and(|n| *n > 1)
+        {
+            i.flags.duplicate_index = true;
         }
     }
     Inventory {
@@ -865,7 +938,9 @@ fn git_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
                     imports,
                     distribution: None,
                     record: Vec::new(),
-                    package_checksum: None,
+                    // The checkout's short rev, for the KTD7 prefix
+                    // match against the lock source's `#<sha>`.
+                    package_checksum: Some(String::from_utf8_lossy(rev).into_owned()),
                     flags,
                 });
             }
@@ -928,4 +1003,62 @@ fn lock_names(discovery: &Discovery, budgets: &DependencyBudgets) -> Vec<(String
         }
     }
     out
+}
+
+/// Resolves a distribution's top-level names to (import key, path)
+/// pairs, descending through PEP 420 namespace directories (no
+/// `__init__.py`) to the deepest package holding one (KTD10).
+fn python_keys(
+    dir: &super::open::RootDir,
+    import_root: &[u8],
+    tops: &[String],
+) -> Vec<(String, Vec<u8>)> {
+    let mut out = Vec::new();
+    for top in tops {
+        walk_namespace(
+            dir,
+            join(import_root, top.as_bytes()),
+            top.clone(),
+            &mut out,
+        );
+    }
+    out
+}
+
+fn walk_namespace(
+    dir: &super::open::RootDir,
+    path: Vec<u8>,
+    key: String,
+    out: &mut Vec<(String, Vec<u8>)>,
+) {
+    // A file's own name is the key.
+    match dir.lstat(&join(&path, b"__init__.py")) {
+        Ok(st) if st.kind == super::open::EntryType::File => {
+            out.push((key, path));
+            return;
+        }
+        _ => {}
+    }
+    // No `__init__.py`: a namespace directory; descend into child
+    // directories that hold one.
+    let mut found = false;
+    if let Ok(children) = dir.list_dir(&path) {
+        for (name, st) in children {
+            if st.kind != super::open::EntryType::Dir {
+                continue;
+            }
+            let child_path = join(&path, &name);
+            if matches!(dir.lstat(&join(&child_path, b"__init__.py")), Ok(s) if s.kind == super::open::EntryType::File)
+            {
+                let mut child_key = key.clone();
+                child_key.push('.');
+                child_key.push_str(&String::from_utf8_lossy(&name));
+                out.push((child_key, child_path));
+                found = true;
+            }
+        }
+    }
+    if !found {
+        out.push((key, path));
+    }
 }

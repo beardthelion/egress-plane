@@ -45,7 +45,18 @@ pub struct FileCheck {
 /// against the install `record`. Files under `__pycache__/` never mark
 /// the package modified. A `record` path escaping the instance
 /// (`../x`) is ignored.
-pub fn compare_files(files: &[(Vec<u8>, Vec<u8>)], record: &[(Vec<u8>, String)]) -> FileCheck {
+pub fn compare_files(
+    files: &[(Vec<u8>, Vec<u8>)],
+    record: &[(Vec<u8>, String)],
+    b64: bool,
+) -> FileCheck {
+    let digest = |bytes: &[u8]| {
+        if b64 {
+            sha256_b64u(bytes)
+        } else {
+            hex_sha256(bytes)
+        }
+    };
     let mut complete = !record.is_empty();
     let mut modified = false;
     let mut listed: Vec<&[u8]> = Vec::new();
@@ -56,7 +67,7 @@ pub fn compare_files(files: &[(Vec<u8>, Vec<u8>)], record: &[(Vec<u8>, String)])
         listed.push(path);
         match files.iter().find(|(p, _)| p == path) {
             Some((_, bytes)) => {
-                if sha256_b64u(bytes) != *want {
+                if digest(bytes) != *want {
                     modified = true;
                     complete = false;
                 }
@@ -70,7 +81,11 @@ pub fn compare_files(files: &[(Vec<u8>, Vec<u8>)], record: &[(Vec<u8>, String)])
     // A file under the package that no record lists marks modified,
     // `__pycache__/` excepted.
     for (path, _) in files {
-        if path.starts_with(b"__pycache__/") || path.starts_with(b"../") || path.starts_with(b"/") {
+        if path.starts_with(b"__pycache__/")
+            || path.ends_with(b".pyc")
+            || path.starts_with(b"../")
+            || path.starts_with(b"/")
+        {
             continue;
         }
         if !listed.contains(&path.as_slice()) {
@@ -151,4 +166,14 @@ pub enum LockState {
     Unreadable,
     /// A supported lockfile parsed and governs.
     Governing,
+}
+
+/// Lowercase hex SHA-256 for `.cargo-checksum.json` `files` entries.
+pub fn hex_sha256(bytes: &[u8]) -> String {
+    let digest = sha2::Sha256::digest(bytes);
+    let mut out = String::with_capacity(64);
+    for b in digest {
+        let _ = std::fmt::Write::write_fmt(&mut out, format_args!("{b:02x}"));
+    }
+    out
 }

@@ -264,23 +264,24 @@ fn compare_files_sets_modified_and_complete() {
     let hash = sha256_b64u(lib);
     let files = vec![(b"leftpy/__init__.py".to_vec(), lib.to_vec())];
     let record = vec![(b"leftpy/__init__.py".to_vec(), hash.clone())];
-    let check = compare_files(&files, &record);
+    let check = compare_files(&files, &record, true);
     assert!(check.complete && !check.modified);
 
     let changed = compare_files(
         &files,
         &[(b"leftpy/__init__.py".to_vec(), "bad".to_string())],
+        true,
     );
     assert!(changed.modified && !changed.complete);
 
     // An unlisted file marks modified; __pycache__ does not.
     let mut extra = files.clone();
     extra.push((b"leftpy/extra.py".to_vec(), b"y=1\n".to_vec()));
-    assert!(compare_files(&extra, &record).modified);
+    assert!(compare_files(&extra, &record, true).modified);
     extra.push((b"__pycache__/x.pyc".to_vec(), vec![1, 2, 3]));
     let rec2 = vec![
         (b"leftpy/__init__.py".to_vec(), hash.clone()),
         (b"leftpy/extra.py".to_vec(), sha256_b64u(b"y=1\n")),
     ];
-    assert!(compare_files(&extra, &rec2).complete);
+    assert!(compare_files(&extra, &rec2, true).complete);
 }

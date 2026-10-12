@@ -9,6 +9,7 @@
 //! and the findings budget, which applies after classification so it
 //! counts every finding.
 
+mod deps;
 mod js;
 pub mod registry;
 pub mod tree;
@@ -26,8 +27,7 @@ use egress_core::discover::{Config, Discovery, discover};
 use egress_core::identity::{EncodedPath, finalize};
 use egress_core::ir::FileIr;
 use egress_core::model::{
-    BudgetReason, Completeness, DependencyRoot, DependencySection, Label, Language, Report,
-    SCHEMA_VERSION, Tool, ToolError,
+    BudgetReason, Completeness, Label, Language, Report, SCHEMA_VERSION, Tool, ToolError,
 };
 
 pub use registry::{Frontend, FrontendError, Registry, SourceInput};
@@ -143,9 +143,9 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
             coverage,
         },
         caveats: caveats(&discovery.languages),
-        sites: classified.sites,
+        sites: classified.sites.clone(),
         blind_spots,
-        unscanned_dependencies: classified.unscanned_dependencies,
+        unscanned_dependencies: classified.unscanned_dependencies.clone(),
         excluded: discovery.excluded.clone(),
         dependencies: None,
     };
@@ -169,25 +169,24 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
         finalize(&mut report);
     }
 
-    // Named dependency roots are opened and validated only after the
-    // first-party report is final (KTD13): a rejected root is a tool
-    // error and nothing is printed. The section carries the roots for
-    // now; the instances feed the selection pass in U8.
+    // The dependency pass runs after the finished first-party report
+    // (KTD13): it only adds the section and annotates entries.
     if !options.dependency_roots.is_empty() {
-        report.dependencies = Some(DependencySection {
-            roots: named_roots
-                .iter()
-                .map(|r| DependencyRoot {
-                    label: r.label.clone(),
-                    kind: r.kind,
-                })
-                .collect(),
-            caveats: Vec::new(),
-            budget_exceeded: Vec::new(),
-            diagnostics: Vec::new(),
-            auto_run: Vec::new(),
-            packages: Vec::new(),
-        });
+        let section = deps::run(
+            data,
+            &discovery,
+            &named_roots,
+            &inventories,
+            &classified,
+            &mut report,
+            options,
+        )?;
+        report.dependencies = Some(section);
+        finalize(&mut report);
+    } else {
+        // Yarn PnP is detected from the scan root even with no named
+        // roots (KTD3).
+        deps::annotate_pnp(&discovery, &mut report);
         finalize(&mut report);
     }
     Ok(ScanOutput {

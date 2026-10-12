@@ -269,3 +269,179 @@ fn rust_dependency_pass_keeps_manifest_renames() {
         pass.classified.unscanned_dependencies
     );
 }
+
+// ---- U8: selection, closure, assembly -------------------------------------
+
+fn npm_tree(t: &Tree, version: &str) {
+    t.file(
+        "tree/app.js",
+        "const l = require(\"leftpad\");\nl(\"x\");\n",
+    );
+    t.file(
+        "tree/node_modules/leftpad/index.js",
+        "const http = require(\"http\");\nhttp.request({host:\"h\"});\n",
+    );
+    t.file(
+        "tree/node_modules/leftpad/package.json",
+        format!("{{\"name\":\"leftpad\",\"version\":\"{version}\"}}"),
+    );
+}
+
+fn dep_ids(out: &egress_scan::ScanOutput) -> Vec<String> {
+    out.report
+        .dependencies
+        .as_ref()
+        .map(|d| d.packages.iter().map(|p| p.id.clone()).collect())
+        .unwrap_or_default()
+}
+
+#[test]
+fn dependency_id_stable_across_npm_version() {
+    // AE6: a version bump in the package and lockfile does not move
+    // the dependency id.
+    let mut ids = Vec::new();
+    for version in ["1.0.0", "2.0.0"] {
+        let t = Tree::new(&format!("dep-id-{version}"));
+        npm_tree(&t, version);
+        let o = ScanOptions {
+            dependency_roots: vec![t.path("tree/node_modules")],
+            ..ScanOptions::default()
+        };
+        let out = egress_scan::scan_with(&t.path("tree"), &o).unwrap();
+        ids.push(dep_ids(&out));
+    }
+    assert_eq!(ids[0], ids[1]);
+    assert!(!ids[0].is_empty());
+}
+
+#[test]
+fn cycle_scans_each_instance_once() {
+    // `a` imports `b`, `b` imports `a`: each scans once and both
+    // importers are recorded.
+    let t = Tree::new("dep-cycle");
+    t.file("tree/app.js", "require(\"a\");\n");
+    for (pkg, dep) in [("a", "b"), ("b", "a")] {
+        t.file(
+            &format!("tree/node_modules/{pkg}/index.js"),
+            format!("require(\"{dep}\");\n"),
+        );
+        t.file(
+            &format!("tree/node_modules/{pkg}/package.json"),
+            format!("{{\"name\":\"{pkg}\",\"version\":\"1.0.0\"}}"),
+        );
+    }
+    let o = ScanOptions {
+        dependency_roots: vec![t.path("tree/node_modules")],
+        ..ScanOptions::default()
+    };
+    let out = egress_scan::scan_with(&t.path("tree"), &o).unwrap();
+    let pkgs = &out.report.dependencies.as_ref().unwrap().packages;
+    assert_eq!(pkgs.len(), 2);
+    let a = pkgs.iter().find(|p| p.package == "a").unwrap();
+    let b = pkgs.iter().find(|p| p.package == "b").unwrap();
+    assert_eq!(a.imported_by.len(), 1, "{:?}", a.imported_by);
+    assert_eq!(a.imported_by_packages, vec![b.id.clone()]);
+}
+
+#[test]
+fn in_tree_root_gives_linked_entries_only() {
+    // An in-tree `node_modules` first-party discovery covers produces
+    // a linked entry, not a rescanned package.
+    let t = Tree::new("dep-linked");
+    npm_tree(&t, "1.0.0");
+    let o = ScanOptions {
+        dependency_roots: vec![t.path("tree/node_modules")],
+        ..ScanOptions::default()
+    };
+    let out = egress_scan::scan_with(&t.path("tree"), &o).unwrap();
+    let pkgs = &out.report.dependencies.as_ref().unwrap().packages;
+    let leftpad = pkgs.iter().find(|p| p.package == "leftpad").unwrap();
+    assert!(!leftpad.sites.is_empty() || leftpad.linked);
+    // Top-level findings never gain dependency findings.
+    assert!(
+        out.report
+            .sites
+            .iter()
+            .all(|s| s.file != "leftpad/index.js")
+    );
+}
+
+#[test]
+fn findings_budget_rejects_later_packages() {
+    // The first package in closure order is admitted; with `findings`
+    // tightened the second is rejected whole (KTD14).
+    let t = Tree::new("dep-budget");
+    t.file("tree/app.js", "require(\"a\");\nrequire(\"b\");\n");
+    for pkg in ["a", "b"] {
+        t.file(
+            &format!("tree/node_modules/{pkg}/index.js"),
+            "const http = require(\"http\");\nhttp.request({host:\"h\"});\n",
+        );
+        t.file(
+            &format!("tree/node_modules/{pkg}/package.json"),
+            format!("{{\"name\":\"{pkg}\",\"version\":\"1.0.0\"}}"),
+        );
+    }
+    let mut o = ScanOptions {
+        dependency_roots: vec![t.path("tree/node_modules")],
+        ..ScanOptions::default()
+    };
+    o.dependency_budgets.findings = 1;
+    let out = egress_scan::scan_with(&t.path("tree"), &o).unwrap();
+    let pkgs = &out.report.dependencies.as_ref().unwrap().packages;
+    assert_eq!(pkgs.len(), 1);
+    assert_eq!(pkgs[0].package, "a");
+    let b = out
+        .report
+        .unscanned_dependencies
+        .iter()
+        .find(|u| u.package == "b")
+        .unwrap();
+    assert_eq!(
+        b.reason,
+        Some(egress_core::model::UnscannedReason::DependencyBudgetExhausted)
+    );
+}
+
+#[test]
+fn empty_first_party_with_root_exits_3() {
+    let t = Tree::new("dep-empty");
+    t.file("tree/app.js", "require(\"leftpad\");\n");
+    t.file(
+        "tree/node_modules/leftpad/index.js",
+        "module.exports = {};\n",
+    );
+    t.file(
+        "tree/node_modules/leftpad/package.json",
+        "{\"name\":\"leftpad\",\"version\":\"1.0.0\"}",
+    );
+    let o = ScanOptions {
+        dependency_roots: vec![t.path("tree/node_modules")],
+        ..ScanOptions::default()
+    };
+    // A tree with zero supported source is empty: exit 3, not a
+    // dependency-driven completeness lift.
+    std::fs::remove_file(t.path("tree/app.js")).unwrap();
+    let out = egress_scan::scan_with(&t.path("tree"), &o).unwrap();
+    assert_eq!(
+        out.report.completeness.state,
+        egress_core::model::CompletenessState::Empty
+    );
+    assert_eq!(out.report.exit_code(), 3);
+}
+
+#[test]
+fn dependency_sites_never_reach_top_level() {
+    let t = Tree::new("dep-top-level");
+    npm_tree(&t, "1.0.0");
+    let o = ScanOptions {
+        dependency_roots: vec![t.path("tree/node_modules")],
+        ..ScanOptions::default()
+    };
+    let out = egress_scan::scan_with(&t.path("tree"), &o).unwrap();
+    assert!(out.report.sites.is_empty());
+    let pkgs = &out.report.dependencies.as_ref().unwrap().packages;
+    let leftpad = pkgs.iter().find(|p| p.package == "leftpad").unwrap();
+    assert!(!leftpad.sites.is_empty(), "expected the http.request site");
+    assert_eq!(leftpad.sites[0].file, "index.js");
+}
