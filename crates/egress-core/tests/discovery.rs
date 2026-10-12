@@ -337,7 +337,7 @@ fn outside_link_is_reported_and_target_never_printed() {
     let text = all_text(&d);
     assert!(!text.contains("payload_dir"), "{text}");
     assert!(!text.contains(&*t.outside.to_string_lossy()), "{text}");
-    assert_eq!(d.coverage.python.skipped, 1);
+    assert_eq!(d.coverage.languages[Language::Python].skipped, 1);
 }
 
 #[test]
@@ -560,8 +560,8 @@ fn source_named_link_to_a_file_not_scanned_as_that_language_is_a_gap() {
             ("stub.pyi".into(), ExcludedReason::SymlinkAlias),
         ]
     );
-    assert_eq!(d.coverage.python.skipped, 3);
-    assert_eq!(d.coverage.javascript.skipped, 1);
+    assert_eq!(d.coverage.languages[Language::Python].skipped, 3);
+    assert_eq!(d.coverage.languages[Language::Javascript].skipped, 1);
 }
 
 #[test]

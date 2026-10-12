@@ -497,7 +497,7 @@ fn bytes_budget_exhausts_before_file_reads() {
         "tree/node_modules/leftpad/package.json",
         "{\"name\":\"leftpad\",\"version\":\"1.0.0\"}",
     );
-    t.file("tree/node_modules/leftpad/index.js", &"x = 1;\n".repeat(40));
+    t.file("tree/node_modules/leftpad/index.js", "x = 1;\n".repeat(40));
     let mut o = ScanOptions {
         dependency_roots: vec![t.path("tree/node_modules")],
         ..ScanOptions::default()

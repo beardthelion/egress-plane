@@ -116,15 +116,15 @@ fn loader_reads_every_embedded_file_with_a_stable_digest() {
 #[test]
 fn runtime_range_matches_the_declared_range() {
     let d = data();
-    assert_eq!(d.runtime_range.python, "3.8-3.13");
-    assert_eq!(d.runtime_range.node, "18-22");
+    assert_eq!(d.runtime_range[Language::Python], "3.8-3.13");
+    assert_eq!(d.runtime_range[Language::Javascript], "18-22");
     let toolchain = std::fs::read_to_string(repo().join("rust-toolchain.toml"))
         .unwrap_or_else(|e| panic!("{e}"));
     let table: toml::Table = toml::from_str(&toolchain).unwrap_or_else(|e| panic!("{e}"));
     let channel = table["toolchain"]["channel"]
         .as_str()
         .unwrap_or_else(|| panic!("no channel"));
-    assert_eq!(d.runtime_range.rust, channel);
+    assert_eq!(d.runtime_range[Language::Rust], channel);
 }
 
 // ---- stdlib classification guard -------------------------------------------

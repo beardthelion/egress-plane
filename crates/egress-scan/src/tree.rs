@@ -160,7 +160,7 @@ fn process(
     f: &egress_core::discover::SourceFile,
     text: &str,
 ) -> Outcome {
-    let labels = merge(f.labels.clone(), content_labels(text));
+    let labels = merge(f.labels.clone(), content_labels(text, f.language));
     if prescan::too_deep(f.language, text) {
         return Outcome::Failed {
             kind: BlindSpotKind::TooDeeplyNested,

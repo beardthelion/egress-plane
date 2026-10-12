@@ -24,15 +24,19 @@ fn spot(kind: BlindSpotKind, gap: bool) -> BlindSpot {
 
 fn cov(py_scanned: u64, py_skipped: u64, unsupported_skipped: u64) -> Coverage {
     Coverage {
-        python: CoverageCounts {
-            scanned: py_scanned,
-            skipped: py_skipped,
-        },
+        languages: [(
+            Language::Python,
+            CoverageCounts {
+                scanned: py_scanned,
+                skipped: py_skipped,
+            },
+        )]
+        .into_iter()
+        .collect(),
         unsupported: CoverageCounts {
             scanned: 0,
             skipped: unsupported_skipped,
         },
-        ..Coverage::default()
     }
 }
 

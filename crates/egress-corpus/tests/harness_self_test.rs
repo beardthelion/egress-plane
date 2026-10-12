@@ -10,7 +10,7 @@ use egress_core::model::{
     AutoRun, BlindSpot, Bucket, Caveat, Completeness, CompletenessState, Coverage, CoverageCounts,
     DependencyMark, DependencyPackage, DependencyRoot, DependencyRootKind, DependencySection,
     Destination, DestinationKind, Excluded, ImportsUnscanned, Language, Location,
-    LockfileDiagnostic, MarkRule, Report, RuntimeRange, SCHEMA_VERSION, Site, Tool, ToolError,
+    LockfileDiagnostic, MarkRule, Report, SCHEMA_VERSION, Site, Tool, ToolError,
     UnscannedDependency,
 };
 use egress_corpus::compare::{compare, compare_case};
@@ -113,11 +113,13 @@ fn report_from(expected: &Expected) -> Report {
             name: "egress-plane".into(),
             version: "0.1.0".into(),
             data_digest: "sha256:00".into(),
-            runtime_range: RuntimeRange {
-                python: "3.8 to 3.13".into(),
-                node: "18 to 22".into(),
-                rust: "1.97.1".into(),
-            },
+            runtime_range: [
+                (Language::Python, "3.8 to 3.13".to_string()),
+                (Language::Javascript, "18 to 22".to_string()),
+                (Language::Rust, "1.97.1".to_string()),
+            ]
+            .into_iter()
+            .collect(),
         },
         completeness: Completeness {
             state: expected.state,
@@ -660,6 +662,19 @@ fn perfect_scan_with(
     _: Option<&egress_corpus::labels::DependencyBudgetOverride>,
 ) -> Result<Report, ToolError> {
     perfect_scan(root)
+}
+
+/// Corpus language directories are the language table plus `mixed`: a
+/// `haskell` directory is an error, and `mixed` is accepted.
+#[test]
+fn corpus_language_dirs_follow_the_language_table_plus_mixed() {
+    let root = temp_corpus(&[
+        ("haskell/ordinary/a", COMPLETE_EMPTY),
+        ("mixed/ordinary/b", COMPLETE_EMPTY),
+    ]);
+    let e = discover_cases(&root).unwrap_err();
+    assert!(e.contains("haskell"), "{e}");
+    assert!(!e.contains("mixed"), "{e}");
 }
 
 #[test]

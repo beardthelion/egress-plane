@@ -68,13 +68,16 @@ pub mod probe;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use egress_core::model::{Report, ToolError};
+use egress_core::model::{Language, Report, ToolError};
 use serde::Deserialize;
 
 use crate::compare::CaseOutcome;
 
-/// Language directories under the corpus root.
-pub const LANGUAGES: [&str; 4] = ["python", "javascript", "rust", "mixed"];
+/// Language directories under the corpus root: one per `Language` in
+/// table order, plus `mixed` for cross-language cases.
+pub fn languages() -> impl Iterator<Item = &'static str> {
+    Language::ALL.iter().map(|l| l.as_str()).chain(["mixed"])
+}
 
 /// Category directories. `primitives` holds the one-per-entry cases;
 /// `dependencies` holds the dependency-source cases.
@@ -175,8 +178,9 @@ fn subdirs(dir: &Path, errors: &mut Vec<String>) -> Vec<(String, PathBuf)> {
 
 fn discover(corpus_root: &Path, errors: &mut Vec<String>) -> Vec<Case> {
     let mut cases = Vec::new();
+    let languages: Vec<&str> = languages().collect();
     for (lang, lang_dir) in subdirs(corpus_root, errors) {
-        if !LANGUAGES.contains(&lang.as_str()) {
+        if !languages.contains(&lang.as_str()) {
             errors.push(format!("{lang}: unknown corpus language directory"));
             continue;
         }

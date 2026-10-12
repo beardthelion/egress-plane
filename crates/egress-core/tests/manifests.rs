@@ -4,7 +4,7 @@ mod support;
 
 use egress_core::discover::manifests::parse_jsonc;
 use egress_core::discover::{Config, Discovery, discover};
-use egress_core::model::BlindSpotKind;
+use egress_core::model::{BlindSpotKind, Language};
 use support::Tree;
 
 fn run(t: &Tree) -> Discovery {
@@ -151,7 +151,7 @@ fn package_json_with_a_comment_is_a_parse_error() {
     );
     assert!(d.blind_spots[0].whole_file && d.blind_spots[0].coverage_gap);
     // Manifest blind spots leave coverage counts alone.
-    assert_eq!(d.coverage.javascript.skipped, 0);
+    assert_eq!(d.coverage.languages[Language::Javascript].skipped, 0);
     assert_eq!(d.coverage.unsupported.skipped, 0);
 }
 

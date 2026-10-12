@@ -9,6 +9,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use egress_core::model::Language;
 use support::{Temp, case, corpus, run, run_with, scan, scan_default};
 
 fn json(stdout: &str) -> serde_json::Value {
@@ -72,8 +73,8 @@ fn python2_file_is_a_parse_error_gap() {
 fn go_only_is_empty_and_no_egress_python_is_complete() {
     let (text, j) = both(&case("mixed/completeness/go-only-empty"), 3, "empty");
     let v = json(&j);
-    for lang in ["python", "javascript", "rust"] {
-        assert_eq!(v["completeness"]["coverage"][lang]["scanned"], 0);
+    for lang in Language::ALL {
+        assert_eq!(v["completeness"]["coverage"][lang.as_str()]["scanned"], 0);
     }
     assert!(text.contains("Coverage: python 0 scanned"), "{text}");
     both(
@@ -81,6 +82,19 @@ fn go_only_is_empty_and_no_egress_python_is_complete() {
         0,
         "complete",
     );
+}
+
+/// The `Coverage:` and `Runtime range:` lines are emitted by looping the
+/// language table; these are the exact strings the table produces.
+#[test]
+fn coverage_and_runtime_lines_follow_the_language_table() {
+    let (text, _) = both(&case("rust/ordinary/tcpstream-connect"), 0, "complete");
+    for line in [
+        "Coverage: python 0 scanned, 0 skipped; javascript 0 scanned, 0 skipped; rust 1 scanned, 0 skipped; unsupported 0 scanned, 0 skipped",
+        "Runtime range: Python 3.8-3.13, Node 18-22, Rust 1.97.1",
+    ] {
+        assert!(text.lines().any(|l| l == line), "missing {line:?}:\n{text}");
+    }
 }
 
 #[test]
@@ -254,7 +268,11 @@ fn text_groups_sites_by_destination_and_lists_dependencies_once() {
 #[test]
 fn absent_text_never_appears_in_either_format() {
     let mut checked = 0;
-    for lang in ["python", "javascript", "rust", "mixed"] {
+    for lang in Language::ALL
+        .map(|l| l.as_str())
+        .into_iter()
+        .chain(["mixed"])
+    {
         let Ok(cats) = std::fs::read_dir(corpus().join(lang)) else {
             continue;
         };

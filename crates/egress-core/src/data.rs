@@ -31,7 +31,7 @@ use std::fmt::Write as _;
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 
-use crate::model::{BlindSpotKind, Language, RuntimeRange};
+use crate::model::{BlindSpotKind, Language, LanguageMap, RuntimeRange};
 
 /// One embedded data file: its repo-relative path and contents.
 #[derive(Debug, Clone, Copy)]
@@ -74,10 +74,7 @@ pub const EMBEDDED: &[DataFile] = &[
 
 /// Separator between module and member segments in entry IDs.
 pub fn separator(language: Language) -> &'static str {
-    match language {
-        Language::Python | Language::Javascript => ".",
-        Language::Rust => "::",
-    }
+    language.spec().member_separator
 }
 
 /// `sha256:<hex>` over the given files, independent of their order. Each file
@@ -105,9 +102,8 @@ pub fn data_digest(files: &[(&str, &str)]) -> String {
 pub struct Data {
     pub runtime_range: RuntimeRange,
     pub data_digest: String,
-    pub python: RuntimeData,
-    pub javascript: RuntimeData,
-    pub rust: RuntimeData,
+    /// One `RuntimeData` per `Language::ALL` entry, in table order.
+    pub languages: LanguageMap<RuntimeData>,
     /// The curated Python distribution-to-import mapping (KTD17).
     pub python_distributions: Vec<DistributionMapping>,
 }
@@ -132,19 +128,13 @@ impl Data {
     }
 
     pub fn runtime(&self, language: Language) -> &RuntimeData {
-        match language {
-            Language::Python => &self.python,
-            Language::Javascript => &self.javascript,
-            Language::Rust => &self.rust,
-        }
+        &self.languages[language]
     }
 
     pub fn runtime_mut(&mut self, language: Language) -> &mut RuntimeData {
-        match language {
-            Language::Python => &mut self.python,
-            Language::Javascript => &mut self.javascript,
-            Language::Rust => &mut self.rust,
-        }
+        self.languages
+            .get_mut(language)
+            .unwrap_or_else(|| panic!("data load covers {}", language.as_str()))
     }
 }
 
@@ -681,22 +671,22 @@ pub fn load(files: &[(&str, &str)]) -> Result<Data, String> {
             .map(|(_, t)| *t)
             .ok_or_else(|| format!("{path}: missing data file"))
     };
-    let mut runtimes = Vec::new();
+    let mut languages = LanguageMap::default();
+    let mut runtime_range = RuntimeRange::default();
     for lang in Language::ALL {
         let name = lang.as_str();
         let prim = format!("data/primitives/{name}.toml");
         let cat = format!("data/catalog/{name}.toml");
         let inv = format!("data/inventory/{name}.toml");
-        runtimes.push(load_runtime(
+        let rt = load_runtime(
             lang,
             (&prim, get(prim.clone())?),
             (&cat, get(cat.clone())?),
             (&inv, get(inv.clone())?),
-        )?);
+        )?;
+        runtime_range.insert(lang, rt.runtime_range.clone());
+        languages.insert(lang, rt);
     }
-    let rust = runtimes.pop().unwrap_or_else(|| unreachable!());
-    let javascript = runtimes.pop().unwrap_or_else(|| unreachable!());
-    let python = runtimes.pop().unwrap_or_else(|| unreachable!());
     let python_distributions = match files
         .iter()
         .find(|(p, _)| *p == "data/python-distributions.toml")
@@ -705,15 +695,9 @@ pub fn load(files: &[(&str, &str)]) -> Result<Data, String> {
         None => Vec::new(),
     };
     Ok(Data {
-        runtime_range: RuntimeRange {
-            python: python.runtime_range.clone(),
-            node: javascript.runtime_range.clone(),
-            rust: rust.runtime_range.clone(),
-        },
+        runtime_range,
         data_digest: data_digest(files),
-        python,
-        javascript,
-        rust,
+        languages,
         python_distributions,
     })
 }

@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use egress_core::discover::open::{AccessCheck, NodeType, ReadFail, RootDir};
 use egress_core::discover::{Config, Discovery, SourceFile, discover};
-use egress_core::model::BlindSpotKind;
+use egress_core::model::{BlindSpotKind, Language};
 use support::{Tree, privileged};
 
 fn run(t: &Tree) -> Discovery {
@@ -59,7 +59,7 @@ fn fifo_is_not_regular_and_never_opened() {
         vec![("src/pipe.py".into(), BlindSpotKind::NotRegularFile)]
     );
     assert!(d.blind_spots[0].whole_file && d.blind_spots[0].coverage_gap);
-    assert_eq!(d.coverage.python.skipped, 1);
+    assert_eq!(d.coverage.languages[Language::Python].skipped, 1);
 }
 
 #[test]

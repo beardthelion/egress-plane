@@ -176,14 +176,9 @@ fn extension(name: &[u8]) -> Option<&[u8]> {
 /// or `None` for anything else.
 fn kind_by_name(name: &[u8]) -> Option<FileKind> {
     let ext = extension(name)?;
-    let lang = match ext {
-        b".py" | b".pyi" | b".pyw" => Some(Language::Python),
-        b".js" | b".mjs" | b".cjs" | b".jsx" | b".ts" | b".tsx" | b".mts" | b".cts" => {
-            Some(Language::Javascript)
-        }
-        b".rs" => Some(Language::Rust),
-        _ => None,
-    };
+    let lang = Language::ALL
+        .into_iter()
+        .find(|l| l.spec().extensions.iter().any(|e| ext == e.as_bytes()));
     if let Some(l) = lang {
         return Some(FileKind::Source(l));
     }
@@ -205,12 +200,7 @@ fn shebang_language(head: &[u8]) -> Option<Language> {
         prog = words.find(|w| !w.starts_with('-') && !w.contains('='))?;
     }
     let base = prog.rsplit('/').next().unwrap_or(prog);
-    if let Some(rest) = base.strip_prefix("python")
-        && rest.chars().all(|c| c.is_ascii_digit() || c == '.')
-    {
-        return Some(Language::Python);
-    }
-    matches!(base, "node" | "nodejs" | "deno" | "bun").then_some(Language::Javascript)
+    Language::ALL.into_iter().find(|l| (l.spec().shebang)(base))
 }
 
 fn join(dir: &[u8], name: &[u8]) -> Vec<u8> {
@@ -255,7 +245,7 @@ fn spot(
         coverage_gap,
         construct: construct.into(),
         ordinal: 0,
-        labels: labels::path_labels(path),
+        labels: labels::path_labels(path, language),
         location: None,
     }
 }
@@ -768,11 +758,7 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
         let Some(kind) = ManifestKind::for_name(file_name(path)) else {
             continue;
         };
-        let lang = match kind {
-            ManifestKind::Cargo => Language::Rust,
-            ManifestKind::PackageJson | ManifestKind::TsConfig => Language::Javascript,
-            ManifestKind::PyProject | ManifestKind::SetupCfg => Language::Python,
-        };
+        let lang = kind.language();
         let parsed = w.read_manifest(path).and_then(|text| {
             let p = path.clone();
             run_guarded(move || manifests::parse(kind, &p, &text))
@@ -895,7 +881,7 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
     let mut sources = Vec::new();
     for (path, language, size) in candidates {
         if charger.admit(size) {
-            let mut l = labels::path_labels(&path);
+            let mut l = labels::path_labels(&path, Some(language));
             if hook_files.contains(&path) {
                 l.push(Label::BuildHook);
                 l.sort();

@@ -58,7 +58,7 @@ fn scan(files: &[(&str, &str)]) -> Classified {
             ProgramFile {
                 file: encode_path_bytes(p),
                 language: Language::Rust,
-                labels: path_labels(p),
+                labels: path_labels(p, Some(Language::Rust)),
                 ir,
             },
         );
@@ -514,11 +514,7 @@ fn cfg_variants_of_one_function_get_ordinals_zero_and_one() {
             name: "egress-plane".into(),
             version: "0".into(),
             data_digest: String::new(),
-            runtime_range: RuntimeRange {
-                python: String::new(),
-                node: String::new(),
-                rust: String::new(),
-            },
+            runtime_range: RuntimeRange::default(),
         },
         completeness: Completeness {
             state: CompletenessState::Complete,

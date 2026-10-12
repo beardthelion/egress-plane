@@ -7,17 +7,18 @@
 //! exact strings under standard JSON escaping. Nothing time- or
 //! host-dependent is written.
 
-use serde::Serialize;
+use serde::ser::SerializeMap;
+use serde::{Serialize, Serializer};
 
 use crate::escape::escape;
 use crate::identity::finalize;
-use crate::model::{self, Report};
+use crate::model::{self, Language, LanguageMap, Report};
 
 #[derive(Serialize)]
 struct JReport<'a> {
     schema_version: u32,
     tool: JTool<'a>,
-    completeness: JCompleteness,
+    completeness: JCompleteness<'a>,
     caveats: Vec<JCaveat<'a>>,
     sites: Vec<JSite<'a>>,
     blind_spots: Vec<JBlindSpot<'a>>,
@@ -35,26 +36,43 @@ struct JTool<'a> {
     runtime_range: JRuntimeRange<'a>,
 }
 
-#[derive(Serialize)]
-struct JRuntimeRange<'a> {
-    python: &'a str,
-    node: &'a str,
-    rust: &'a str,
+/// `tool.runtime_range`: one key per language, in table order, under
+/// each language's [`model::LanguageSpec::runtime_key`].
+struct JRuntimeRange<'a>(&'a LanguageMap<String>);
+
+impl Serialize for JRuntimeRange<'_> {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let mut map = s.serialize_map(None)?;
+        for lang in Language::ALL {
+            if let Some(range) = self.0.get(lang) {
+                map.serialize_entry(lang.spec().runtime_key, range)?;
+            }
+        }
+        map.end()
+    }
 }
 
 #[derive(Serialize)]
-struct JCompleteness {
+struct JCompleteness<'a> {
     state: &'static str,
     budget_exceeded: Vec<&'static str>,
-    coverage: JCoverage,
+    coverage: JCoverage<'a>,
 }
 
-#[derive(Serialize)]
-struct JCoverage {
-    python: JCounts,
-    javascript: JCounts,
-    rust: JCounts,
-    unsupported: JCounts,
+/// `completeness.coverage`: per-language counts in table order, then
+/// `unsupported` last.
+struct JCoverage<'a>(&'a model::Coverage);
+
+impl Serialize for JCoverage<'_> {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let mut map = s.serialize_map(None)?;
+        for lang in Language::ALL {
+            let counts = self.0.languages.get(lang).copied().unwrap_or_default();
+            map.serialize_entry(lang.as_str(), &JCounts::from(counts))?;
+        }
+        map.serialize_entry("unsupported", &JCounts::from(self.0.unsupported))?;
+        map.end()
+    }
 }
 
 #[derive(Serialize)]
@@ -355,11 +373,7 @@ pub fn to_json(report: &Report) -> String {
             name: &r.tool.name,
             version: &r.tool.version,
             data_digest: &r.tool.data_digest,
-            runtime_range: JRuntimeRange {
-                python: &r.tool.runtime_range.python,
-                node: &r.tool.runtime_range.node,
-                rust: &r.tool.runtime_range.rust,
-            },
+            runtime_range: JRuntimeRange(&r.tool.runtime_range),
         },
         completeness: JCompleteness {
             state: r.completeness.state.as_str(),
@@ -369,12 +383,7 @@ pub fn to_json(report: &Report) -> String {
                 .iter()
                 .map(|b| b.as_str())
                 .collect(),
-            coverage: JCoverage {
-                python: r.completeness.coverage.python.into(),
-                javascript: r.completeness.coverage.javascript.into(),
-                rust: r.completeness.coverage.rust.into(),
-                unsupported: r.completeness.coverage.unsupported.into(),
-            },
+            coverage: JCoverage(&r.completeness.coverage),
         },
         caveats: r
             .caveats

@@ -9,11 +9,13 @@ pub fn tool() -> Tool {
         version: "0.1.0".into(),
         data_digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
             .into(),
-        runtime_range: RuntimeRange {
-            python: "3.8 to 3.13".into(),
-            node: "18 to 22".into(),
-            rust: "1.97.1".into(),
-        },
+        runtime_range: [
+            (Language::Python, "3.8 to 3.13".to_string()),
+            (Language::Javascript, "18 to 22".to_string()),
+            (Language::Rust, "1.97.1".to_string()),
+        ]
+        .into_iter()
+        .collect(),
     }
 }
 
@@ -74,10 +76,15 @@ pub fn report(sites: Vec<Site>, blind_spots: Vec<BlindSpot>) -> Report {
             state: CompletenessState::Incomplete,
             budget_exceeded: vec![],
             coverage: Coverage {
-                python: CoverageCounts {
-                    scanned: 3,
-                    skipped: 1,
-                },
+                languages: [(
+                    Language::Python,
+                    CoverageCounts {
+                        scanned: 3,
+                        skipped: 1,
+                    },
+                )]
+                .into_iter()
+                .collect(),
                 ..Coverage::default()
             },
         },

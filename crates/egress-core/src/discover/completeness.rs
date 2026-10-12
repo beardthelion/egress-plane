@@ -15,19 +15,14 @@ pub const CAVEATS_TOML: &str = include_str!("../../../../data/caveats.toml");
 /// The counts for a language, or for `unsupported` when `None`.
 pub fn counts_mut(coverage: &mut Coverage, language: Option<Language>) -> &mut CoverageCounts {
     match language {
-        Some(Language::Python) => &mut coverage.python,
-        Some(Language::Javascript) => &mut coverage.javascript,
-        Some(Language::Rust) => &mut coverage.rust,
+        Some(l) => coverage.languages.or_default(l),
         None => &mut coverage.unsupported,
     }
 }
 
 /// Supported files found, scanned or skipped.
 pub fn supported_total(c: &Coverage) -> u64 {
-    [c.python, c.javascript, c.rust]
-        .iter()
-        .map(|x| x.scanned + x.skipped)
-        .sum()
+    c.languages.iter().map(|(_, x)| x.scanned + x.skipped).sum()
 }
 
 /// The completeness state with this precedence: empty outranks incomplete,

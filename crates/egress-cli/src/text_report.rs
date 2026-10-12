@@ -17,7 +17,9 @@ use std::fmt::Write;
 
 use egress_core::escape::escape;
 use egress_core::identity::finalize;
-use egress_core::model::{BlindSpot, CoverageCounts, DependencyMark, Location, Report, Site};
+use egress_core::model::{
+    BlindSpot, Coverage, CoverageCounts, DependencyMark, Language, Location, Report, Site,
+};
 
 fn counts(name: &str, c: CoverageCounts) -> String {
     format!("{name} {} scanned, {} skipped", c.scanned, c.skipped)
@@ -89,14 +91,20 @@ pub fn render(report: &Report) -> String {
         c.state.as_str(),
         c.state.exit_code()
     );
-    let _ = writeln!(
-        out,
-        "Coverage: {}; {}; {}; {}",
-        counts("python", c.coverage.python),
-        counts("javascript", c.coverage.javascript),
-        counts("rust", c.coverage.rust),
-        counts("unsupported", c.coverage.unsupported),
-    );
+    let coverage_line = |cov: &Coverage| -> String {
+        Language::ALL
+            .iter()
+            .map(|l| {
+                counts(
+                    l.as_str(),
+                    cov.languages.get(*l).copied().unwrap_or_default(),
+                )
+            })
+            .chain(std::iter::once(counts("unsupported", cov.unsupported)))
+            .collect::<Vec<_>>()
+            .join("; ")
+    };
+    let _ = writeln!(out, "Coverage: {}", coverage_line(&c.coverage));
     let budgets: Vec<_> = c.budget_exceeded.iter().map(|b| b.as_str()).collect();
     let _ = writeln!(
         out,
@@ -107,14 +115,24 @@ pub fn render(report: &Report) -> String {
             budgets.join(", ")
         }
     );
-    let rr = &r.tool.runtime_range;
-    let _ = writeln!(
-        out,
-        "Runtime range: Python {}, Node {}, Rust {}",
-        escape(&rr.python),
-        escape(&rr.node),
-        escape(&rr.rust)
-    );
+    // The label is the runtime-range key with its first letter up-cased
+    // (`node` renders as `Node`).
+    let rr = Language::ALL
+        .iter()
+        .map(|l| {
+            let key = l.spec().runtime_key;
+            let label = format!("{}{}", key[..1].to_uppercase(), &key[1..]);
+            let range = r
+                .tool
+                .runtime_range
+                .get(*l)
+                .map(String::as_str)
+                .unwrap_or("");
+            format!("{label} {}", escape(range))
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let _ = writeln!(out, "Runtime range: {rr}");
 
     let _ = writeln!(out, "\nCaveats ({})", r.caveats.len());
     for cv in &r.caveats {

@@ -415,6 +415,7 @@ fn known_module(rt: &RuntimeData, lang: Language, module: &str, members: &[Strin
     {
         return true;
     }
+    // Rust-only: a `std`-style crate root prefixes its declared modules.
     lang == Language::Rust && {
         let prefix = format!("{}::", segs[0]);
         rt.modules.iter().any(|m| m.name.starts_with(&prefix))
@@ -616,7 +617,8 @@ impl<'p, 'a> State<'p, 'a> {
                     kwargs: Vec::new(),
                     receiver: None,
                     // A Rust specifier names only the crate, so the text
-                    // spells out the whole path.
+                    // spells out the whole path. Rust-only: other
+                    // languages' specifiers already name the module.
                     text: if cx.lang() == Language::Rust && !imp.members.is_empty() {
                         format!("{}::{}", imp.specifier, imp.members.join("::"))
                     } else {
@@ -665,7 +667,7 @@ impl<'p, 'a> State<'p, 'a> {
                         coverage_gap: true,
                         construct: String::new(),
                         ordinal: 0,
-                        labels: path_labels(&p),
+                        labels: path_labels(&p, None),
                         location: None,
                     });
                 }
@@ -843,14 +845,17 @@ impl<'p, 'a> State<'p, 'a> {
         // Python and JS methods extend the constructor entry
         // (`requests.Session.get`); Rust methods sit on the type, beside
         // its constructor (`Client::new` and `Client::get`).
-        let prefix = if lang == Language::Rust {
-            full.pop();
-            match ctor.rsplit_once("::") {
-                Some((ty, _)) => format!("{ty}::"),
-                None => return Head::Untracked,
+        let prefix = match lang {
+            Language::Rust => {
+                full.pop();
+                match ctor.rsplit_once("::") {
+                    Some((ty, _)) => format!("{ty}::"),
+                    None => return Head::Untracked,
+                }
             }
-        } else {
-            format!("{ctor}{}", separator(lang))
+            Language::Python | Language::Javascript => {
+                format!("{ctor}{}", separator(lang))
+            }
         };
         full.extend(rest.iter().cloned());
         Head::Tracked {
@@ -923,7 +928,9 @@ impl<'p, 'a> State<'p, 'a> {
             }
             Head::Ambient { .. } => {
                 // Python subscript on `__builtins__` is scope injection; JS
-                // computed access on the global object is reflective.
+                // computed access on the global object is reflective. The
+                // `ScopeInjection` choice is Python-only (the `__builtins__`
+                // rule); a new language inherits `ReflectiveAccess`.
                 let kind = if cx.lang() == Language::Python {
                     BlindSpotKind::ScopeInjection
                 } else {
@@ -1007,7 +1014,8 @@ impl<'p, 'a> State<'p, 'a> {
     }
 
     /// `Object.defineProperty(mod, ...)` and similar writes on an
-    /// egress-bucket module are a monkeypatch.
+    /// egress-bucket module are a monkeypatch. The `OBJECT_WRITES` chains
+    /// are JavaScript builtins, so the check is JavaScript-only.
     fn ambient_write(&mut self, cx: Ctx<'p, 'a>, rf: &Reference, chain: &[String]) {
         if cx.lang() != Language::Javascript
             || !is_call(rf.use_kind)
@@ -1210,6 +1218,8 @@ impl<'p, 'a> State<'p, 'a> {
                 let spec = g.destination.as_ref();
                 let dest = match extra {
                     [] if is_call(rf.use_kind) => self.destination(cx, rf, spec, &rf.args),
+                    // `.call`, `.bind`, and `.apply` are JavaScript-only
+                    // method forms; a new language keeps the `expr` arm.
                     [m] if cx.lang() == Language::Javascript
                         && rf.use_kind == UseKind::Call
                         && matches!(m.as_str(), "call" | "bind") =>
@@ -1358,7 +1368,9 @@ impl<'p, 'a> State<'p, 'a> {
                     .map(|(_, v)| v.clone())
             })
         };
-        // A JS options object as the first argument carries the keyed values.
+        // A JS options object as the first argument carries the keyed
+        // values. JavaScript-only: only its frontends emit `Expr::Object`
+        // destinations from calls.
         if cx.lang() == Language::Javascript
             && (spec.keyword.is_some() || spec.port_keyword.is_some())
             && let Some(first) = args.first()
@@ -1551,6 +1563,7 @@ impl<'p, 'a> State<'p, 'a> {
                 _ => None,
             }
         };
+        // `env!`/`option_env!` are Rust-only ambient roots.
         if lang == Language::Rust
             && let Root::Ambient(m) = &r.root
             && (m == "env!" || m == "option_env!")

@@ -94,7 +94,10 @@ fn notebook_makes_the_scan_incomplete() {
     let r = scan(&t.root).unwrap();
     assert_eq!(r.completeness.state, CompletenessState::Incomplete);
     assert_eq!(r.exit_code(), 2);
-    assert_eq!(r.completeness.coverage.python.scanned, 1);
+    assert_eq!(
+        r.completeness.coverage.languages[Language::Python].scanned,
+        1
+    );
     assert_eq!(r.completeness.coverage.unsupported.skipped, 1);
     assert_eq!(
         kinds(&r),
@@ -116,7 +119,10 @@ fn go_only_is_empty_and_inert_python_complete() {
     let r = scan(&t.root).unwrap();
     assert_eq!(r.completeness.state, CompletenessState::Complete);
     assert_eq!(r.exit_code(), 0);
-    assert_eq!(r.completeness.coverage.python.scanned, 1);
+    assert_eq!(
+        r.completeness.coverage.languages[Language::Python].scanned,
+        1
+    );
 }
 
 #[test]
@@ -182,8 +188,14 @@ fn files_budget_cut_is_deterministic() {
     assert_eq!(r.completeness.budget_exceeded, vec![BudgetReason::Files]);
     assert_eq!(r.completeness.state, CompletenessState::Incomplete);
     assert_eq!(r.exit_code(), 2);
-    assert_eq!(r.completeness.coverage.python.scanned, 2);
-    assert_eq!(r.completeness.coverage.python.skipped, 2);
+    assert_eq!(
+        r.completeness.coverage.languages[Language::Python].scanned,
+        2
+    );
+    assert_eq!(
+        r.completeness.coverage.languages[Language::Python].skipped,
+        2
+    );
     let mut seen = rec.seen.lock().unwrap().clone();
     seen.sort();
     assert_eq!(seen, vec!["a.py", "b.py"]);
@@ -270,8 +282,14 @@ fn panicking_frontend_is_isolated_to_its_file() {
     );
     let lowered: Vec<_> = out.files.iter().map(|f| f.file.display.clone()).collect();
     assert_eq!(lowered, vec!["ok.py"]);
-    assert_eq!(out.report.completeness.coverage.python.scanned, 1);
-    assert_eq!(out.report.completeness.coverage.python.skipped, 2);
+    assert_eq!(
+        out.report.completeness.coverage.languages[Language::Python].scanned,
+        1
+    );
+    assert_eq!(
+        out.report.completeness.coverage.languages[Language::Python].skipped,
+        2
+    );
     assert_eq!(out.report.exit_code(), 2);
 }
 
@@ -387,8 +405,14 @@ fn read_failures_become_whole_file_blind_spots() {
         kinds(&r),
         vec![("latin.py".into(), BlindSpotKind::Undecodable)]
     );
-    assert_eq!(r.completeness.coverage.python.skipped, 1);
-    assert_eq!(r.completeness.coverage.python.scanned, 1);
+    assert_eq!(
+        r.completeness.coverage.languages[Language::Python].skipped,
+        1
+    );
+    assert_eq!(
+        r.completeness.coverage.languages[Language::Python].scanned,
+        1
+    );
 }
 
 #[test]

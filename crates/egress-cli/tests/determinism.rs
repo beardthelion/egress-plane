@@ -119,8 +119,8 @@ fn dependency_output_is_deterministic() {
         to_json(&scan_with(&tree, &opts).unwrap().report)
     };
     // Two roots is more realistic; one still exercises the order path.
-    let a = run(1, &[nm.clone()]);
-    let b = run(8, &[nm.clone()]);
+    let a = run(1, std::slice::from_ref(&nm));
+    let b = run(8, std::slice::from_ref(&nm));
     assert_eq!(a, b);
     assert!(a.contains("\"dependencies\""));
 }
@@ -134,7 +134,11 @@ fn dependency_root_order_is_deterministic() {
     let sitepk = root.join("sitepk");
     std::fs::create_dir_all(&nm).unwrap();
     std::fs::create_dir_all(&sitepk).unwrap();
-    std::fs::write(root.join("app.js"), b"const l = require(\"leftpad\");\nl();\n").unwrap();
+    std::fs::write(
+        root.join("app.js"),
+        b"const l = require(\"leftpad\");\nl();\n",
+    )
+    .unwrap();
     std::fs::write(root.join("app.py"), b"import leftpy\n").unwrap();
     std::fs::create_dir_all(nm.join("leftpad")).unwrap();
     std::fs::write(

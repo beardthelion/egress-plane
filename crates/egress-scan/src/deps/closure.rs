@@ -652,11 +652,7 @@ fn pycache_source(p: &[u8]) -> Option<Vec<u8>> {
 }
 
 fn lang_coverage(c: &Coverage, lang: Language) -> CoverageCounts {
-    match lang {
-        Language::Python => c.python,
-        Language::Javascript => c.javascript,
-        Language::Rust => c.rust,
-    }
+    c.languages.get(lang).copied().unwrap_or_default()
 }
 
 fn join(dir: &[u8], name: &[u8]) -> Vec<u8> {

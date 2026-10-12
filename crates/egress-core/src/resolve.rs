@@ -341,6 +341,9 @@ impl<'p, 'a> Resolver<'p, 'a> {
                 }
                 Some(FileKind::Unsupported) => return Some(Target::Unsupported(p.clone())),
                 Some(FileKind::Other) => {
+                    // The `.json`-as-data exemption is JavaScript-only
+                    // (KTD2): another language loading an indexed
+                    // non-source file is `loaded-as-code`, failing closed.
                     return Some(
                         if language == Language::Javascript && p.ends_with(b".json") {
                             Target::Data
@@ -369,11 +372,12 @@ impl<'p, 'a> Resolver<'p, 'a> {
                 }
             }
             SpecifierKind::Bare { probes, module } => {
+                // `node:` is a JavaScript-only specifier prefix.
                 let module = match language {
                     Language::Javascript => {
                         module.strip_prefix("node:").unwrap_or(&module).to_string()
                     }
-                    _ => module,
+                    Language::Python | Language::Rust => module,
                 };
                 let first_party = probes.iter().find_map(|p| match self.program.index.get(p) {
                     Some(FileKind::Source(_)) => Some(p.clone()),
@@ -389,19 +393,24 @@ impl<'p, 'a> Resolver<'p, 'a> {
                             Target::Unlowered(p)
                         }
                     }
-                    // A Python absolute import whose candidate lies in an
-                    // excluded directory (a first-party package marked by a
-                    // `pyvenv.cfg`) reaches code the scan skipped. A real
-                    // environment keeps packages under `site-packages`, so a
-                    // module probe directly inside one is never an
-                    // installed dependency. JS and Rust bare probes are
-                    // workspace package entry points and stay external.
-                    None if language == Language::Python
-                        && probes.iter().any(|p| self.program.under_excluded(p)) =>
-                    {
-                        Target::IntoExcluded
-                    }
-                    None => Target::External(module),
+                    None => match language {
+                        // A Python absolute import whose candidate lies in an
+                        // excluded directory (a first-party package marked by
+                        // a `pyvenv.cfg`) reaches code the scan skipped. A
+                        // real environment keeps packages under
+                        // `site-packages`, so a module probe directly inside
+                        // one is never an installed dependency. JS and Rust
+                        // bare probes are workspace package entry points and
+                        // stay external.
+                        Language::Python
+                            if probes.iter().any(|p| self.program.under_excluded(p)) =>
+                        {
+                            Target::IntoExcluded
+                        }
+                        Language::Python | Language::Javascript | Language::Rust => {
+                            Target::External(module)
+                        }
+                    },
                 }
             }
         }
@@ -457,6 +466,9 @@ impl<'p, 'a> Resolver<'p, 'a> {
         match target {
             Target::External(module) => Ok(Binding::External { module, members }),
             Target::FirstParty(path) => {
+                // `default`-export interop is JavaScript-only (CommonJS
+                // `module.exports` semantics); other languages have no
+                // default export to follow.
                 if via_default && language == Language::Javascript {
                     let b = match self.export(&path, "default")? {
                         Some(b) => b,
@@ -529,7 +541,8 @@ impl<'p, 'a> Resolver<'p, 'a> {
                 }
                 // A Rust definition may be an inline module or a type: its
                 // members are qualified names in the same file (`net` plus
-                // `TcpStream` is `net::TcpStream`).
+                // `TcpStream` is `net::TcpStream`). Rust-only: other
+                // languages' members are not `::`-qualified in the file.
                 Binding::FirstPartyDef { path, name }
                     if self.program.files.get(&path).map(|f| f.language)
                         == Some(Language::Rust) =>
@@ -602,7 +615,7 @@ impl<'p, 'a> Resolver<'p, 'a> {
                 Some((s, l)) => (s, l),
                 None => ("<module>", name),
             },
-            _ => ("<module>", name),
+            Language::Python | Language::Javascript => ("<module>", name),
         };
         // An import binding the name. An import is preferred over a
         // definition of the same name because the IR does not record which
@@ -635,6 +648,9 @@ impl<'p, 'a> Resolver<'p, 'a> {
             .imports
             .iter()
             .filter(|i| i.star && !i.type_only && visible(i))
+            // The `i.symbol == scope` restriction is Rust-only: a Rust glob
+            // is declared inside an inline module. Other languages' star
+            // imports apply module-wide.
             .filter(|i| language != Language::Rust || i.symbol == scope)
             .collect();
         for imp in stars {
@@ -667,7 +683,8 @@ impl<'p, 'a> Resolver<'p, 'a> {
         // (CommonJS `module.exports = require("https")`) provides that
         // module's members as named exports, as CommonJS interop does. Only
         // the module's own binding counts, since `export *` never carries a
-        // `default`.
+        // `default`. JavaScript-only: other languages have no `default`
+        // export interop.
         if language == Language::Javascript
             && name != "default"
             && let Some(imp) = ir
@@ -710,6 +727,8 @@ impl<'p, 'a> Resolver<'p, 'a> {
     ) -> Result<Option<Binding>, Limit> {
         match module {
             Binding::FirstPartyModule(p) => self.export(&p, name),
+            // Rust-only: a first-party definition's members are the
+            // `::`-qualified names in its file.
             Binding::FirstPartyDef { path, name: q } if language == Language::Rust => {
                 self.export(&path, &format!("{q}::{name}"))
             }

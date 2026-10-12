@@ -41,13 +41,73 @@ pub struct Tool {
     pub runtime_range: RuntimeRange,
 }
 
-/// Declared supported runtime range.
+/// A map keyed by `Language`. `iter` yields entries in `Language::ALL`
+/// order, never insertion order, so output does not depend on how the
+/// map was filled.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RuntimeRange {
-    pub python: String,
-    pub node: String,
-    pub rust: String,
+pub struct LanguageMap<T> {
+    inner: std::collections::BTreeMap<Language, T>,
 }
+
+impl<T> LanguageMap<T> {
+    pub fn get(&self, language: Language) -> Option<&T> {
+        self.inner.get(&language)
+    }
+
+    pub fn get_mut(&mut self, language: Language) -> Option<&mut T> {
+        self.inner.get_mut(&language)
+    }
+
+    pub fn insert(&mut self, language: Language, value: T) {
+        self.inner.insert(language, value);
+    }
+
+    /// The value for `language`, inserting `T::default()` when absent.
+    pub fn or_default(&mut self, language: Language) -> &mut T
+    where
+        T: Default,
+    {
+        self.inner.entry(language).or_default()
+    }
+
+    /// Entries in `Language::ALL` order.
+    pub fn iter(&self) -> impl Iterator<Item = (Language, &T)> {
+        Language::ALL
+            .iter()
+            .filter_map(|l| self.inner.get(l).map(|v| (*l, v)))
+    }
+}
+
+impl<T> Default for LanguageMap<T> {
+    /// An empty map. `Coverage::default` fills every language; loaders
+    /// that must cover the table insert one entry per `Language::ALL`.
+    fn default() -> Self {
+        Self {
+            inner: std::collections::BTreeMap::new(),
+        }
+    }
+}
+
+impl<T> FromIterator<(Language, T)> for LanguageMap<T> {
+    fn from_iter<I: IntoIterator<Item = (Language, T)>>(it: I) -> Self {
+        Self {
+            inner: it.into_iter().collect(),
+        }
+    }
+}
+
+impl<T> std::ops::Index<Language> for LanguageMap<T> {
+    type Output = T;
+
+    fn index(&self, language: Language) -> &T {
+        self.get(language)
+            .unwrap_or_else(|| panic!("language map has no {} entry", language.as_str()))
+    }
+}
+
+/// Declared supported runtime range, one entry per language emitted
+/// under its [`LanguageSpec::runtime_key`].
+pub type RuntimeRange = LanguageMap<String>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Completeness {
@@ -122,13 +182,24 @@ impl BudgetReason {
 }
 
 /// Per-language coverage counts.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Coverage {
-    pub python: CoverageCounts,
-    pub javascript: CoverageCounts,
-    pub rust: CoverageCounts,
+    /// Counts per language; every `Language::ALL` key is present.
+    pub languages: LanguageMap<CoverageCounts>,
     /// Unsupported code file types and files loaded as code.
     pub unsupported: CoverageCounts,
+}
+
+impl Default for Coverage {
+    fn default() -> Self {
+        Self {
+            languages: Language::ALL
+                .iter()
+                .map(|l| (*l, CoverageCounts::default()))
+                .collect(),
+            unsupported: CoverageCounts::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -158,7 +229,81 @@ impl Language {
     pub fn parse(s: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|v| v.as_str() == s)
     }
+
+    /// The spec row for this language (KTD1): the one place per-language
+    /// facts are written down. Adding a language means a variant, a row
+    /// here, and the pieces the conformance test names.
+    pub fn spec(self) -> &'static LanguageSpec {
+        match self {
+            Self::Python => &PYTHON_SPEC,
+            Self::Javascript => &JAVASCRIPT_SPEC,
+            Self::Rust => &RUST_SPEC,
+        }
+    }
 }
+
+/// The per-language facts every table-driven shape reads (KTD1). The
+/// row's `name` also keys the `data/labels.toml` per-language tables and
+/// names the corpus directory.
+#[derive(Debug, Clone, Copy)]
+pub struct LanguageSpec {
+    /// The `as_str` name used in reports and data files.
+    pub name: &'static str,
+    /// Key under `tool.runtime_range` in JSON output (`node` for
+    /// javascript).
+    pub runtime_key: &'static str,
+    /// Source file extensions, each including the leading dot, matched
+    /// byte for byte.
+    pub extensions: &'static [&'static str],
+    /// Whether a `#!` interpreter basename runs this language
+    /// (`python3.11` counts for python; `node`, `deno`, `bun` for
+    /// javascript).
+    pub shebang: fn(&str) -> bool,
+    /// Manifest file names discovery parses for this language.
+    pub manifests: &'static [&'static str],
+    /// Separator between module and member segments in data entry IDs.
+    pub member_separator: &'static str,
+}
+
+fn python_shebang(base: &str) -> bool {
+    base.strip_prefix("python")
+        .is_some_and(|rest| rest.chars().all(|c| c.is_ascii_digit() || c == '.'))
+}
+
+fn javascript_shebang(base: &str) -> bool {
+    matches!(base, "node" | "nodejs" | "deno" | "bun")
+}
+
+fn no_shebang(_: &str) -> bool {
+    false
+}
+
+static PYTHON_SPEC: LanguageSpec = LanguageSpec {
+    name: "python",
+    runtime_key: "python",
+    extensions: &[".py", ".pyi", ".pyw"],
+    shebang: python_shebang,
+    manifests: &["pyproject.toml", "setup.cfg"],
+    member_separator: ".",
+};
+
+static JAVASCRIPT_SPEC: LanguageSpec = LanguageSpec {
+    name: "javascript",
+    runtime_key: "node",
+    extensions: &[".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx", ".mts", ".cts"],
+    shebang: javascript_shebang,
+    manifests: &["package.json", "tsconfig.json"],
+    member_separator: ".",
+};
+
+static RUST_SPEC: LanguageSpec = LanguageSpec {
+    name: "rust",
+    runtime_key: "rust",
+    extensions: &[".rs"],
+    shebang: no_shebang,
+    manifests: &["Cargo.toml"],
+    member_separator: "::",
+};
 
 /// A fixed caveat entry from `data/caveats.toml`.
 #[derive(Debug, Clone, PartialEq, Eq)]

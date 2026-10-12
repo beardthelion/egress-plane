@@ -11,6 +11,7 @@
 
 use serde_json::Value;
 
+use crate::model::Language;
 use crate::paths::{dir_of, is_dot_relative};
 
 /// A manifest that does not parse; reported as `manifest-parse-error`. Parser
@@ -37,15 +38,36 @@ pub enum ManifestKind {
 }
 
 impl ManifestKind {
+    pub const ALL: [ManifestKind; 5] = [
+        Self::Cargo,
+        Self::PackageJson,
+        Self::TsConfig,
+        Self::PyProject,
+        Self::SetupCfg,
+    ];
+
+    /// The file name that routes to this kind.
+    pub fn file_name(self) -> &'static [u8] {
+        match self {
+            Self::Cargo => b"Cargo.toml",
+            Self::PackageJson => b"package.json",
+            Self::TsConfig => b"tsconfig.json",
+            Self::PyProject => b"pyproject.toml",
+            Self::SetupCfg => b"setup.cfg",
+        }
+    }
+
+    /// The language whose spec row lists this manifest's file name.
+    pub fn language(self) -> Language {
+        let name = self.file_name();
+        Language::ALL
+            .into_iter()
+            .find(|l| l.spec().manifests.iter().any(|m| m.as_bytes() == name))
+            .unwrap_or_else(|| panic!("manifest kind has no spec row"))
+    }
+
     pub fn for_name(name: &[u8]) -> Option<ManifestKind> {
-        Some(match name {
-            b"Cargo.toml" => Self::Cargo,
-            b"package.json" => Self::PackageJson,
-            b"tsconfig.json" => Self::TsConfig,
-            b"pyproject.toml" => Self::PyProject,
-            b"setup.cfg" => Self::SetupCfg,
-            _ => return None,
-        })
+        Self::ALL.into_iter().find(|k| k.file_name() == name)
     }
 }
 

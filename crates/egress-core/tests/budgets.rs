@@ -50,7 +50,7 @@ fn files_budget_parses_the_bytewise_first_files() {
     let parsed: Vec<_> = d.sources.iter().map(|s| s.file.display.clone()).collect();
     assert_eq!(parsed, vec!["a.py", "b.py"]);
     assert_eq!(d.budget_exceeded, vec![BudgetReason::Files]);
-    assert_eq!(d.coverage.python.skipped, 3);
+    assert_eq!(d.coverage.languages[Language::Python].skipped, 3);
     assert!(d.blind_spots.is_empty(), "budget skips carry no entries");
 }
 
@@ -62,7 +62,7 @@ fn bytes_budget_cuts_the_same_way() {
     let parsed: Vec<_> = d.sources.iter().map(|s| s.file.display.clone()).collect();
     assert_eq!(parsed, vec!["a.py", "b.py"]);
     assert_eq!(d.budget_exceeded, vec![BudgetReason::Bytes]);
-    assert_eq!(d.coverage.python.skipped, 3);
+    assert_eq!(d.coverage.languages[Language::Python].skipped, 3);
 }
 
 fn bs(file: &str) -> BlindSpot {
@@ -90,11 +90,7 @@ fn findings_budget_keeps_the_first_findings_in_identity_order() {
             name: "egress-plane".into(),
             version: "0".into(),
             data_digest: String::new(),
-            runtime_range: RuntimeRange {
-                python: String::new(),
-                node: String::new(),
-                rust: String::new(),
-            },
+            runtime_range: RuntimeRange::default(),
         },
         completeness: Completeness {
             state: CompletenessState::Incomplete,
