@@ -75,11 +75,13 @@ fn catalogued_egress_member_is_a_catalogued_site() {
         vec![pair("python:requests.post", "https://h.example/x")]
     );
     assert_eq!(c.sites[0].bucket, Bucket::Catalogued);
-    assert!(c.unscanned_dependencies.is_empty());
+    // The bare `requests` import itself is a catalogued-package
+    // dependency (KTD23); the site is still emitted for `post`.
+    assert_eq!(deps(&c), vec![s("requests")]);
 }
 
 #[test]
-fn catalogued_inert_member_is_nothing_and_unlisted_member_lists_the_package() {
+fn catalogued_package_import_lists_it_and_members_add_nothing() {
     let c = fx()
         .file(
             "a.py",
@@ -92,7 +94,9 @@ fn catalogued_inert_member_is_nothing_and_unlisted_member_lists_the_package() {
         )
         .run();
     assert!(c.sites.is_empty() && c.blind_spots.is_empty());
-    assert!(c.unscanned_dependencies.is_empty());
+    // The bare package import lists `requests`; the inert-member
+    // reference adds nothing.
+    assert_eq!(deps(&c), vec![s("requests")]);
 
     let c = fx()
         .file(
@@ -165,8 +169,9 @@ fn must_not_a_blind_spot_reference_carries_no_bucket_and_no_listing() {
         )
         .run();
     assert!(c.sites.is_empty(), "{:?}", c.sites);
-    assert!(
-        c.unscanned_dependencies.is_empty(),
+    assert_eq!(
+        deps(&c),
+        vec![s("requests")],
         "{:?}",
         c.unscanned_dependencies
     );
@@ -1138,7 +1143,8 @@ fn unscanned_imports_record_member_chains_from_references() {
         )
         .run();
     let rec = &c.unscanned_imports[&(Language::Python, s("requests"))];
-    assert_eq!(rec.specifiers.len(), 1);
+    assert_eq!(rec.specifiers.len(), 2);
+    assert!(rec.specifiers.contains("requests"), "{rec:?}");
     assert!(rec.specifiers.contains("requests.utils.quote"), "{rec:?}");
     assert!(
         rec.members.contains("utils") && rec.members.contains("quote"),

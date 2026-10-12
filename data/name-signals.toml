@@ -1,0 +1,4 @@
+# The Unicode version the name-signal rules evaluate against, carried
+# by the pinned `unicode-security` crate (KTD18). Bump only with the
+# crate.
+unicode_version = "16.0.0"

@@ -68,6 +68,7 @@ pub const EMBEDDED: &[DataFile] = &[
     embed!("data/primitives/javascript.toml"),
     embed!("data/primitives/python.toml"),
     embed!("data/primitives/rust.toml"),
+    embed!("data/name-signals.toml"),
     embed!("data/python-distributions.toml"),
 ];
 

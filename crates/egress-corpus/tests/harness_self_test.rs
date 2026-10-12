@@ -1200,14 +1200,7 @@ fn dependency_budgets_unknown_key_is_a_harness_error() {
 /// `leftpad-no-root` (U7) and the two U10 curated-distribution cases.
 #[test]
 fn dependency_cases_are_pending_except_landed_ones() {
-    let unlanded = [
-        "javascript/dependencies/non-ascii-npm-name",
-        "python/dependencies/cyrillic-requests-marked",
-        "python/dependencies/mixed-script-import-name",
-        "python/dependencies/must-not-mark-ascii-twin",
-        "python/dependencies/stdlib-confusable",
-        "rust/dependencies/non-ascii-crate-name",
-    ];
+    let unlanded: [&str; 0] = [];
     let real = load_pending(&corpus_root().join("pending.toml")).expect("pending.toml loads");
     let cases = discover_cases(&corpus_root()).expect("corpus discovers");
     let deps: Vec<_> = cases

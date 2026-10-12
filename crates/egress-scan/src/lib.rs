@@ -189,9 +189,72 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
         deps::annotate_pnp(&discovery, &mut report);
         finalize(&mut report);
     }
+    // KTD18's name marking: every name signal annotates in place and
+    // never changes state or exit code (R18, R19).
+    apply_marks(data, &mut report);
+    finalize(&mut report);
     Ok(ScanOutput {
         report,
         files,
         discovery,
     })
+}
+
+/// Applies KTD18 name marking to top-level unscanned entries,
+/// dependency package entries, and `imports_unscanned`: the comparison
+/// set is the language's catalogued packages, its standard-library
+/// module inventory, and the other dependency names of the same
+/// language in the report.
+fn apply_marks(data: &egress_core::data::Data, report: &mut Report) {
+    let mut comparison: std::collections::BTreeMap<Language, std::collections::BTreeSet<String>> =
+        std::collections::BTreeMap::new();
+    for lang in Language::ALL {
+        let rt = data.runtime(lang);
+        let mut set: std::collections::BTreeSet<String> = rt
+            .packages
+            .iter()
+            .map(|p| p.name.clone())
+            .chain(rt.inventory.stdlib_modules.iter().cloned())
+            .collect();
+        report
+            .unscanned_dependencies
+            .iter()
+            .filter(|u| u.language == lang)
+            .for_each(|u| {
+                set.insert(u.package.clone());
+            });
+        if let Some(deps) = &report.dependencies {
+            for p in &deps.packages {
+                if p.language == lang {
+                    set.insert(p.package.clone());
+                }
+                for i in &p.imports_unscanned {
+                    if i.language == lang {
+                        set.insert(i.package.clone());
+                    }
+                }
+            }
+        }
+        comparison.insert(lang, set);
+    }
+    for u in &mut report.unscanned_dependencies {
+        u.mark =
+            egress_core::names::dependency_mark(u.language, &u.package, &comparison[&u.language]);
+    }
+    if let Some(deps) = &mut report.dependencies {
+        for p in &mut deps.packages {
+            p.mark = egress_core::names::dependency_mark(
+                p.language,
+                &p.package,
+                &comparison[&p.language],
+            );
+            for i in &mut p.imports_unscanned {
+                i.mark = egress_core::names::dependency_mark(
+                    i.language,
+                    &i.package,
+                    &comparison[&i.language],
+                );
+            }
+        }
+    }
 }

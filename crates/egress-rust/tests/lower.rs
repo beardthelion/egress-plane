@@ -280,7 +280,9 @@ fn dependency_rename_resolves_to_the_catalog_entry() {
         dump(&c)
     );
     assert!(
-        c.unscanned_dependencies.is_empty(),
+        c.unscanned_dependencies
+            .iter()
+            .all(|d| d.package == "reqwest"),
         "{:?}",
         c.unscanned_dependencies
     );

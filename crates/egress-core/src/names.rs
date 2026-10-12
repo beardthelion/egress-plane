@@ -17,7 +17,7 @@
 //! declared (or as the table spells them when undeclared). Several
 //! candidates give a sorted list, never a guess.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::data::DistributionMapping;
 use crate::deps::inventory::Inventory;
@@ -92,4 +92,59 @@ pub fn apply_unscanned(
         e.distribution = distribution;
         e.distribution_source = source;
     }
+}
+
+// ---- KTD18: confusable and mixed-script marking -----------------------------
+
+use unicode_normalization::UnicodeNormalization;
+use unicode_security::confusable_detection::skeleton;
+use unicode_security::mixed_script::MixedScript;
+
+use crate::model::{DependencyMark, MarkRule};
+
+/// The mark for one dependency name. `comparison` holds catalogued
+/// package names, standard-library module names, and the other
+/// dependency names of this language in the report. ASCII names are
+/// never marked; NFC-equal spellings never resemble each other.
+pub fn dependency_mark(
+    lang: Language,
+    name: &str,
+    comparison: &BTreeSet<String>,
+) -> Option<DependencyMark> {
+    if name.is_ascii() {
+        return None;
+    }
+    let mut rules = Vec::new();
+    let mut resembles: BTreeSet<String> = BTreeSet::new();
+    match lang {
+        Language::Javascript | Language::Rust => rules.push(MarkRule::NonAsciiName),
+        Language::Python => {}
+    }
+    if lang == Language::Python && !name.is_single_script() {
+        rules.push(MarkRule::MixedScript);
+    }
+    // The confusable rule: equal skeleton, different NFC spelling.
+    let own_nfc: String = name.nfc().collect();
+    let own_skel: String = skeleton(name).collect();
+    for other in comparison {
+        if *other == name {
+            continue;
+        }
+        let other_skel: String = skeleton(other).collect();
+        if other_skel == own_skel && other.nfc().collect::<String>() != own_nfc {
+            resembles.insert(other.clone());
+        }
+    }
+    if !resembles.is_empty() {
+        rules.push(MarkRule::ConfusableSkeleton);
+    }
+    if rules.is_empty() {
+        return None;
+    }
+    rules.sort();
+    rules.dedup();
+    Some(DependencyMark {
+        rules,
+        resembles: resembles.into_iter().collect(),
+    })
 }

@@ -1,10 +1,4 @@
 # Cases not yet expected to pass. A pending case that passes fails
 # the run, so each unit removes its slice as its detectors land.
 cases = [
-    "javascript/dependencies/non-ascii-npm-name",
-    "python/dependencies/cyrillic-requests-marked",
-    "python/dependencies/mixed-script-import-name",
-    "python/dependencies/must-not-mark-ascii-twin",
-    "python/dependencies/stdlib-confusable",
-    "rust/dependencies/non-ascii-crate-name",
 ]

@@ -108,8 +108,8 @@ fn dependency_rules_hook_replaces_only_python_rules() {
 fn absolute_imports_probe_only_the_import_root() {
     // `import widget.core` resolves inside the package. `import
     // pooler` and `import urllib3` probe the import root only, so the
-    // decoys beside the importing file are never seen: `pooler`
-    // resolves external and `urllib3` reports no `shadowed-module`.
+    // decoys beside the importing file are never seen: both resolve
+    // external and `urllib3` reports no `shadowed-module`.
     let t = Tree::new("dep-import-root");
     t.file(
         "sitepk/widget/__init__.py",
@@ -121,14 +121,15 @@ fn absolute_imports_probe_only_the_import_root() {
     let pass = dependency_pass(&t, "sitepk", &["widget"], b"");
     assert_eq!(
         packages(&pass),
-        BTreeSet::from(["python:pooler".to_string()]),
+        BTreeSet::from(["python:pooler".to_string(), "python:urllib3".to_string(),]),
         "{:?}",
         pass.classified.unscanned_dependencies
     );
     assert!(pass.blind_spots.is_empty(), "{:?}", pass.blind_spots);
     // First-party rules probe the importing file's ancestors: both
     // decoys resolve first-party, and `urllib3` reports
-    // `shadowed-module` because it is a catalogued egress name.
+    // `shadowed-module` because it is a catalogued egress name. Both
+    // resolved imports leave the dependency list empty here.
     let fp = first_party_pass(&t, "sitepk", &["widget"]);
     assert_eq!(
         packages(&fp),

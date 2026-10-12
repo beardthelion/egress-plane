@@ -407,12 +407,11 @@ fn known_module(rt: &RuntimeData, lang: Language, module: &str, members: &[Strin
         .chain(members.iter())
         .map(String::as_str)
         .collect();
-    // A `Package` classification for a member chain means the member
-    // resolves through a catalogued package's own code with no
-    // catalogued classification: an uncatalogued member, listed as a
-    // dependency (KTD23). The bare package import stays known.
+    // A `Package` classification means the name resolves through a
+    // catalogued package's own code with no catalogued
+    // classification: the package joins the dependency list (KTD23).
     if let Some(c) = rt.lookup(&segs[0], &rest)
-        && !(matches!(c, Classification::Package(_)) && !rest.is_empty())
+        && !matches!(c, Classification::Package(_))
     {
         return true;
     }

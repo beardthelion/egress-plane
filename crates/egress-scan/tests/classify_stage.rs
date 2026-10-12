@@ -136,7 +136,9 @@ fn classified_sites_and_dependencies_reach_the_report_with_identities() {
         .iter()
         .map(|d| d.package.as_str())
         .collect();
-    assert_eq!(deps, vec!["yaml"]);
+    // The bare `requests` import lists it alongside the catalogued
+    // `post` site (KTD23); `yaml` lists likewise.
+    assert_eq!(deps, vec!["requests", "yaml"]);
     assert_eq!(r.unscanned_dependencies[0].id.len(), 16);
     assert_eq!(r.completeness.state, CompletenessState::Complete);
 }

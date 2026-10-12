@@ -29,3 +29,5 @@ egress-js = { path = "crates/egress-js" }
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.151"
 toml = "=1.1.6"
+unicode-normalization = "=0.1.25"
+unicode-security = "=0.1.2"

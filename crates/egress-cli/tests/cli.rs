@@ -238,9 +238,10 @@ fn text_groups_sites_by_destination_and_lists_dependencies_once() {
     assert!(members.iter().any(|l| l.contains("web/src/notify.js")));
 
     let deps = section(&text, "Unscanned dependencies");
-    assert_eq!(deps.len(), 2, "{text}");
+    assert_eq!(deps.len(), 3, "{text}");
     assert_eq!(deps.iter().filter(|l| l.contains(" yaml")).count(), 1);
     assert_eq!(deps.iter().filter(|l| l.contains(" lodash")).count(), 1);
+    assert_eq!(deps.iter().filter(|l| l.contains(" requests")).count(), 1);
     assert!(
         deps.iter()
             .any(|l| l.contains("hooks/config.py") && l.contains("hooks/notify.py")),
