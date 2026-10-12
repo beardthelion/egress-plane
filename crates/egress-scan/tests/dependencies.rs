@@ -446,3 +446,77 @@ fn dependency_sites_never_reach_top_level() {
     assert!(!leftpad.sites.is_empty(), "expected the http.request site");
     assert_eq!(leftpad.sites[0].file, "index.js");
 }
+
+/// A `node_modules` chain deeper than `inventory_entries` ends flagged
+/// budget-exhausted, not in a hang.
+#[test]
+fn deeply_nested_inventory_stops_at_the_budget() {
+    let t = Tree::new("dep-deep-nm");
+    t.file("tree/app.js", "const l = require(\"a\");\nl();\n");
+    t.file(
+        "tree/node_modules/a/package.json",
+        "{\"name\":\"a\",\"version\":\"1.0.0\"}",
+    );
+    // Twenty nested `node_modules`, each a real package.
+    let mut dir = "tree/node_modules".to_string();
+    for i in 0..20 {
+        dir = format!("{dir}/{}", char::from(b'a' + i as u8));
+        t.file(&format!("{dir}/index.js"), "");
+        if i < 19 {
+            let next = char::from(b'a' + i as u8 + 1);
+            t.file(
+                &format!("{dir}/node_modules/{next}/package.json"),
+                format!("{{\"name\":\"{next}\",\"version\":\"1.0.0\"}}"),
+            );
+            dir = format!("{dir}/node_modules");
+        }
+    }
+    let mut o = ScanOptions {
+        dependency_roots: vec![t.path("tree/node_modules")],
+        ..ScanOptions::default()
+    };
+    o.dependency_budgets.inventory_entries = 3;
+    let out = egress_scan::scan_with(&t.path("tree"), &o).unwrap();
+    let section = out.report.dependencies.unwrap();
+    assert!(
+        section
+            .budget_exceeded
+            .contains(&egress_core::model::DependencyBudgetReason::InventoryEntries),
+        "{:?}",
+        section.budget_exceeded
+    );
+}
+
+/// A package whose files exceed the remaining `bytes` budget is
+/// budget-exhausted and never reaches the per-file reads.
+#[test]
+fn bytes_budget_exhausts_before_file_reads() {
+    let t = Tree::new("dep-bytes");
+    t.file("tree/app.js", "const l = require(\"leftpad\");\nl();\n");
+    t.file(
+        "tree/node_modules/leftpad/package.json",
+        "{\"name\":\"leftpad\",\"version\":\"1.0.0\"}",
+    );
+    t.file("tree/node_modules/leftpad/index.js", &"x = 1;\n".repeat(40));
+    let mut o = ScanOptions {
+        dependency_roots: vec![t.path("tree/node_modules")],
+        ..ScanOptions::default()
+    };
+    // Room for package metadata but not the source.
+    o.dependency_budgets.bytes = 64;
+    let out = egress_scan::scan_with(&t.path("tree"), &o).unwrap();
+    let section = out.report.dependencies.unwrap();
+    assert!(
+        section
+            .budget_exceeded
+            .contains(&egress_core::model::DependencyBudgetReason::Bytes),
+        "{:?}",
+        section.budget_exceeded
+    );
+    // No package entry was produced for `leftpad`.
+    assert!(
+        !section.packages.iter().any(|p| p.package == "leftpad"),
+        "{:?}",
+        section.packages
+    );
+}

@@ -436,3 +436,98 @@ fn outside_root_paths_stay_out_of_text() {
     ]);
     assert!(!r.stdout.contains(abs.to_str().unwrap()), "{}", r.stdout);
 }
+
+/// A symlink inside a named root pointing at a file outside the root:
+/// the sentinel at the target never reaches output, and the run does
+/// not follow the link.
+#[test]
+fn must_not_read_through_symlinked_root_child() {
+    let t = Temp::new("deps-link-child");
+    let root = t.path("root");
+    let nm = root.join("node_modules");
+    let sentinel = "SYMLINKED_ROOT_CHILD_SENTINEL_9x";
+    t.file("outside/secret.js", format!("// {sentinel}\n"));
+    t.file("root/app.js", "const l = require(\"leftpad\");\nl();\n");
+    t.file(
+        "root/node_modules/leftpad/package.json",
+        "{\"name\":\"leftpad\",\"version\":\"1.0.0\"}",
+    );
+    symlink(
+        t.path("outside/secret.js"),
+        root.join("node_modules/leftpad/index.js"),
+    )
+    .unwrap();
+
+    for format in ["text", "json"] {
+        let r = run(&[
+            OsStr::new("scan"),
+            root.as_os_str(),
+            OsStr::new("--format"),
+            OsStr::new(format),
+            OsStr::new("--deps"),
+            nm.as_os_str(),
+        ]);
+        assert!(!r.stdout.contains(sentinel), "{format}:\n{}", r.stdout);
+    }
+}
+
+/// A FIFO inside a named root does not block the scan.
+#[test]
+fn fifo_inside_a_named_root_does_not_block() {
+    let t = Temp::new("deps-fifo");
+    let root = t.path("root");
+    let nm = root.join("node_modules");
+    t.file("root/app.js", "const l = require(\"leftpad\");\nl();\n");
+    t.file(
+        "root/node_modules/leftpad/package.json",
+        "{\"name\":\"leftpad\",\"version\":\"1.0.0\"}",
+    );
+    support::mkfifo(&root.join("node_modules/leftpad/index.js"));
+
+    let r = run(&[
+        OsStr::new("scan"),
+        root.as_os_str(),
+        OsStr::new("--format"),
+        OsStr::new("text"),
+        OsStr::new("--deps"),
+        nm.as_os_str(),
+    ]);
+    assert!(matches!(r.code, 0 | 2), "{}", r.stderr);
+}
+
+/// A RECORD over `metadata_bytes` is not read past the cap: the
+/// package lands in the section flagged unsupported layout.
+#[test]
+fn oversized_record_fails_closed() {
+    let t = Temp::new("deps-big-record");
+    let root = t.path("root");
+    let sitepk = root.join("sitepk");
+    t.file("root/app.py", "import leftpy\n");
+    t.file("root/sitepk/leftpy/__init__.py", "X = 1\n");
+    t.file(
+        "root/sitepk/leftpy-1.0.dist-info/METADATA",
+        "Name: leftpy\nVersion: 1.0\n",
+    );
+    // Ten megabytes of one line, over the 8 MiB metadata cap.
+    t.file(
+        "root/sitepk/leftpy-1.0.dist-info/RECORD",
+        format!("leftpy/__init__.py,,\n{}", "#".repeat(10 * 1024 * 1024)),
+    );
+
+    let r = run(&[
+        OsStr::new("scan"),
+        root.as_os_str(),
+        OsStr::new("--format"),
+        OsStr::new("json"),
+        OsStr::new("--deps"),
+        sitepk.as_os_str(),
+    ]);
+    let j = json(&r.stdout);
+    let unscanned = &j["unscanned_dependencies"];
+    assert!(
+        r.stdout.contains("unsupported-layout")
+            || unscanned.as_array().is_some_and(|u| !u.is_empty()),
+        "{}",
+        r.stdout
+    );
+}

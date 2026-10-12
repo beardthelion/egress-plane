@@ -512,9 +512,14 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
                 _ => (String::new(), String::new()),
             };
             let record_rel = join(&dir, b"RECORD");
-            let rows = match read_meta(&root.dir, &record_rel, budgets) {
-                Some(Ok(bytes)) => metadata::record(&bytes).unwrap_or_default(),
-                _ => Vec::new(),
+            let record_failed = matches!(read_meta(&root.dir, &record_rel, budgets), Some(Err(_)));
+            let rows = if record_failed {
+                Vec::new()
+            } else {
+                match read_meta(&root.dir, &record_rel, budgets) {
+                    Some(Ok(bytes)) => metadata::record(&bytes).unwrap_or_default(),
+                    _ => Vec::new(),
+                }
             };
             let mut tops = metadata::top_level_names(&rows);
             // A `.py` module in the RECORD counts as a top-level of
@@ -535,7 +540,11 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
                     }
                 }
             }
-            dist_tops.push((name.clone(), tops.clone()));
+            let mut covered_tops = tops.clone();
+            if covered_tops.is_empty() && record_failed && !pkg.is_empty() {
+                covered_tops.push(crate::deps::version::pep503(&pkg));
+            }
+            dist_tops.push((name.clone(), covered_tops));
             dist_records.push((
                 pkg.clone(),
                 rows.iter().map(|r| r.path.clone().into_bytes()).collect(),
@@ -543,6 +552,10 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
             let mut flags = InstanceFlags::default();
             if pkg.is_empty() {
                 flags.unsupported = Some("unreadable-metadata".to_string());
+            } else if record_failed {
+                // An unreadable or over-cap RECORD: the layout is
+                // recognized but unreadable.
+                flags.unsupported = Some("unsupported-layout".to_string());
             }
             if clean_name(name).is_none() {
                 flags.escaped_name = true;
@@ -551,7 +564,17 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
             // through namespace directories to the deepest package that
             // holds `__init__.py`, so `google/` (no init) + `google/auth/`
             // keys as `google.auth` at locator `google/auth` (KTD10).
-            let keys = python_keys(&root.dir, &import_root, &tops);
+            let mut keys = python_keys(&root.dir, &import_root, &tops);
+            if keys.is_empty() && record_failed && !pkg.is_empty() {
+                // A readable METADATA with an unreadable RECORD still
+                // names the import it provides: one flagged instance
+                // keyed on the normalized name, so the dep resolves to
+                // `unsupported-layout` instead of silently scanning.
+                keys = vec![(
+                    crate::deps::version::pep503(&pkg),
+                    join(&import_root, pkg.as_bytes()),
+                )];
+            }
             let record: Vec<(Vec<u8>, String)> = rows
                 .iter()
                 .filter_map(|r| {
