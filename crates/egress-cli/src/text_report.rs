@@ -17,7 +17,7 @@ use std::fmt::Write;
 
 use egress_core::escape::escape;
 use egress_core::identity::finalize;
-use egress_core::model::{BlindSpot, CoverageCounts, Location, Report, Site};
+use egress_core::model::{BlindSpot, CoverageCounts, DependencyMark, Location, Report, Site};
 
 fn counts(name: &str, c: CoverageCounts) -> String {
     format!("{name} {} scanned, {} skipped", c.scanned, c.skipped)
@@ -37,6 +37,19 @@ fn labels(l: &[egress_core::model::Label]) -> String {
     }
     let names: Vec<_> = l.iter().map(|l| l.as_str()).collect();
     format!("  ({})", names.join(", "))
+}
+
+fn mark_suffix(m: &Option<DependencyMark>) -> String {
+    let Some(m) = m else {
+        return String::new();
+    };
+    let rules: Vec<_> = m.rules.iter().map(|r| r.as_str()).collect();
+    let mut s = format!("  marked {}", rules.join(", "));
+    if !m.resembles.is_empty() {
+        let names: Vec<_> = m.resembles.iter().map(|n| escape(n)).collect();
+        let _ = write!(s, " resembling {}", names.join(", "));
+    }
+    s
 }
 
 fn site_line(s: &Site) -> String {
@@ -156,16 +169,105 @@ pub fn render(report: &Report) -> String {
     );
     for d in &r.unscanned_dependencies {
         let files: Vec<_> = d.files.iter().map(|f| escape(f)).collect();
+        let mut extras = String::new();
+        if let Some(reason) = d.reason {
+            let _ = write!(extras, " {}", reason.as_str());
+        }
+        if !d.distribution.is_empty() {
+            let dist: Vec<_> = d.distribution.iter().map(|n| escape(n)).collect();
+            let _ = write!(extras, " via {}", dist.join(", "));
+        }
+        extras.push_str(&mark_suffix(&d.mark));
         let _ = writeln!(
             out,
-            "  {} {}: {}",
+            "  {} {}{}: {}",
             d.language.as_str(),
             escape(&d.package),
+            extras,
             files.join(", ")
         );
     }
     if r.unscanned_dependencies.is_empty() {
         out.push_str("  none\n");
+    }
+
+    if let Some(d) = &r.dependencies {
+        let _ = writeln!(out, "\nScanned dependencies ({})", d.packages.len());
+        if d.packages.is_empty() {
+            out.push_str("  none\n");
+        }
+        for p in &d.packages {
+            let mut fields = format!(
+                "  {} {} {} ({}): {}",
+                p.language.as_str(),
+                escape(&p.package),
+                escape(&p.locator),
+                escape(&p.root),
+                escape(&p.version)
+            );
+            let _ = write!(fields, "  {}  {}", p.strength.as_str(), p.state.as_str());
+            if p.modified {
+                fields.push_str("  modified");
+            }
+            if p.linked {
+                fields.push_str("  linked");
+            }
+            if p.catalogued {
+                fields.push_str("  catalogued");
+            }
+            if !p.distribution.is_empty() {
+                let dist: Vec<_> = p.distribution.iter().map(|n| escape(n)).collect();
+                let _ = write!(fields, "  via {}", dist.join(", "));
+            }
+            fields.push_str(&mark_suffix(&p.mark));
+            let _ = writeln!(out, "{fields}");
+            if !p.imported_by.is_empty() {
+                let files: Vec<_> = p.imported_by.iter().map(|f| escape(f)).collect();
+                let _ = writeln!(out, "    imported by {}", files.join(", "));
+            }
+            for s in &p.sites {
+                let _ = writeln!(out, "{}", site_line(s));
+            }
+            for b in &p.blind_spots {
+                let _ = writeln!(out, "{}", blind_spot_line(b));
+            }
+            for i in &p.imports_unscanned {
+                let mut line = format!(
+                    "    {} {}  {}",
+                    i.language.as_str(),
+                    escape(&i.package),
+                    i.reason.as_str()
+                );
+                if !i.distribution.is_empty() {
+                    let dist: Vec<_> = i.distribution.iter().map(|n| escape(n)).collect();
+                    let _ = write!(line, "  via {}", dist.join(", "));
+                }
+                line.push_str(&mark_suffix(&i.mark));
+                let _ = writeln!(out, "{line}");
+            }
+        }
+        if !d.auto_run.is_empty() {
+            let _ = writeln!(out, "  auto-run files ({})", d.auto_run.len());
+            for a in &d.auto_run {
+                let _ = writeln!(
+                    out,
+                    "    {}  {}  installed by {}",
+                    escape(&a.file),
+                    a.trigger.as_str(),
+                    escape(&a.distribution)
+                );
+            }
+        }
+        if !d.diagnostics.is_empty() {
+            let _ = writeln!(out, "  lockfile diagnostics ({})", d.diagnostics.len());
+            for dg in &d.diagnostics {
+                let _ = writeln!(out, "    {}  {}", escape(&dg.lockfile), dg.problem.as_str());
+            }
+        }
+        if !d.budget_exceeded.is_empty() {
+            let budgets: Vec<_> = d.budget_exceeded.iter().map(|b| b.as_str()).collect();
+            let _ = writeln!(out, "  budgets exceeded: {}", budgets.join(", "));
+        }
     }
 
     let _ = writeln!(out, "\nExcluded ({})", r.excluded.len());

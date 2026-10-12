@@ -8,7 +8,7 @@ use std::ffi::{OsStr, OsString};
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 
-use support::{Run, Temp, case, run};
+use support::{Run, Temp, case, corpus, run};
 
 fn mkdir(p: &Path) -> PathBuf {
     std::fs::create_dir_all(p).unwrap();
@@ -401,4 +401,38 @@ fn a_scan_without_deps_has_no_dependency_content() {
     for key in ["reason", "distribution", "distribution_source", "mark"] {
         assert!(entry.get(key).is_none(), "entry holds {key}: {}", r.stdout);
     }
+}
+
+/// U9's `.pth` line test is inventory only: the import line's contents
+/// stay out of text output too.
+#[test]
+fn must_not_emit_pth_contents_in_text() {
+    let dir = corpus().join("python/dependencies/pth-auto-run-unimported");
+    let r = run(&[
+        OsStr::new("scan"),
+        dir.join("tree").as_os_str(),
+        OsStr::new("--format"),
+        OsStr::new("text"),
+        OsStr::new("--deps"),
+        dir.join("roots/sitepk").as_os_str(),
+    ]);
+    assert!(r.stdout.contains("auto-run files (1)"), "{}", r.stdout);
+    assert!(!r.stdout.contains("EVIL_LOADED"), "{}", r.stdout);
+}
+
+/// The case directory's absolute path never reaches text output, for
+/// either format, on an outside-root case (KTD20's R2 half for text).
+#[test]
+fn outside_root_paths_stay_out_of_text() {
+    let dir = corpus().join("rust/dependencies/registry-outside-root-symlink");
+    let abs = dir.canonicalize().unwrap();
+    let r = run(&[
+        OsStr::new("scan"),
+        dir.join("tree").as_os_str(),
+        OsStr::new("--format"),
+        OsStr::new("text"),
+        OsStr::new("--deps"),
+        dir.join("roots/registry/src").as_os_str(),
+    ]);
+    assert!(!r.stdout.contains(abs.to_str().unwrap()), "{}", r.stdout);
 }

@@ -81,6 +81,32 @@ To bound run time on hostile or enormous repositories, the scan charges four det
 
 Each budget is a count, not a time limit, so the result never depends on host speed. Files and bytes are charged in byte-wise path order; files past the limit are counted as skipped. An exhausted budget is listed in `completeness.budget_exceeded` and makes the state `incomplete`. Per-file limits also apply: oversized files, files nested too deeply to parse safely, and files that are not regular files are whole-file blind spots.
 
+## Scanning dependencies
+
+`--deps <path>` names a dependency root to scan, and may be repeated. Roots are always named; the tool never discovers them.
+
+```sh
+egress-plane scan . --deps node_modules
+egress-plane scan . --deps .venv/lib/python3.12/site-packages
+egress-plane scan . --deps vendor --deps ~/.cargo/registry/src/index.crates.io-1949cf8c
+```
+
+Each root is detected by shape: an npm `node_modules`, a Python `site-packages` or venv layout, a Cargo `vendor` directory, a Cargo registry cache (`registry/src/<index>`), or a Cargo git checkout (`git/checkouts`). For a registry cache, name the `registry/src` directory that holds the index, not the index itself. Rejected paths fail before scanning with exit 1 and a fixed message.
+
+Imported packages are resolved against the named roots in breadth-first closure order and scanned with the same mechanism classification, under a separate set of dependency budgets (`data/dependency-budgets.toml`). The dependency findings land in a `dependencies` section: scanned packages with their own sites, blind spots, and per-package completeness state; `imports_unscanned` for closure entries that stayed out; `auto_run` for Python `*.pth`, `sitecustomize.py`, and `usercustomize.py` files; lockfile `diagnostics`; and exhausted dependency budgets. The top-level state, exit code, sites, and blind spots stay first-party only.
+
+Each package shows its verification strength: `checksum-verified` when every file hashed by `RECORD`, `package-lock.json` integrity fields, or `.cargo-checksum.json` matches; `version-matched` when the install is governed by a lockfile that has no per-file hashes; `unlocked` when no lockfile governs. These hashes are install integrity data, not signatures: a `RECORD` match proves the file as installed matches the file the installer wrote, not that the installer fetched a trustworthy package. `modified: true` marks a package whose hashes did not match.
+
+A closure entry that stays unscanned carries a reason: `no-source-in-named-root` (nothing installed by that name), `version-mismatch` (installed, but not the locked version), `archive-only-install` (a Yarn PnP or zip-shaped install the scanner cannot read), `unsupported-layout` (a pnpm store, an `egg-info` directory, or other recognized-but-unreadable shape), `dependency-budget-exhausted`, `lockfile-unreadable`, or `unlocked-shared-cache` (registry or git cache without a `Cargo.lock`, which is never scanned: the cache is shared across projects).
+
+Dependency names also carry `mark`: `non-ascii-name` for an npm or Cargo name with a non-ASCII character, `mixed-script` for a Python name that mixes scripts, and `confusable-skeleton` when a name's confusable skeleton equals a catalogued package, a standard-library module, or another dependency name in the report. Marks never change the state or the exit code. The Unicode tables are version 16.0, from the pinned `unicode-security` crate, and the version is recorded in `data/name-signals.toml`.
+
+Package identity is the kind, root label, locator, and name, not the installed version, so bumping a locked version moves the `version` field only. Identity still shifts when the locator shifts: the same name held by two roots, or under two registry index hashes, reports as two entries.
+
+Limits: pnpm's symlinked store layout and Yarn's archive-only PnP installs are detected but not scanned (`unsupported-layout`, `archive-only-install`). `exports` maps are not read inside dependency code (the section carries `dependency-exports-not-read`). Conditional `cfg` code is scanned as written (`dependency-conditional-code-included`).
+
+The `dependencies` section is an optional JSON field and is absent when no root is named. The schema stays at version 1, but a strict v1 consumer needs the updated `schema/egress-report.v1.json` because it rejects unknown fields. `tool.data_digest` changes with this release regardless of flags: the embedded data files grew, and every report hashes all of them.
+
 ## Caveats
 
 Whenever any JavaScript or TypeScript file is scanned, the report carries the `browser-dom` caveat: browser DOM-mediated requests (assigning `src`, `href`, or `action` on elements, and form submission) are not covered. The caveat appears in the JSON `caveats` list and in the text report. It does not change the completeness state or the exit code.

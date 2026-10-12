@@ -4,7 +4,8 @@ mod support;
 
 use std::os::unix::fs::symlink;
 
-use support::{Temp, chmod, mkfifo, raw_unsafe, scan};
+use std::ffi::OsStr;
+use support::{Temp, chmod, mkfifo, raw_unsafe, run, scan};
 
 fn assert_clean_text(text: &str) {
     let raw = raw_unsafe(text);
@@ -134,4 +135,79 @@ fn hostile_repository_finishes_with_clean_output() {
     );
     let outside = t.path("outside").display().to_string();
     assert!(!text.stdout.contains(&outside) && !j.stdout.contains(&outside));
+}
+
+/// A `--deps` run where the package name carries a newline plus the
+/// section's own heading words: the line must render escaped and
+/// indented so it cannot forge report structure.
+#[test]
+fn must_not_forge_heading_from_dependency_name() {
+    let t = Temp::new("dep-heading");
+    let root = t.path("root");
+    let nm = root.join("node_modules");
+    t.file("root/app.js", "const l = require(\"forged\");\nl();\n");
+    t.file(
+        "root/node_modules/forged\nScanned dependencies/package.json",
+        "{\"name\":\"forged\\nScanned dependencies\",\"version\":\"1.0.0\"}",
+    );
+    t.file(
+        "root/node_modules/forged\nScanned dependencies/index.js",
+        "module.exports = () => 1;\n",
+    );
+
+    let r = run(&[
+        OsStr::new("scan"),
+        root.as_os_str(),
+        OsStr::new("--format"),
+        OsStr::new("text"),
+        OsStr::new("--deps"),
+        nm.as_os_str(),
+    ]);
+    assert_eq!(
+        r.stdout
+            .lines()
+            .filter(|l| l.starts_with("Scanned dependencies"))
+            .count(),
+        1,
+        "forged or missing heading:\n{}",
+        r.stdout
+    );
+    assert_clean_text(&r.stdout);
+    // The forged half of the name appears only on an indented line.
+    for line in r.stdout.lines() {
+        if line.contains("Scanned dependencies") && line != r.stdout.lines().next().unwrap() {
+            assert!(
+                line.starts_with(' ') || line.starts_with("Scanned dependencies ("),
+                "{line:?}"
+            );
+        }
+    }
+}
+
+/// An ESC sequence inside a dependency path or symbol never reaches the
+/// terminal raw.
+#[test]
+fn must_not_emit_terminal_controls_from_dependencies() {
+    let t = Temp::new("dep-esc");
+    let root = t.path("root");
+    let nm = root.join("node_modules");
+    t.file("root/app.js", "const l = require(\"ctrl\");\nl();\n");
+    t.file(
+        "root/node_modules/ctrl/package.json",
+        "{\"name\":\"ctrl\",\"version\":\"1.0.0\"}",
+    );
+    t.file(
+        "root/node_modules/ctrl/index.js",
+        "module.exports = () => fetch(\"https://x.example/\u{1b}[2J\");\n",
+    );
+
+    let r = run(&[
+        OsStr::new("scan"),
+        root.as_os_str(),
+        OsStr::new("--format"),
+        OsStr::new("text"),
+        OsStr::new("--deps"),
+        nm.as_os_str(),
+    ]);
+    assert_clean_text(&r.stdout);
 }

@@ -2,6 +2,9 @@
 //! `egress-plane probe [--format text|json] [--nonce HEX]
 //! [--active --allow IP:PORT ...]`.
 //!
+//! Each `--deps` names a dependency root to scan with the project; roots
+//! are named, never discovered. The flag may be repeated.
+//!
 //! Prints the text report (the default) or the JSON report on stdout and
 //! exits with the code assigned to the completeness state: 0
 //! complete, 2 incomplete, 3 empty. A tool error, including a usage error,
