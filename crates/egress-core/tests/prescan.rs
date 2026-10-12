@@ -138,3 +138,35 @@ fn rust_lifetimes_do_not_open_char_literals() {
     let src = format!("fn f<'a>(x: &'a u8) {{ {deep} }}\n");
     assert!(too_deep(Rust, &src));
 }
+
+#[test]
+fn go_nested_brackets_count_outside_literals_and_comments() {
+    let deep = nest("(", ")", 300);
+    assert!(too_deep(Language::Go, &format!("func f() {{ g{deep} }}\n")));
+    // Inside a backtick raw string, a rune literal, a line comment, or a
+    // block comment the same nesting is not code.
+    let many = "(".repeat(10_000);
+    for src in [
+        format!("var s = `{many}\n{many}`\n"),
+        format!("var c = '(' \n// {many}\n"),
+        format!("/* {many}\n{many} */\n"),
+        format!("var s = \"{many}\"\n"),
+    ] {
+        assert!(
+            !too_deep_with_cap(Language::Go, &src, 50),
+            "{}",
+            &src[..src.len().min(40)]
+        );
+    }
+    // An unterminated raw string resolves toward counting.
+    assert!(too_deep(
+        Language::Go,
+        &format!("var s = `never closed {deep}")
+    ));
+    assert!(too_deep(Language::Go, &format!("/* never closed {deep}")));
+    // Ordinary Go passes.
+    assert!(!too_deep(
+        Language::Go,
+        "func f(a int) (int, error) { return g([]int{a})[0], nil }\n"
+    ));
+}

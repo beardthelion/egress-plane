@@ -237,11 +237,15 @@ pub fn annotate_pnp(discovery: &Discovery, report: &mut Report) {
     }
 }
 
-fn kind_of(lang: Language) -> DependencyRootKind {
+/// The ecosystem's lockfile-carrying root kind, or `None` for Go: Go
+/// module source has no dependency root kind yet (that scan belongs to
+/// the dependency source plan), so no lockfile governs a Go import.
+fn kind_of(lang: Language) -> Option<DependencyRootKind> {
     match lang {
-        Language::Javascript => DependencyRootKind::Npm,
-        Language::Python => DependencyRootKind::Python,
-        Language::Rust => DependencyRootKind::CargoVendor,
+        Language::Javascript => Some(DependencyRootKind::Npm),
+        Language::Python => Some(DependencyRootKind::Python),
+        Language::Rust => Some(DependencyRootKind::CargoVendor),
+        Language::Go => None,
     }
 }
 
@@ -284,6 +288,8 @@ fn resolve_key(
     match u.language {
         Language::Python => spec.to_string(),
         Language::Rust => spec.split("::").next().unwrap_or(spec).to_string(),
+        // The Go specifier is already the module path the import keys on.
+        Language::Go => spec.to_string(),
         Language::Javascript => {
             // Member chains (`axios.isCancel`) and subpaths (`a/b`)
             // resolve to the package: the `@scope/name` pair or the

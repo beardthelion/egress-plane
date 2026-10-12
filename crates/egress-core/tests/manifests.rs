@@ -258,3 +258,128 @@ fn a_malformed_pyproject_contributes_no_declarations() {
     );
     assert!(d.manifests.python_declarations.is_empty());
 }
+
+// ---- go.mod / go.work -------------------------------------------------------
+
+use egress_core::discover::manifests::{GoReplace, GoReplaceTarget, ManifestKind, parse};
+
+#[test]
+fn go_mod_reads_module_go_require_and_replace() {
+    let t = Tree::new("go-mod");
+    t.file(
+        "go.mod",
+        "// head comment\n\
+         module example.com/m // trailing comment\n\
+         \n\
+         go 1.22\n\
+         \n\
+         toolchain go1.26.0\n\
+         tool example.com/t\n\
+         \n\
+         require example.com/a v1.2.3 // indirect\n\
+         \n\
+         require (\n\
+         \texample.com/b v0.1.0\n\
+         \texample.com/c v0.2.0 // indirect\n\
+         )\n\
+         \n\
+         replace example.com/b => ./third_party/b\n\
+         replace example.com/c v0.2.0 => example.com/cfork v0.3.0\n",
+    );
+    let d = run(&t);
+    assert!(d.blind_spots.is_empty(), "{:?}", d.blind_spots);
+    let [m] = &d.manifests.go_mod[..] else {
+        panic!("no go.mod parsed: {:?}", d.manifests)
+    };
+    assert_eq!(m.module.as_deref(), Some("example.com/m"));
+    assert_eq!(m.go.as_deref(), Some("1.22"));
+    assert_eq!(
+        m.require,
+        vec![
+            ("example.com/a".to_string(), "v1.2.3".to_string()),
+            ("example.com/b".to_string(), "v0.1.0".to_string()),
+            ("example.com/c".to_string(), "v0.2.0".to_string()),
+        ]
+    );
+    assert_eq!(
+        m.replace[0].to,
+        GoReplaceTarget::Path(b"third_party/b".to_vec())
+    );
+    assert_eq!(
+        m.replace[1],
+        GoReplace {
+            from: "example.com/c".to_string(),
+            from_version: Some("v0.2.0".to_string()),
+            to: GoReplaceTarget::Module {
+                path: "example.com/cfork".to_string(),
+                version: Some("v0.3.0".to_string()),
+            },
+        }
+    );
+}
+
+#[test]
+fn go_work_reads_single_and_block_uses() {
+    let t = Tree::new("go-work");
+    t.file("a/go.mod", "module example.com/a\ngo 1.22\n")
+        .file("b/go.mod", "module example.com/b\ngo 1.22\n")
+        .file("c/go.mod", "module example.com/c\ngo 1.22\n")
+        .file("go.work", "go 1.24\n\nuse ./a\n\nuse (\n\t./b\n\t./c\n)\n");
+    let d = run(&t);
+    assert!(d.blind_spots.is_empty(), "{:?}", d.blind_spots);
+    let [w] = &d.manifests.go_work[..] else {
+        panic!("no go.work parsed: {:?}", d.manifests)
+    };
+    assert_eq!(w.go.as_deref(), Some("1.24"));
+    assert_eq!(w.uses, vec![b"a".to_vec(), b"b".to_vec(), b"c".to_vec()]);
+}
+
+#[test]
+fn an_unterminated_require_block_is_a_parse_error() {
+    let t = Tree::new("go-mod-bad");
+    t.file(
+        "go.mod",
+        "module example.com/m\n\ngo 1.22\n\nrequire (\n\texample.com/a v1.0.0\n",
+    );
+    let d = run(&t);
+    assert_eq!(
+        spots(&d),
+        vec![("go.mod".to_string(), BlindSpotKind::ManifestParseError)]
+    );
+    assert!(d.manifests.go_mod.is_empty());
+}
+
+#[test]
+fn go_mod_replace_outside_root_is_a_gap() {
+    let t = Tree::new("go-mod-outside");
+    t.file(
+        "go.mod",
+        "module example.com/m\n\ngo 1.22\n\nreplace example.com/a => ../outside/a\n",
+    );
+    let d = run(&t);
+    assert_eq!(
+        spots(&d),
+        vec![("go.mod".to_string(), BlindSpotKind::ReferenceOutsideRoot)]
+    );
+    let s = text(&d);
+    assert!(!s.contains("outside") && !s.contains(".."), "{s}");
+}
+
+/// A line that is not `verb args`, a known directive with the wrong
+/// arity, or a `replace` missing `=>` is malformed rather than skipped.
+#[test]
+fn a_garbage_go_mod_is_a_parse_error_not_a_skip() {
+    for body in [
+        "%%% garbage\n",
+        ")\n",
+        "module\n",
+        "go x.y\n",
+        "require example.com/a\n",
+        "replace example.com/a example.com/b\n",
+    ] {
+        assert!(
+            parse(ManifestKind::GoMod, b"go.mod", body).is_err(),
+            "{body:?} parsed"
+        );
+    }
+}

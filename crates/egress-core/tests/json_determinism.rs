@@ -596,3 +596,19 @@ fn schema_enums_match_the_model() {
         strs(CompletenessState::ALL.iter().map(|k| k.as_str()).collect())
     );
 }
+
+/// The `go` keys are additive and optional: a report carrying them
+/// validates, a report missing them validates, and an unknown key like
+/// `golang` still fails.
+#[test]
+fn go_keys_are_optional_and_unknown_keys_fail() {
+    let mut v: serde_json::Value = serde_json::from_str(&to_json(&common::full_report())).unwrap();
+    // Without the keys it already validates.
+    common::validate_value(&v).unwrap();
+    v["tool"]["runtime_range"]["go"] = "1.18-1.26".into();
+    v["completeness"]["coverage"]["go"] = serde_json::json!({"scanned": 1, "skipped": 0});
+    common::validate_value(&v).unwrap();
+    let mut bad = v.clone();
+    bad["completeness"]["coverage"]["golang"] = serde_json::json!({"scanned": 0, "skipped": 0});
+    assert!(common::validate_value(&bad).is_err());
+}

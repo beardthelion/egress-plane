@@ -236,7 +236,7 @@ fn linked_entry(
     let lock = select::governing_lock(
         discovery,
         roots[ri].label.as_bytes(),
-        roots[ri].kind,
+        Some(roots[ri].kind),
         egress_core::discover::budgets::DependencyBudgets::embedded().lockfile_bytes,
     );
     let (strength, modified) = match super::closure::gate_instance(roots[ri].kind, inst, &lock) {

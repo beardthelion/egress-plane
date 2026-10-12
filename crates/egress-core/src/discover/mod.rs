@@ -793,6 +793,8 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
                             .extend(s.declared.iter().cloned());
                         manifests.setup_cfg.push(s);
                     }
+                    Parsed::GoMod(g) => manifests.go_mod.push(g),
+                    Parsed::GoWork(g) => manifests.go_work.push(g),
                 }
             }
             Err(k) => {

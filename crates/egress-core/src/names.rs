@@ -117,7 +117,9 @@ pub fn dependency_mark(
     let mut rules = Vec::new();
     let mut resembles: BTreeSet<String> = BTreeSet::new();
     match lang {
-        Language::Javascript | Language::Rust => rules.push(MarkRule::NonAsciiName),
+        // Go module paths are ASCII domain-plus-path conventions, like
+        // npm and crates.io names; a non-ASCII one is inherently suspect.
+        Language::Javascript | Language::Rust | Language::Go => rules.push(MarkRule::NonAsciiName),
         Language::Python => {}
     }
     if lang == Language::Python && !name.is_single_script() {

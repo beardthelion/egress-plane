@@ -42,3 +42,8 @@ name_globs = ["test_*.py", "*_test.py", "conftest.py"]
 [test.javascript]
 
 [test.rust]
+
+# Go test files and testdata trees.
+[test.go]
+name_globs = ["*_test.go"]
+dirs = ["testdata"]

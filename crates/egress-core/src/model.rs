@@ -213,16 +213,18 @@ pub enum Language {
     Python,
     Javascript,
     Rust,
+    Go,
 }
 
 impl Language {
-    pub const ALL: [Language; 3] = [Self::Python, Self::Javascript, Self::Rust];
+    pub const ALL: [Language; 4] = [Self::Python, Self::Javascript, Self::Rust, Self::Go];
 
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Python => "python",
             Self::Javascript => "javascript",
             Self::Rust => "rust",
+            Self::Go => "go",
         }
     }
 
@@ -238,6 +240,7 @@ impl Language {
             Self::Python => &PYTHON_SPEC,
             Self::Javascript => &JAVASCRIPT_SPEC,
             Self::Rust => &RUST_SPEC,
+            Self::Go => &GO_SPEC,
         }
     }
 }
@@ -303,6 +306,15 @@ static RUST_SPEC: LanguageSpec = LanguageSpec {
     shebang: no_shebang,
     manifests: &["Cargo.toml"],
     member_separator: "::",
+};
+
+static GO_SPEC: LanguageSpec = LanguageSpec {
+    name: "go",
+    runtime_key: "go",
+    extensions: &[".go"],
+    shebang: no_shebang,
+    manifests: &["go.mod", "go.work"],
+    member_separator: ".",
 };
 
 /// A fixed caveat entry from `data/caveats.toml`.

@@ -89,12 +89,57 @@ const PYTHON_DENY: &[&str] = &[
 
 const NODE_DENY: &[&str] = &["module", "inspector", "dns", "repl", "wasi"];
 
-fn deny(lang: Language) -> &'static [&'static str] {
+/// The Go deny list's fixed entries (the plan's never-wholly-inert
+/// modules); the `net` part is computed from the inventory so a new
+/// `net` package can never land provisionally inert.
+const GO_DENY_FIXED: &[&str] = &[
+    "crypto/tls",
+    "log/syslog",
+    "database/sql",
+    "database/sql/driver",
+    "os",
+    "os/exec",
+    "os/user",
+    "syscall",
+    "plugin",
+    "reflect",
+    "runtime",
+    "runtime/cgo",
+    "runtime/debug",
+    "unsafe",
+    "go/build",
+    "go/importer",
+    "expvar",
+    "net/http/pprof",
+    "net/http/cgi",
+];
+
+/// The `net` packages that only parse and can stay inert.
+const GO_PARSE_ONLY: &[&str] = &["net/mail", "net/textproto", "net/url", "net/netip"];
+
+fn deny(lang: Language, rt: &RuntimeData) -> Vec<String> {
     match lang {
-        Language::Python => PYTHON_DENY,
-        Language::Javascript => NODE_DENY,
-        Language::Rust => &[],
+        Language::Python => PYTHON_DENY.iter().map(|s| s.to_string()).collect(),
+        Language::Javascript => NODE_DENY.iter().map(|s| s.to_string()).collect(),
+        Language::Rust => Vec::new(),
+        // Every net package except the parse-only ones, plus the fixed
+        // entries.
+        Language::Go => rt
+            .inventory
+            .stdlib_modules
+            .iter()
+            .filter(|m| m.as_str() == "net" || m.starts_with("net/"))
+            .filter(|m| !GO_PARSE_ONLY.contains(&m.as_str()))
+            .cloned()
+            .chain(GO_DENY_FIXED.iter().map(|s| s.to_string()))
+            .collect::<std::collections::BTreeSet<String>>()
+            .into_iter()
+            .collect(),
     }
+}
+
+fn deny_refs(list: &[String]) -> Vec<&str> {
+    list.iter().map(String::as_str).collect()
 }
 
 // ---- loader -----------------------------------------------------------------
@@ -125,6 +170,7 @@ fn runtime_range_matches_the_declared_range() {
         .as_str()
         .unwrap_or_else(|| panic!("no channel"));
     assert_eq!(d.runtime_range[Language::Rust], channel);
+    assert_eq!(d.runtime_range[Language::Go], "1.18-1.26");
 }
 
 // ---- stdlib classification guard -------------------------------------------
@@ -287,10 +333,9 @@ fn every_corpus_mechanism_is_a_data_entry() {
 fn no_deny_list_module_is_wholly_inert() {
     let d = data();
     for lang in Language::ALL {
-        assert_clean(
-            lang.as_str(),
-            guards::deny_list(d.runtime(lang), deny(lang)),
-        );
+        let rt = d.runtime(lang);
+        let list = deny(lang, rt);
+        assert_clean(lang.as_str(), guards::deny_list(rt, &deny_refs(&list)));
     }
 }
 
@@ -308,6 +353,8 @@ fn marking_a_deny_list_module_inert_turns_the_guard_red() {
         (Language::Python, "pdb"),
         (Language::Python, "code"),
         (Language::Javascript, "module"),
+        (Language::Go, "net/http"),
+        (Language::Go, "os"),
     ] {
         let mut rt = d.runtime(lang).clone();
         let m = rt
@@ -320,7 +367,8 @@ fn marking_a_deny_list_module_inert_turns_the_guard_red() {
         // Drop the module's own entries so its classification decides.
         rt.entries
             .retain(|e| !(e.module == name && e.members.is_empty()));
-        let v = guards::deny_list(&rt, deny(lang));
+        let list = deny(lang, &rt);
+        let v = guards::deny_list(&rt, &deny_refs(&list));
         assert!(v.iter().any(|s| s.contains(name)), "{name}: {v:?}");
     }
 }
@@ -331,10 +379,9 @@ fn marking_a_deny_list_module_inert_turns_the_guard_red() {
 fn every_inventory_member_is_classified() {
     let d = data();
     for lang in Language::ALL {
-        assert_clean(
-            lang.as_str(),
-            guards::inventory(d.runtime(lang), deny(lang)),
-        );
+        let rt = d.runtime(lang);
+        let list = deny(lang, rt);
+        assert_clean(lang.as_str(), guards::inventory(rt, &deny_refs(&list)));
     }
 }
 

@@ -189,6 +189,12 @@ fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
+/// Declared languages whose frontend crate is not registered yet, like
+/// `pending.toml` for corpus cases. The entry leaves when the frontend
+/// lands (egress-go registers in P8 U6); a listed language that gains a
+/// frontend without leaving the list fails the stale-entry guard.
+const FRONTEND_PENDING: &[&str] = &["go"];
+
 /// The real repository, checked once per `Language::ALL` entry.
 #[test]
 fn every_language_in_the_table_is_fully_wired() {
@@ -198,6 +204,14 @@ fn every_language_in_the_table_is_fully_wired() {
         .filter(|l| registry.get(**l).is_some())
         .map(|l| l.as_str())
         .collect();
+    // A pending language must still lack a registered frontend; the
+    // registration turns this red until the entry leaves the list.
+    for p in FRONTEND_PENDING {
+        assert!(
+            !frontends.contains(*p),
+            "{p} has a registered frontend; remove it from FRONTEND_PENDING"
+        );
+    }
     let schema: serde_json::Value =
         serde_json::from_str(include_str!("../../../schema/egress-report.v1.json"))
             .unwrap_or_else(|e| panic!("schema: {e}"));
@@ -218,6 +232,13 @@ fn every_language_in_the_table_is_fully_wired() {
     for lang in Language::ALL {
         findings.extend(check(&inputs, lang.as_str(), lang.spec().runtime_key));
     }
+    // A pending language is allowed exactly the frontend-missing finding.
+    findings.retain(|f| {
+        !(f.name == "frontend-missing"
+            && FRONTEND_PENDING
+                .iter()
+                .any(|p| f.detail == format!("{p}: no registered frontend")))
+    });
     assert!(
         findings.is_empty(),
         "conformance findings:\n{}",

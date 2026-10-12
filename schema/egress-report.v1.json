@@ -56,6 +56,9 @@
             },
             "rust": {
               "type": "string"
+            },
+            "go": {
+              "type": "string"
             }
           }
         }
@@ -106,6 +109,9 @@
               "$ref": "#/$defs/counts"
             },
             "rust": {
+              "$ref": "#/$defs/counts"
+            },
+            "go": {
               "$ref": "#/$defs/counts"
             },
             "unsupported": {
@@ -424,7 +430,8 @@
       "enum": [
         "python",
         "javascript",
-        "rust"
+        "rust",
+        "go"
       ]
     },
     "destination": {

@@ -1,8 +1,8 @@
 # egress-plane
 
-egress-plane scans the first-party source of a Rust, Python, or JavaScript/TypeScript repository (or a mix of them) and reports every route by which that code can send data out of the process: network calls, process spawning, foreign-function and native code loads, and the equivalent routes each runtime offers. Where it cannot prove the account, it says so with a blind spot and a reason. The exit code tells you whether the account is complete.
+egress-plane scans the first-party source of a Rust, Python, JavaScript/TypeScript, or Go repository (or a mix of them) and reports every route by which that code can send data out of the process: network calls, process spawning, foreign-function and native code loads, and the equivalent routes each runtime offers. Where it cannot prove the account, it says so with a blind spot and a reason. The exit code tells you whether the account is complete.
 
-It is one static binary. It parses Python with ruff's parser, JavaScript and TypeScript with oxc, and Rust with syn, all in-process. It never runs the code it scans, spawns no subprocess (no `cargo`, `rustc`, `node`, `python`, `tsc`, or `git`), opens no network connection, and reads nothing outside the scan root. Those guarantees describe `scan`; the `probe` subcommand below has its own, narrower ones.
+It is one static binary. It parses Python with ruff's parser, JavaScript and TypeScript with oxc, Rust with syn, and Go with gosyn and go, all in-process. It never runs the code it scans, spawns no subprocess (no `cargo`, `rustc`, `node`, `python`, `tsc`, `go`, or `git`), opens no network connection, and reads nothing outside the scan root. Those guarantees describe `scan`; the `probe` subcommand below has its own, narrower ones.
 
 ## Usage
 
@@ -64,7 +64,7 @@ The output is deterministic. Scanning the same tree twice gives byte-identical J
 
 ## Supported runtimes and hosts
 
-The primitive lists and catalog describe CPython 3.8 to 3.13, Node 18 to 22, and the Rust toolchain pinned in `rust-toolchain.toml` (1.97.1). The range is recorded in every report as `tool.runtime_range`. The scanner does not detect which runtime a repository targets, so code written for a runtime outside this range is scanned against these lists and the completeness state does not reflect the mismatch.
+The primitive lists and catalog describe CPython 3.8 to 3.13, Node 18 to 22, the Rust toolchain pinned in `rust-toolchain.toml` (1.97.1), and Go 1.18 to 1.26. The range is recorded in every report as `tool.runtime_range`. The scanner does not detect which runtime a repository targets, so code written for a runtime outside this range is scanned against these lists and the completeness state does not reflect the mismatch.
 
 Supported host operating systems are Linux and macOS. Windows is not supported yet.
 

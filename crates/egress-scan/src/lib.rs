@@ -142,7 +142,7 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
             budget_exceeded: budget_exceeded.clone(),
             coverage,
         },
-        caveats: caveats(&discovery.languages),
+        caveats: caveats(&discovery.languages, &go_versions(&discovery)),
         sites: classified.sites.clone(),
         blind_spots,
         unscanned_dependencies: classified.unscanned_dependencies.clone(),
@@ -198,6 +198,18 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
         files,
         discovery,
     })
+}
+
+/// The `go` directive versions of every parsed `go.mod` and `go.work`,
+/// feeding the `go_newer_than` caveat trigger.
+fn go_versions(d: &Discovery) -> Vec<&str> {
+    d.manifests
+        .go_mod
+        .iter()
+        .map(|m| &m.go)
+        .chain(d.manifests.go_work.iter().map(|w| &w.go))
+        .filter_map(|v| v.as_deref())
+        .collect()
 }
 
 /// Applies KTD18 name marking to top-level unscanned entries,

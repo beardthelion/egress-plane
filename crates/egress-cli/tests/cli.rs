@@ -90,8 +90,8 @@ fn haskell_only_is_empty_and_no_egress_python_is_complete() {
 fn coverage_and_runtime_lines_follow_the_language_table() {
     let (text, _) = both(&case("rust/ordinary/tcpstream-connect"), 0, "complete");
     for line in [
-        "Coverage: python 0 scanned, 0 skipped; javascript 0 scanned, 0 skipped; rust 1 scanned, 0 skipped; unsupported 0 scanned, 0 skipped",
-        "Runtime range: Python 3.8-3.13, Node 18-22, Rust 1.97.1",
+        "Coverage: python 0 scanned, 0 skipped; javascript 0 scanned, 0 skipped; rust 1 scanned, 0 skipped; go 0 scanned, 0 skipped; unsupported 0 scanned, 0 skipped",
+        "Runtime range: Python 3.8-3.13, Node 18-22, Rust 1.97.1, Go 1.18-1.26",
     ] {
         assert!(text.lines().any(|l| l == line), "missing {line:?}:\n{text}");
     }
@@ -309,8 +309,8 @@ fn absent_text_never_appears_in_either_format() {
     );
 }
 
-const TRAPS: [&str; 11] = [
-    "cargo", "rustc", "node", "python", "python3", "tsc", "git", "npm", "pip", "uv", "poetry",
+const TRAPS: [&str; 12] = [
+    "cargo", "rustc", "node", "python", "python3", "tsc", "git", "npm", "pip", "uv", "poetry", "go",
 ];
 const SENTINELS: [(&str, &str); 3] = [
     ("CARGO_MANIFEST_DIR", "sentinel-manifest-dir-7c41"),

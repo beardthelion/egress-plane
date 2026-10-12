@@ -7,3 +7,11 @@
 id = "browser-dom"
 languages = ["javascript"]
 text = "Browser DOM-mediated requests are not covered: assigning src, href, or action on elements, and form submission."
+
+# Fires when a parsed go.mod or go.work `go` directive names a release
+# newer than the supported range's upper bound, not on language presence.
+[[caveat]]
+id = "go-version-newer-than-supported"
+languages = ["go"]
+go_newer_than = "1.26"
+text = "A go.mod or go.work declares a Go release newer than the supported 1.18-1.26 range; files using newer syntax become parse errors."

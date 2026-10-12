@@ -225,7 +225,9 @@ impl<'a> Program<'a> {
 /// takes. JS module names may hold `.` (`socket.io`), so they stay whole.
 pub fn module_segments(language: Language, module: &str) -> Vec<String> {
     match language {
-        Language::Javascript => vec![module.to_string()],
+        // JS module names may hold `.`; Go import paths hold `.` and `/`
+        // and the data declares each path whole (`net/http`).
+        Language::Javascript | Language::Go => vec![module.to_string()],
         Language::Python => module.split('.').map(str::to_string).collect(),
         Language::Rust => module.split("::").map(str::to_string).collect(),
     }
@@ -238,6 +240,9 @@ pub fn package_name(language: Language, module: &str) -> String {
     match language {
         Language::Python => module.split('.').next().unwrap_or(module).to_string(),
         Language::Rust => module.split("::").next().unwrap_or(module).to_string(),
+        // A Go unscanned dependency is keyed by the module path its
+        // specifier rules already computed (R12); the string is whole.
+        Language::Go => module.to_string(),
         Language::Javascript => {
             let m = module.strip_prefix("node:").unwrap_or(module);
             let mut parts = m.split('/');
@@ -377,7 +382,7 @@ impl<'p, 'a> Resolver<'p, 'a> {
                     Language::Javascript => {
                         module.strip_prefix("node:").unwrap_or(&module).to_string()
                     }
-                    Language::Python | Language::Rust => module,
+                    Language::Python | Language::Rust | Language::Go => module,
                 };
                 let first_party = probes.iter().find_map(|p| match self.program.index.get(p) {
                     Some(FileKind::Source(_)) => Some(p.clone()),
@@ -407,7 +412,10 @@ impl<'p, 'a> Resolver<'p, 'a> {
                         {
                             Target::IntoExcluded
                         }
-                        Language::Python | Language::Javascript | Language::Rust => {
+                        // Go bare specifiers are import paths; its rules map
+                        // the first-party cases to probes, so a bare module
+                        // here is always external.
+                        Language::Python | Language::Javascript | Language::Rust | Language::Go => {
                             Target::External(module)
                         }
                     },
@@ -608,6 +616,9 @@ impl<'p, 'a> Resolver<'p, 'a> {
             Language::Python => i.symbol == "<module>",
             Language::Rust => i.re_export,
             Language::Javascript => i.symbol == "<module>" && i.re_export,
+            // Go imports are file-scoped at `<module>` and Go has no
+            // re-export form.
+            Language::Go => i.symbol == "<module>",
         };
         // A Rust glob applies to names in the module that declares it.
         let (scope, leaf) = match language {
@@ -615,7 +626,7 @@ impl<'p, 'a> Resolver<'p, 'a> {
                 Some((s, l)) => (s, l),
                 None => ("<module>", name),
             },
-            Language::Python | Language::Javascript => ("<module>", name),
+            Language::Python | Language::Javascript | Language::Go => ("<module>", name),
         };
         // An import binding the name. An import is preferred over a
         // definition of the same name because the IR does not record which

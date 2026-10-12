@@ -569,3 +569,31 @@ fn must_not_change_state_on_unreadable_declarations() {
     assert_eq!(yaml.distribution, ["PyYAML"]);
     assert_eq!(yaml.distribution_source, Some(DistributionSource::Curated));
 }
+
+#[test]
+fn a_newer_go_directive_carries_a_caveat_and_keeps_the_state() {
+    let t = Tree::new("go-newer-mod");
+    t.file("go.mod", "module example.com/m\n\ngo 1.27\n")
+        .file("main.go", "package main\n\nfunc main() {}\n");
+    let r = scan(&t.root).unwrap();
+    let ids: Vec<_> = r.caveats.iter().map(|c| c.id.as_str()).collect();
+    assert_eq!(ids, vec!["go-version-newer-than-supported"]);
+    assert_eq!(r.completeness.state, CompletenessState::Complete);
+    assert_eq!(r.exit_code(), 0);
+
+    // A pre-release directive and a go.work trigger it too; versions at
+    // or under the bound stay quiet.
+    let t = Tree::new("go-newer-work");
+    t.file("go.work", "go 1.27rc1\n\nuse ./a\n")
+        .file("a/go.mod", "module example.com/a\n\ngo 1.24\n")
+        .file("a/a.go", "package a\n");
+    let r = scan(&t.root).unwrap();
+    assert_eq!(r.caveats[0].id, "go-version-newer-than-supported");
+
+    for v in ["1.26", "1.26.3"] {
+        let t = Tree::new("go-at-bound");
+        t.file("go.mod", format!("module example.com/m\n\ngo {v}\n"))
+            .file("main.go", "package main\n");
+        assert!(scan(&t.root).unwrap().caveats.is_empty(), "{v}");
+    }
+}

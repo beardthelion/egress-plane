@@ -844,7 +844,9 @@ impl<'p, 'a> State<'p, 'a> {
         let mut full = chain;
         // Python and JS methods extend the constructor entry
         // (`requests.Session.get`); Rust methods sit on the type, beside
-        // its constructor (`Client::new` and `Client::get`).
+        // its constructor (`Client::new` and `Client::get`). A Go
+        // constructor entry is the type itself (`net/http.Client` with
+        // `constructor = true`), so methods extend it like Python's.
         let prefix = match lang {
             Language::Rust => {
                 full.pop();
@@ -853,7 +855,7 @@ impl<'p, 'a> State<'p, 'a> {
                     None => return Head::Untracked,
                 }
             }
-            Language::Python | Language::Javascript => {
+            Language::Python | Language::Javascript | Language::Go => {
                 format!("{ctor}{}", separator(lang))
             }
         };
@@ -1605,6 +1607,15 @@ impl<'p, 'a> State<'p, 'a> {
                         .iter()
                         .all(|m| matches!(*m, "unwrap" | "expect" | "unwrap_or_default")) =>
                 {
+                    name_arg(self, 0).map(|n| destination::env(&n, None))
+                }
+                _ => None,
+            },
+            // `os.Getenv` and `os.LookupEnv` read one named variable.
+            // `os.Environ` exposes the whole environment and is a data
+            // entry, not a destination here.
+            Language::Go => match full.as_slice() {
+                ["os", "Getenv" | "LookupEnv"] if is_call(r.use_kind) => {
                     name_arg(self, 0).map(|n| destination::env(&n, None))
                 }
                 _ => None,

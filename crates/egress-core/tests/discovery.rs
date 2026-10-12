@@ -316,6 +316,32 @@ fn path_labels_never_change_what_is_scanned() {
     assert_eq!(labels("src/main.py"), vec![]);
 }
 
+/// The Go label rules are language-scoped: `*_test.go` and `testdata`
+/// dirs carry `test`, but only for Go files.
+#[test]
+fn go_test_labels_apply_to_go_files_only() {
+    let t = Tree::new("go-labels");
+    t.file("pkg/a.go", "package pkg\n")
+        .file("pkg/a_test.go", "package pkg\n")
+        .file("pkg/testdata/golden.go", "package testdata\n")
+        .file("pkg/testdata/golden.py", "x = 1\n")
+        .file("main.py", "x = 1\n");
+    let d = run(&t);
+    let labels = |p: &str| -> Vec<Label> {
+        d.sources
+            .iter()
+            .find(|s| s.file.display == p)
+            .unwrap_or_else(|| panic!("{p} not scanned"))
+            .labels
+            .clone()
+    };
+    assert_eq!(labels("pkg/a.go"), vec![]);
+    assert_eq!(labels("pkg/a_test.go"), vec![Label::Test]);
+    assert_eq!(labels("pkg/testdata/golden.go"), vec![Label::Test]);
+    assert_eq!(labels("pkg/testdata/golden.py"), vec![]);
+    assert_eq!(labels("main.py"), vec![]);
+}
+
 // ---- symlinks ---------------------------------------------------------------
 
 #[test]

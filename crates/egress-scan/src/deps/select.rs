@@ -69,9 +69,13 @@ impl Lock {
 pub fn governing_lock(
     discovery: &Discovery,
     file: &[u8],
-    ecosystem: DependencyRootKind,
+    ecosystem: Option<DependencyRootKind>,
     lockfile_bytes: u64,
 ) -> Lock {
+    // A language with no dependency root kind reads no lockfile.
+    let Some(ecosystem) = ecosystem else {
+        return Lock::Absent;
+    };
     let lock_names: &[&[u8]] = match ecosystem {
         DependencyRootKind::CargoVendor
         | DependencyRootKind::CargoRegistry
@@ -195,6 +199,9 @@ pub fn resolve(
         Language::Javascript => resolve_npm(roots, invs, scan, package, importer),
         Language::Python => resolve_python(roots, invs, package),
         Language::Rust => resolve_cargo(roots, invs, package, importer, pin),
+        // No Go module root kind exists yet, so no named root can hold
+        // the source a Go import names.
+        Language::Go => Resolved::Reason(UnscannedReason::NoSourceInNamedRoot),
     }
 }
 

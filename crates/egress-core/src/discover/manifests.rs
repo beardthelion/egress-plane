@@ -35,15 +35,19 @@ pub enum ManifestKind {
     TsConfig,
     PyProject,
     SetupCfg,
+    GoMod,
+    GoWork,
 }
 
 impl ManifestKind {
-    pub const ALL: [ManifestKind; 5] = [
+    pub const ALL: [ManifestKind; 7] = [
         Self::Cargo,
         Self::PackageJson,
         Self::TsConfig,
         Self::PyProject,
         Self::SetupCfg,
+        Self::GoMod,
+        Self::GoWork,
     ];
 
     /// The file name that routes to this kind.
@@ -54,6 +58,8 @@ impl ManifestKind {
             Self::TsConfig => b"tsconfig.json",
             Self::PyProject => b"pyproject.toml",
             Self::SetupCfg => b"setup.cfg",
+            Self::GoMod => b"go.mod",
+            Self::GoWork => b"go.work",
         }
     }
 
@@ -159,6 +165,54 @@ pub struct SetupCfg {
     pub declared: Vec<String>,
 }
 
+/// A `replace` right-hand side.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GoReplaceTarget {
+    /// An in-root path, folded against the manifest's directory.
+    Path(Vec<u8>),
+    /// A path outside the root: never followed, read, or printed.
+    Outside,
+    /// A module path and version (`example.com/x v1.2.3`).
+    Module {
+        path: String,
+        version: Option<String>,
+    },
+}
+
+/// One `replace` directive: `from[ version] => target`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GoReplace {
+    pub from: String,
+    /// The version the left side pins; `None` replaces every version.
+    pub from_version: Option<String>,
+    pub to: GoReplaceTarget,
+}
+
+/// Parsed `go.mod` facts (KTD9). `toolchain`, `tool`, `exclude`,
+/// `retract`, and unknown directives are skipped and never acted on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GoMod {
+    pub path: Vec<u8>,
+    /// The `module` path, when declared.
+    pub module: Option<String>,
+    /// The `go` directive's version text, for example `1.22`.
+    pub go: Option<String>,
+    /// `require` entries as (module path, version).
+    pub require: Vec<(String, String)>,
+    pub replace: Vec<GoReplace>,
+}
+
+/// Parsed `go.work` facts (KTD9). `toolchain`, `godebug`, and unknown
+/// directives are skipped and never acted on.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GoWork {
+    pub path: Vec<u8>,
+    pub go: Option<String>,
+    /// Folded in-root `use` directories.
+    pub uses: Vec<Vec<u8>>,
+    pub replace: Vec<GoReplace>,
+}
+
 /// Parsed manifest facts later stages map into the file index.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Manifests {
@@ -167,6 +221,8 @@ pub struct Manifests {
     pub tsconfig: Vec<TsConfig>,
     pub pyproject: Vec<PyProject>,
     pub setup_cfg: Vec<SetupCfg>,
+    pub go_mod: Vec<GoMod>,
+    pub go_work: Vec<GoWork>,
     /// Declared Python distribution names from `pyproject.toml`,
     /// `setup.cfg`, and `requirements*.txt`, in index order (KTD17).
     pub python_declarations: Vec<String>,
@@ -190,6 +246,8 @@ pub enum Parsed {
     TsConfig(TsConfig),
     PyProject(PyProject),
     SetupCfg(SetupCfg),
+    GoMod(GoMod),
+    GoWork(GoWork),
 }
 
 /// The parse result: the manifest and the keys that named an out-of-root
@@ -245,6 +303,8 @@ pub fn parse(kind: ManifestKind, path: &[u8], text: &str) -> Result<ParseOutcome
         ManifestKind::TsConfig => Parsed::TsConfig(tsconfig(path, &parse_jsonc(text)?, &mut refs)),
         ManifestKind::PyProject => Parsed::PyProject(pyproject(path, text, &mut refs)?),
         ManifestKind::SetupCfg => Parsed::SetupCfg(setup_cfg(path, text)?),
+        ManifestKind::GoMod => Parsed::GoMod(go_mod(path, text, &mut refs)?),
+        ManifestKind::GoWork => Parsed::GoWork(go_work(path, text, &mut refs)?),
     };
     Ok((parsed, refs.outside))
 }
@@ -732,4 +792,252 @@ pub fn parse_jsonc(text: &str) -> Result<Value, Malformed> {
     }
     let s = String::from_utf8(res).map_err(|_| Malformed)?;
     serde_json::from_str(&s).map_err(|_| Malformed)
+}
+
+// ---- go.mod / go.work (line grammar) ----------------------------------------
+//
+// A pure text reader: no Go toolchain runs at scan time (R8). Each
+// directive is `verb args`; `//` starts a comment and `"` quotes a token.
+// `require`, `replace`, and `use` also take a parenthesized block whose
+// lines carry the directive's arguments. `toolchain`, `tool`, `exclude`,
+// `retract`, `godebug`, and unknown verbs are skipped, never acted on.
+
+/// Splits one line into tokens: `//` starts a comment, a `"` opens a
+/// quoted run to the next `"`, whitespace splits. A quote that never
+/// closes is malformed.
+fn go_tokens(line: &str) -> Result<Vec<String>, Malformed> {
+    let b = line.as_bytes();
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i < b.len() {
+        let c = b[i];
+        if c.is_ascii_whitespace() {
+            i += 1;
+        } else if c == b'/' && b.get(i + 1) == Some(&b'/') {
+            break;
+        } else if c == b'"' {
+            let end = b[i + 1..]
+                .iter()
+                .position(|x| *x == b'"')
+                .ok_or(Malformed)?
+                + i
+                + 1;
+            out.push(line[i + 1..end].to_string());
+            i = end + 1;
+        } else {
+            let start = i;
+            while i < b.len() && !b[i].is_ascii_whitespace() {
+                if b[i] == b'/' && b.get(i + 1) == Some(&b'/') {
+                    break;
+                }
+                i += 1;
+            }
+            out.push(line[start..i].to_string());
+        }
+    }
+    Ok(out)
+}
+
+/// Whether `s` reads as a directive verb (a leading ASCII letter followed
+/// by letters, digits, or `_`).
+fn go_verb(s: &str) -> bool {
+    s.as_bytes()[0].is_ascii_alphabetic()
+        && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+}
+
+/// One directive: its verb and its entries (one per single line, or one
+/// per inner line of a parenthesized block).
+type GoDirective = (String, Vec<Vec<String>>);
+
+/// Reads `text` as `(verb, entries)` pairs: a block form (`require (`)
+/// yields one entry per inner line, and a one-line `require ( m v )`
+/// yields a single inner entry. A non-word first token, a `(` or `)` in
+/// entry position, or an unterminated block is malformed.
+fn go_directives(text: &str) -> Result<Vec<GoDirective>, Malformed> {
+    let mut out: Vec<GoDirective> = Vec::new();
+    let mut lines = text.lines();
+    while let Some(raw) = lines.next() {
+        let tokens = go_tokens(raw)?;
+        let Some(verb) = tokens.first() else { continue };
+        if !go_verb(verb) {
+            return Err(Malformed);
+        }
+        let mut entries: Vec<Vec<String>> = Vec::new();
+        match tokens.get(1).map(String::as_str) {
+            Some("(") => {
+                let inner = &tokens[2..];
+                match inner.iter().position(|t| t == ")") {
+                    // The block opens and closes on one line.
+                    Some(pos) => {
+                        if pos > 0 {
+                            entries.push(inner[..pos].to_vec());
+                        }
+                        if pos + 1 != inner.len() {
+                            return Err(Malformed);
+                        }
+                    }
+                    // A real block: entry lines until a `)` line.
+                    None => loop {
+                        let Some(raw) = lines.next() else {
+                            return Err(Malformed);
+                        };
+                        let t = go_tokens(raw)?;
+                        match t.first().map(String::as_str) {
+                            None => continue,
+                            Some(")") if t.len() == 1 => break,
+                            Some("(") | Some(")") => return Err(Malformed),
+                            _ => entries.push(t),
+                        }
+                    },
+                }
+            }
+            _ => entries.push(tokens[1..].to_vec()),
+        }
+        for e in &entries {
+            if e.iter().any(|t| t == "(" || t == ")") {
+                return Err(Malformed);
+            }
+        }
+        out.push((verb.clone(), entries));
+    }
+    Ok(out)
+}
+
+/// One argument out of an entry: anything else is malformed.
+fn go_one(e: &[String]) -> Result<&str, Malformed> {
+    match e {
+        [a] => Ok(a),
+        _ => Err(Malformed),
+    }
+}
+
+/// Whether `t` reads as a `use` or `replace` directory target
+/// (`.`/`..`-relative or absolute), never a module path.
+fn go_is_path(t: &str) -> bool {
+    t == "." || t == ".." || t.starts_with("./") || t.starts_with("../") || t.starts_with('/')
+}
+
+/// Parses `replace from[ version] => target`. A path target is folded
+/// against the manifest's directory; an out-of-root fold lands in `refs`
+/// as `replace` and records `Outside`, never the path.
+fn go_replace(e: &[String], refs: &mut Refs<'_>) -> Result<GoReplace, Malformed> {
+    let pos = e.iter().position(|t| t == "=>").ok_or(Malformed)?;
+    let (left, right) = (&e[..pos], &e[pos + 1..]);
+    if right.iter().any(|t| t == "=>") {
+        return Err(Malformed);
+    }
+    let (from, from_version) = match left {
+        [p] => (p.clone(), None),
+        [p, v] => (p.clone(), Some(v.clone())),
+        _ => return Err(Malformed),
+    };
+    let to = match right {
+        // A path target takes no version beside it.
+        [t] if go_is_path(t) => match refs.add("replace", t) {
+            Some(p) => GoReplaceTarget::Path(p),
+            None => GoReplaceTarget::Outside,
+        },
+        [p] => GoReplaceTarget::Module {
+            path: p.clone(),
+            version: None,
+        },
+        [p, v] => GoReplaceTarget::Module {
+            path: p.clone(),
+            version: Some(v.clone()),
+        },
+        _ => return Err(Malformed),
+    };
+    Ok(GoReplace {
+        from,
+        from_version,
+        to,
+    })
+}
+
+/// The `go` directive's argument: one token starting with a digit
+/// (`1.22`, `1.22.0`, `1.23rc1`); anything else is malformed.
+fn go_version_arg(e: &[String]) -> Result<String, Malformed> {
+    let v = go_one(e)?;
+    if v.as_bytes()[0].is_ascii_digit() {
+        Ok(v.to_string())
+    } else {
+        Err(Malformed)
+    }
+}
+
+fn go_mod(path: &[u8], text: &str, refs: &mut Refs<'_>) -> Result<GoMod, Malformed> {
+    let mut m = GoMod {
+        path: path.to_vec(),
+        module: None,
+        go: None,
+        require: Vec::new(),
+        replace: Vec::new(),
+    };
+    for (verb, entries) in go_directives(text)? {
+        match verb.as_str() {
+            "module" => {
+                for e in &entries {
+                    m.module = Some(go_one(e)?.to_string());
+                }
+            }
+            "go" => {
+                for e in &entries {
+                    m.go = Some(go_version_arg(e)?);
+                }
+            }
+            "require" => {
+                for e in &entries {
+                    match e.as_slice() {
+                        [p, v] => m.require.push((p.clone(), v.clone())),
+                        _ => return Err(Malformed),
+                    }
+                }
+            }
+            "replace" => {
+                for e in &entries {
+                    m.replace.push(go_replace(e, refs)?);
+                }
+            }
+            // toolchain, tool, exclude, retract, and unknown verbs.
+            _ => {}
+        }
+    }
+    Ok(m)
+}
+
+fn go_work(path: &[u8], text: &str, refs: &mut Refs<'_>) -> Result<GoWork, Malformed> {
+    let mut w = GoWork {
+        path: path.to_vec(),
+        go: None,
+        uses: Vec::new(),
+        replace: Vec::new(),
+    };
+    for (verb, entries) in go_directives(text)? {
+        match verb.as_str() {
+            "go" => {
+                for e in &entries {
+                    w.go = Some(go_version_arg(e)?);
+                }
+            }
+            "use" => {
+                for e in &entries {
+                    let d = go_one(e)?;
+                    if !go_is_path(d) {
+                        return Err(Malformed);
+                    }
+                    if let Some(p) = refs.add("use", d) {
+                        w.uses.push(p);
+                    }
+                }
+            }
+            "replace" => {
+                for e in &entries {
+                    w.replace.push(go_replace(e, refs)?);
+                }
+            }
+            // toolchain, godebug, and unknown verbs.
+            _ => {}
+        }
+    }
+    Ok(w)
 }

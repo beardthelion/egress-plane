@@ -34,6 +34,7 @@ fn coverage_keys_follow_the_language_table() {
         "\"python\"",
         "\"javascript\"",
         "\"rust\"",
+        "\"go\"",
         "\"unsupported\"",
     ];
     let pos: Vec<usize> = keys
@@ -96,16 +97,22 @@ fn a_data_file_with_the_wrong_language_key_fails_naming_it() {
     );
 }
 
-/// Extensions no spec row lists stay `Other`; a `python3` shebang still
-/// routes to Python.
+/// Extensions no spec row lists stay `Other`; `.go` routes to Go while
+/// `main.GO` is a case-sensitive miss; a `python3` shebang still routes
+/// to Python.
 #[test]
 fn unrouted_extensions_stay_other_and_shebangs_route() {
     let t = Tree::new("language-table");
     t.file("main.go", "package main\n")
+        .file("main.GO", "package main\n")
         .file("prog.hs", "main = pure ()\n")
         .file("tool", "#!/usr/bin/env python3\nprint(1)\n");
     let d = discover(&t.root, &Config::default()).unwrap_or_else(|e| panic!("{e}"));
-    assert_eq!(d.index.get(b"main.go".as_slice()), Some(&FileKind::Other));
+    assert_eq!(
+        d.index.get(b"main.go".as_slice()),
+        Some(&FileKind::Source(Language::Go))
+    );
+    assert_eq!(d.index.get(b"main.GO".as_slice()), Some(&FileKind::Other));
     assert_eq!(d.index.get(b"prog.hs".as_slice()), Some(&FileKind::Other));
     let tool = d
         .sources

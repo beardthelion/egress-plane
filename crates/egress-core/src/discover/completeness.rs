@@ -53,10 +53,19 @@ struct RawCaveat {
     id: String,
     languages: Vec<String>,
     text: String,
+    /// When set, the caveat is triggered by a parsed `go` directive
+    /// naming a release newer than this version (`major.minor`), not by
+    /// language presence.
+    #[serde(default)]
+    go_newer_than: Option<String>,
 }
 
-fn table() -> &'static [(Caveat, Vec<Language>)] {
-    static T: OnceLock<Vec<(Caveat, Vec<Language>)>> = OnceLock::new();
+/// One table row: the caveat, its languages, and an optional trigger
+/// bound replacing the language rule.
+type CaveatRow = (Caveat, Vec<Language>, Option<String>);
+
+fn table() -> &'static [CaveatRow] {
+    static T: OnceLock<Vec<CaveatRow>> = OnceLock::new();
     T.get_or_init(|| {
         let raw: RawCaveats = toml::from_str(CAVEATS_TOML).expect("embedded data/caveats.toml");
         raw.caveat
@@ -73,19 +82,49 @@ fn table() -> &'static [(Caveat, Vec<Language>)] {
                         text: c.text,
                     },
                     langs,
+                    c.go_newer_than,
                 )
             })
             .collect()
     })
 }
 
+/// Whether a `go` directive version (`1.22`, `1.22.0`, `1.27rc1`) names a
+/// release newer than `bound` (`1.26`): the `major.minor` pair compared
+/// numerically, any patch or pre-release suffix ignored.
+fn go_version_newer(version: &str, bound: &str) -> bool {
+    fn major_minor(s: &str) -> Option<(u64, u64)> {
+        let mut it = s.split('.');
+        let major: u64 = it.next()?.parse().ok()?;
+        let minor: String = it
+            .next()?
+            .chars()
+            .take_while(|c| c.is_ascii_digit())
+            .collect();
+        if minor.is_empty() {
+            return None;
+        }
+        Some((major, minor.parse().ok()?))
+    }
+    match (major_minor(version), major_minor(bound)) {
+        (Some(v), Some(b)) => v > b,
+        _ => false,
+    }
+}
+
 /// The fixed caveats that apply to a tree holding these languages, sorted by
-/// ID. Caveats never change the state.
-pub fn caveats(languages: &BTreeSet<Language>) -> Vec<Caveat> {
+/// ID. `go_versions` carries the parsed `go` directive versions of every
+/// `go.mod` and `go.work` in the tree; a `go_newer_than` entry fires when
+/// one names a release newer than its bound. Caveats never change the
+/// state.
+pub fn caveats(languages: &BTreeSet<Language>, go_versions: &[&str]) -> Vec<Caveat> {
     let mut out: Vec<Caveat> = table()
         .iter()
-        .filter(|(_, langs)| langs.iter().any(|l| languages.contains(l)))
-        .map(|(c, _)| c.clone())
+        .filter(|(_, langs, trigger)| match trigger {
+            Some(bound) => go_versions.iter().any(|v| go_version_newer(v, bound)),
+            None => langs.iter().any(|l| languages.contains(l)),
+        })
+        .map(|(c, _, _)| c.clone())
         .collect();
     out.sort_by(|a, b| a.id.cmp(&b.id));
     out

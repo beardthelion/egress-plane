@@ -1,0 +1,1148 @@
+# Provisional Go standard-library classification (U5). Every package
+# sits in the module table pending real curation (U9): packages on the
+# plan's deny list are class = "egress" with a module-level blind-spot
+# entry standing in for member rows; every other package is inert.
+language = "go"
+runtime_range = "1.18-1.26"
+
+[closure]
+
+[[module]]
+name = "archive/tar"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "archive/zip"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "arena"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "bufio"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "bytes"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "cmp"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "compress/bzip2"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "compress/flate"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "compress/gzip"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "compress/lzw"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "compress/zlib"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "container/heap"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "container/list"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "container/ring"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "context"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/aes"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/boring"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/cipher"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/des"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/dsa"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/ecdh"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/ecdsa"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/ed25519"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/elliptic"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/fips140"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/hkdf"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/hmac"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/hpke"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/md5"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/mlkem"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/mlkem/mlkemtest"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/pbkdf2"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/rand"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/rc4"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/rsa"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/sha1"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/sha256"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/sha3"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/sha512"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/subtle"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/tls"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/tls/fipsonly"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/x509"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "crypto/x509/pkix"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "database/sql"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "database/sql/driver"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "debug/buildinfo"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "debug/dwarf"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "debug/elf"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "debug/gosym"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "debug/macho"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "debug/pe"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "debug/plan9obj"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "embed"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/ascii85"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/asn1"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/base32"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/base64"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/binary"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/csv"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/gob"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/hex"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/json"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/json/jsontext"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/json/v2"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/pem"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "encoding/xml"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "errors"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "expvar"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "flag"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "fmt"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/ast"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/build"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/build/constraint"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/constant"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/doc"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/doc/comment"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/format"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/importer"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/parser"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/printer"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/scanner"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/token"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/types"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "go/version"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "hash"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "hash/adler32"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "hash/crc32"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "hash/crc64"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "hash/fnv"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "hash/maphash"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "html"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "html/template"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "image"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "image/color"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "image/color/palette"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "image/draw"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "image/gif"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "image/jpeg"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "image/png"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "index/suffixarray"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "io"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "io/fs"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "io/ioutil"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "iter"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "log"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "log/slog"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "log/syslog"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "maps"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "math"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "math/big"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "math/bits"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "math/cmplx"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "math/rand"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "math/rand/v2"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "mime"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "mime/multipart"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "mime/quotedprintable"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/http"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/http/cgi"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/http/cookiejar"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/http/fcgi"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/http/httptest"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/http/httptrace"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/http/httputil"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/http/pprof"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/mail"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/netip"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/rpc"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/rpc/jsonrpc"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/smtp"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/textproto"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "net/url"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "os"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "os/exec"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "os/signal"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "os/user"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "path"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "path/filepath"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "plugin"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "reflect"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "regexp"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "regexp/syntax"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "runtime"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "runtime/asan"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "runtime/cgo"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "runtime/coverage"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "runtime/debug"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "runtime/metrics"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "runtime/msan"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "runtime/pprof"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "runtime/race"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "runtime/secret"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "runtime/trace"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "simd/archsimd"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "slices"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "sort"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "strconv"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "strings"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "structs"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "sync"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "sync/atomic"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "syscall"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "syscall/js"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "testing"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "testing/cryptotest"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "testing/fstest"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "testing/iotest"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "testing/quick"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "testing/slogtest"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "testing/synctest"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "text/scanner"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "text/tabwriter"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "text/template"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "text/template/parse"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "time"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "time/tzdata"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "unicode"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "unicode/utf16"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "unicode/utf8"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "unique"
+class = "inert"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "unsafe"
+class = "egress"
+justification = "Pending U9 curation."
+
+[[module]]
+name = "weak"
+class = "inert"
+justification = "Pending U9 curation."
+
+# The first curated entry: exercised by the pending ordinary case.
+[[entry]]
+id = "go:net/http.Get"
+kind = "egress"
+mechanism = "network"
+fixture = "go/ordinary/http-get"
+
+[[entry]]
+id = "go:crypto/tls"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/crypto-tls"
+
+[[entry]]
+id = "go:database/sql"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/database-sql"
+
+[[entry]]
+id = "go:database/sql/driver"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/database-sql-driver"
+
+[[entry]]
+id = "go:expvar"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/expvar"
+
+[[entry]]
+id = "go:go/build"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/go-build"
+
+[[entry]]
+id = "go:go/importer"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/go-importer"
+
+[[entry]]
+id = "go:log/syslog"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/log-syslog"
+
+[[entry]]
+id = "go:net"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/net"
+
+[[entry]]
+id = "go:net/http"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/net-http"
+
+[[entry]]
+id = "go:net/http/cgi"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/net-http-cgi"
+
+[[entry]]
+id = "go:net/http/cookiejar"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/net-http-cookiejar"
+
+[[entry]]
+id = "go:net/http/fcgi"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/net-http-fcgi"
+
+[[entry]]
+id = "go:net/http/httptest"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/net-http-httptest"
+
+[[entry]]
+id = "go:net/http/httptrace"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/net-http-httptrace"
+
+[[entry]]
+id = "go:net/http/httputil"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/net-http-httputil"
+
+[[entry]]
+id = "go:net/http/pprof"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/net-http-pprof"
+
+[[entry]]
+id = "go:net/rpc"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/net-rpc"
+
+[[entry]]
+id = "go:net/rpc/jsonrpc"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/net-rpc-jsonrpc"
+
+[[entry]]
+id = "go:net/smtp"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/net-smtp"
+
+[[entry]]
+id = "go:os"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/os"
+
+[[entry]]
+id = "go:os/exec"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/os-exec"
+
+[[entry]]
+id = "go:os/user"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/os-user"
+
+[[entry]]
+id = "go:plugin"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/plugin"
+
+[[entry]]
+id = "go:reflect"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/reflect"
+
+[[entry]]
+id = "go:runtime"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/runtime"
+
+[[entry]]
+id = "go:runtime/cgo"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/runtime-cgo"
+
+[[entry]]
+id = "go:runtime/debug"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/runtime-debug"
+
+[[entry]]
+id = "go:syscall"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/syscall"
+
+[[entry]]
+id = "go:unsafe"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "pending U9 curation"
+fixture = "go/primitives/unsafe"

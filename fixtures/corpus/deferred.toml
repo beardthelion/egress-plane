@@ -8,7 +8,38 @@
 #   once its category holds a case.
 #
 # This ledger must be empty at Definition of Done.
+# Every provisional Go blind-spot entry's fixture: real Go curation
+# and its cases land in U9.
 cases = [
+    "go/primitives/crypto-tls",
+    "go/primitives/database-sql",
+    "go/primitives/database-sql-driver",
+    "go/primitives/expvar",
+    "go/primitives/go-build",
+    "go/primitives/go-importer",
+    "go/primitives/log-syslog",
+    "go/primitives/net",
+    "go/primitives/net-http",
+    "go/primitives/net-http-cgi",
+    "go/primitives/net-http-cookiejar",
+    "go/primitives/net-http-fcgi",
+    "go/primitives/net-http-httptest",
+    "go/primitives/net-http-httptrace",
+    "go/primitives/net-http-httputil",
+    "go/primitives/net-http-pprof",
+    "go/primitives/net-rpc",
+    "go/primitives/net-rpc-jsonrpc",
+    "go/primitives/net-smtp",
+    "go/primitives/os",
+    "go/primitives/os-exec",
+    "go/primitives/os-user",
+    "go/primitives/plugin",
+    "go/primitives/reflect",
+    "go/primitives/runtime",
+    "go/primitives/runtime-cgo",
+    "go/primitives/runtime-debug",
+    "go/primitives/syscall",
+    "go/primitives/unsafe",
 ]
 
 [[categories]]
@@ -34,3 +65,27 @@ reason = "The evasive category belongs to the code layer hardening plan; see REA
 [[categories]]
 id = "rust/closure"
 reason = "The closure category belongs to the code layer hardening plan; see README \"Limitations\"."
+
+[[categories]]
+id = "go/tricky"
+reason = "The tricky category belongs to the code layer hardening plan; see README \"Limitations\"."
+
+[[categories]]
+id = "go/evasive"
+reason = "The evasive category belongs to the code layer hardening plan; see README \"Limitations\"."
+
+[[categories]]
+id = "go/closure"
+reason = "The closure category belongs to the code layer hardening plan; see README \"Limitations\"."
+
+[[categories]]
+id = "go/primitives"
+reason = "Go primitive curation lands in U9; the provisional module classifications carry deferred fixture names."
+
+[[categories]]
+id = "go/completeness"
+reason = "Go completeness cases await the egress-go frontend."
+
+[[categories]]
+id = "go/dependencies"
+reason = "Go module source scanning belongs to the dependency source scan plan."

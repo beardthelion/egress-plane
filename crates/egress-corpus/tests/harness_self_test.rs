@@ -612,7 +612,7 @@ fn malformed_labels_are_rejected_with_origin() {
         "state = \"complete\"\nexit_code = 0\n[[sites]]\nfile = \"a\"\nsymbol = \"b\"\nmechanism = \"requests.post\"\ndestination = \"x\"\n",
         "state = \"complete\"\nexit_code = 0\n[[sites]]\nfile = \"/abs.py\"\nsymbol = \"b\"\nmechanism = \"python:x\"\ndestination = \"x\"\n",
         "state = \"complete\"\nexit_code = 0\n[[sites]]\nfile = \"a.py\"\nsymbol = \"b\"\nmechanism = \"python:x\"\ndestination = \"x\"\nlabels = [\"shiny\"]\n",
-        "state = \"complete\"\nexit_code = 0\n[[unscanned_dependencies]]\nlanguage = \"go\"\npackage = \"x\"\n",
+        "state = \"complete\"\nexit_code = 0\n[[unscanned_dependencies]]\nlanguage = \"cobol\"\npackage = \"x\"\n",
         "not toml at all [",
     ];
     for text in cases {
@@ -742,7 +742,10 @@ fn malformed_expected_fails_run_with_case_path() {
 
 #[test]
 fn unknown_language_or_category_fails_run() {
-    for (id, named) in [("go/ordinary/a", "go:"), ("python/misc/a", "python/misc:")] {
+    for (id, named) in [
+        ("cobol/ordinary/a", "cobol:"),
+        ("python/misc/a", "python/misc:"),
+    ] {
         let root = temp_corpus(&[(id, COMPLETE_EMPTY)]);
         let s = run_corpus_with(&root, &pending(&[]), perfect_scan_with);
         assert!(!s.passed(), "{id}");

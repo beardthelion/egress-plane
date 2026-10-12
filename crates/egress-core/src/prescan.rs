@@ -50,6 +50,7 @@ pub fn too_deep_with_cap(language: Language, text: &str, cap: usize) -> bool {
             Language::Python => python(b, cap, &forced),
             Language::Javascript => javascript(b, cap, &forced),
             Language::Rust => rust(b, cap, &forced),
+            Language::Go => go(b, cap, &forced),
         };
         match out {
             Lex::Within => return false,
@@ -691,5 +692,89 @@ fn rust(b: &[u8], cap: usize, forced: &BTreeSet<usize>) -> Lex {
         Rs::Str { open } | Rs::Raw { open, .. } | Rs::Comment { open, .. } => {
             Lex::Unterminated(open)
         }
+    }
+}
+
+// ---- Go --------------------------------------------------------------------
+
+enum Go {
+    Code,
+    /// A backtick raw string: multi-line, no escapes.
+    Raw {
+        open: usize,
+    },
+    /// A `/* */` comment: unlike Rust's, it never nests.
+    Comment {
+        open: usize,
+    },
+}
+
+/// The index past a `"` string or `'` rune literal starting at `i` (the
+/// quote). Both are single-line with `\` escapes; an unescaped newline or
+/// the end of input ends the literal.
+fn go_quoted(b: &[u8], mut i: usize) -> usize {
+    let q = b[i];
+    i += 1;
+    while i < b.len() {
+        match b[i] {
+            b'\\' => i += 2,
+            b'\n' => return i,
+            x if x == q => return i + 1,
+            _ => i += 1,
+        }
+    }
+    i
+}
+
+fn go(b: &[u8], cap: usize, forced: &BTreeSet<usize>) -> Lex {
+    let mut d = Depth { depth: 0, cap };
+    let mut st = Go::Code;
+    let mut i = 0;
+    while i < b.len() {
+        let c = b[i];
+        match &mut st {
+            Go::Code => match c {
+                b'/' if b.get(i + 1) == Some(&b'/') => {
+                    while i < b.len() && b[i] != b'\n' {
+                        i += 1;
+                    }
+                    continue;
+                }
+                b'/' if b.get(i + 1) == Some(&b'*') && !forced.contains(&i) => {
+                    st = Go::Comment { open: i };
+                    i += 2;
+                    continue;
+                }
+                b'`' if !forced.contains(&i) => st = Go::Raw { open: i },
+                b'"' | b'\'' => {
+                    i = go_quoted(b, i);
+                    continue;
+                }
+                b'(' | b'[' | b'{' => {
+                    if !d.open() {
+                        return Lex::TooDeep;
+                    }
+                }
+                b')' | b']' | b'}' => d.close(),
+                _ => {}
+            },
+            Go::Raw { .. } => {
+                if c == b'`' {
+                    st = Go::Code;
+                }
+            }
+            Go::Comment { .. } => {
+                if c == b'*' && b.get(i + 1) == Some(&b'/') {
+                    st = Go::Code;
+                    i += 2;
+                    continue;
+                }
+            }
+        }
+        i += 1;
+    }
+    match st {
+        Go::Code => Lex::Within,
+        Go::Raw { open } | Go::Comment { open } => Lex::Unterminated(open),
     }
 }
