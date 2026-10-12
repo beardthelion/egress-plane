@@ -70,8 +70,8 @@ fn python2_file_is_a_parse_error_gap() {
 }
 
 #[test]
-fn go_only_is_empty_and_no_egress_python_is_complete() {
-    let (text, j) = both(&case("mixed/completeness/go-only-empty"), 3, "empty");
+fn haskell_only_is_empty_and_no_egress_python_is_complete() {
+    let (text, j) = both(&case("mixed/completeness/haskell-only-empty"), 3, "empty");
     let v = json(&j);
     for lang in Language::ALL {
         assert_eq!(v["completeness"]["coverage"][lang.as_str()]["scanned"], 0);

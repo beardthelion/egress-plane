@@ -106,9 +106,12 @@ fn notebook_makes_the_scan_incomplete() {
 }
 
 #[test]
-fn go_only_is_empty_and_inert_python_complete() {
-    let t = Tree::new("go-only");
-    t.file("main.go", "package main\n");
+fn haskell_only_is_empty_and_inert_python_complete() {
+    let t = Tree::new("haskell-only");
+    t.file(
+        "Main.hs",
+        "module Main where\nmain :: IO ()\nmain = pure ()\n",
+    );
     let r = scan(&t.root).unwrap();
     assert_eq!(r.completeness.state, CompletenessState::Empty);
     assert_eq!(r.exit_code(), 3);

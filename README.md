@@ -49,7 +49,7 @@ egress-plane scan . --format json \
 |---|---|
 | 0 | `complete`: every supported first-party file was scanned and no coverage gap was found. |
 | 2 | `incomplete`: at least one coverage gap. The report is still written in full. |
-| 3 | `empty`: no supported first-party file was found (for example a Go-only tree). |
+| 3 | `empty`: no supported first-party file was found (for example a Haskell-only tree). |
 | 1 | Tool error: the root does not exist or is not a directory, the command line is wrong, or an internal failure occurred. Nothing is written to stdout. |
 
 A tool error outranks `empty`, which outranks `incomplete`, which outranks `complete`. A file that fails to parse, a manifest that fails to parse, and a frontend crash on one file are all per-file coverage gaps (exit 2), never a tool error. Caveats never change the exit code.

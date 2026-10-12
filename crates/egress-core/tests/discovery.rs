@@ -70,15 +70,17 @@ fn notebook_is_unsupported_and_skipped() {
 }
 
 #[test]
-fn go_only_tree_has_no_supported_files() {
-    let t = Tree::new("go");
-    t.file("main.go", "package main\n")
-        .file("go.mod", "module x\n");
+fn haskell_only_tree_has_no_supported_files() {
+    let t = Tree::new("haskell");
+    t.file(
+        "Main.hs",
+        "module Main where\nmain :: IO ()\nmain = pure ()\n",
+    );
     let d = run(&t);
     assert!(d.sources.is_empty());
     assert!(d.blind_spots.is_empty());
     assert!(d.languages.is_empty());
-    assert_eq!(d.index.get(b"main.go".as_slice()), Some(&FileKind::Other));
+    assert_eq!(d.index.get(b"Main.hs".as_slice()), Some(&FileKind::Other));
 }
 
 #[test]
