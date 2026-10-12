@@ -442,6 +442,7 @@ fn npm_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
     Inventory {
         kind: Npm,
         instances: acc.instances,
+        auto_runs: Vec::new(),
         entries_exceeded: acc.exceeded,
     }
 }
@@ -480,6 +481,7 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
         return Inventory {
             kind: Python,
             instances,
+            auto_runs: Vec::new(),
             entries_exceeded: exceeded,
         };
     };
@@ -489,6 +491,9 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
     }
 
     let mut dist_tops: Vec<(Vec<u8>, Vec<String>)> = Vec::new();
+    // (distribution name, RECORD paths) for KTD16 attribution; a dist
+    // may hold no importable package at all (a `.pth`-only install).
+    let mut dist_records: Vec<(String, Vec<Vec<u8>>)> = Vec::new();
     for (name, st) in &listing {
         if st.kind != super::open::EntryType::Dir {
             continue;
@@ -531,6 +536,10 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
                 }
             }
             dist_tops.push((name.clone(), tops.clone()));
+            dist_records.push((
+                pkg.clone(),
+                rows.iter().map(|r| r.path.clone().into_bytes()).collect(),
+            ));
             let mut flags = InstanceFlags::default();
             if pkg.is_empty() {
                 flags.unsupported = Some("unreadable-metadata".to_string());
@@ -641,9 +650,56 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
         });
     }
 
+    // KTD16's auto-run inventory: `.pth` files, `sitecustomize.py`,
+    // and `usercustomize.py` in the import root, attributed through
+    // the dist `RECORD`s. Anything not a clean regular file fails
+    // closed as a hit.
+    let mut auto_runs = Vec::new();
+    if let Ok(listing) = root.dir.list_dir(&import_root) {
+        for (name, st) in &listing {
+            let trigger = if name.ends_with(b".pth") {
+                crate::model::AutoRunTrigger::PthImportLine
+            } else if name.as_slice() == b"sitecustomize.py" {
+                crate::model::AutoRunTrigger::Sitecustomize
+            } else if name.as_slice() == b"usercustomize.py" {
+                crate::model::AutoRunTrigger::Usercustomize
+            } else {
+                continue;
+            };
+            let hit = match st.kind {
+                super::open::EntryType::File => {
+                    match read_meta(&root.dir, &join(&import_root, name), budgets) {
+                        Some(Ok(bytes)) => {
+                            trigger != crate::model::AutoRunTrigger::PthImportLine
+                                || crate::deps::auto_run::pth_has_import_line(&bytes)
+                        }
+                        Some(Err(_)) | None => true,
+                    }
+                }
+                _ => true,
+            };
+            if !hit {
+                continue;
+            }
+            let distribution = dist_records
+                .iter()
+                .find(|(_, paths)| paths.iter().any(|p| p == name))
+                .map(|(pkg, _)| pkg.clone())
+                .filter(|pkg| !pkg.is_empty())
+                .unwrap_or_else(|| "unattributed".to_string());
+            auto_runs.push(crate::deps::inventory::AutoRunFile {
+                file: String::from_utf8_lossy(name).into_owned(),
+                trigger,
+                distribution,
+            });
+        }
+    }
+    auto_runs.sort_by(|a, b| a.file.cmp(&b.file));
+
     Inventory {
         kind: Python,
         instances,
+        auto_runs,
         entries_exceeded: exceeded,
     }
 }
@@ -658,6 +714,7 @@ fn vendor_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
         return Inventory {
             kind: CargoVendor,
             instances,
+            auto_runs: Vec::new(),
             entries_exceeded: exceeded,
         };
     };
@@ -729,6 +786,7 @@ fn vendor_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
     Inventory {
         kind: CargoVendor,
         instances,
+        auto_runs: Vec::new(),
         entries_exceeded: exceeded,
     }
 }
@@ -749,6 +807,7 @@ fn registry_inventory(
         return Inventory {
             kind: CargoRegistry,
             instances,
+            auto_runs: Vec::new(),
             entries_exceeded: exceeded,
         };
     };
@@ -856,6 +915,7 @@ fn registry_inventory(
     Inventory {
         kind: CargoRegistry,
         instances,
+        auto_runs: Vec::new(),
         entries_exceeded: exceeded,
     }
 }
@@ -870,6 +930,7 @@ fn git_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
         return Inventory {
             kind: CargoGit,
             instances,
+            auto_runs: Vec::new(),
             entries_exceeded: exceeded,
         };
     };
@@ -949,6 +1010,7 @@ fn git_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
     Inventory {
         kind: CargoGit,
         instances,
+        auto_runs: Vec::new(),
         entries_exceeded: exceeded,
     }
 }

@@ -53,11 +53,26 @@ pub struct InstanceFlags {
     pub store_layout: bool,
 }
 
+/// A file in a root's import root that runs without an import
+/// (KTD16): `.pth` with an `import` line, `sitecustomize.py`, and
+/// `usercustomize.py`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AutoRunFile {
+    /// File name relative to the root (the import root's child).
+    pub file: String,
+    /// The trigger kind.
+    pub trigger: crate::model::AutoRunTrigger,
+    /// Installing distribution, or `unattributed`.
+    pub distribution: String,
+}
+
 /// The inventory of one named root.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Inventory {
     pub kind: DependencyRootKind,
     pub instances: Vec<Instance>,
+    /// Auto-run files found in the import root (Python roots only).
+    pub auto_runs: Vec<AutoRunFile>,
     /// True when the listing hit the `inventory_entries` budget; every
     /// instance of this root is then flagged budget-exhausted by the
     /// caller (U8 consumes the flag).

@@ -1203,11 +1203,8 @@ fn dependency_cases_are_pending_except_landed_ones() {
     let unlanded = [
         "javascript/dependencies/non-ascii-npm-name",
         "python/dependencies/cyrillic-requests-marked",
-        "python/dependencies/distutils-precedence-pth",
-        "python/dependencies/editable-finder-pth",
         "python/dependencies/mixed-script-import-name",
         "python/dependencies/must-not-mark-ascii-twin",
-        "python/dependencies/pth-auto-run-unimported",
         "python/dependencies/stdlib-confusable",
         "rust/dependencies/non-ascii-crate-name",
     ];

@@ -9,8 +9,8 @@ use egress_core::discover::dependency_roots::NamedRoot;
 use std::collections::BTreeMap;
 
 use egress_core::model::{
-    DependencyPackage, DependencyRootKind, DependencySection, ImportsUnscanned, Language, Report,
-    ToolError, UnscannedReason, VerificationStrength,
+    AutoRun, DependencyPackage, DependencyRootKind, DependencySection, ImportsUnscanned, Language,
+    Report, ToolError, UnscannedReason, VerificationStrength,
 };
 
 use crate::ScanOptions;
@@ -137,6 +137,24 @@ pub fn run(
         packages.push(entry);
     }
 
+    // The auto-run inventory: `.pth`, `sitecustomize.py`, and
+    // `usercustomize.py` files are listed whether or not anything
+    // imports their distribution (KTD16, AE10).
+    let mut auto_run: Vec<AutoRun> = invs
+        .iter()
+        .enumerate()
+        .flat_map(|(ri, inv)| {
+            inv.auto_runs.iter().map(move |a| AutoRun {
+                id: String::new(),
+                root: roots[ri].label.clone(),
+                file: a.file.clone(),
+                trigger: a.trigger,
+                distribution: a.distribution.clone(),
+            })
+        })
+        .collect();
+    auto_run.sort_by(|a, b| (&a.root, &a.file).cmp(&(&b.root, &b.file)));
+
     // Linked entries for the remaining inventory of covered roots,
     // whether or not the closure reached them (KTD11).
     for (ri, root) in roots.iter().enumerate() {
@@ -193,7 +211,7 @@ pub fn run(
             caveats,
             budget_exceeded: budgets,
             diagnostics,
-            auto_run: Vec::new(),
+            auto_run,
             packages,
         },
     })

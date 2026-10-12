@@ -122,3 +122,38 @@ fn dependency_edges_resolve_versions() {
     let quote = resolve_edge(&lock, "quote").unwrap();
     assert!(["1.0.0", "2.0.0"].contains(&quote.version.as_str()));
 }
+
+// ---- KTD16: the `.pth` auto-run line test ----------------------------------
+
+use egress_core::deps::auto_run::pth_has_import_line;
+
+#[test]
+fn pth_line_test_hits_and_misses() {
+    assert!(pth_has_import_line(b"import os\n"));
+    // Tab separator is a hit.
+    assert!(pth_has_import_line(b"import\tsys\n"));
+    // `importlib` at line start is not.
+    assert!(!pth_has_import_line(b"importlib\n"));
+    // A `#import` comment line is not.
+    assert!(!pth_has_import_line(b"#import os\n"));
+    // A path-only line is not.
+    assert!(!pth_has_import_line(b"/opt/site/extra\n"));
+    // Executable line after a path line.
+    assert!(pth_has_import_line(b"/opt/x\nimport os\n"));
+}
+
+#[test]
+fn pth_line_test_separators_and_bom() {
+    // A lone CR separates lines.
+    assert!(pth_has_import_line(b"/opt/x\rimport os\n"));
+    // A form feed separates lines.
+    assert!(pth_has_import_line(b"/opt/x\x0cimport os\n"));
+    // A UTF-8 BOM at file start strips.
+    assert!(pth_has_import_line(b"\xef\xbb\xbfimport os\n"));
+    // U+2028 separates in UTF-8 text.
+    assert!(pth_has_import_line("/opt/x\u{2028}import os\n".as_bytes()));
+    // Non-UTF-8 bytes fall back to CR/LF splitting only: the 0x0c form
+    // feed inside an invalid file does not split, so no hit.
+    let weird = b"/opt/x\xff\x0cimport os\n";
+    assert!(!pth_has_import_line(weird));
+}

@@ -2,6 +2,7 @@
 //! and version comparison. Everything here works on bytes; path reads
 //! stay in `discover` (KTD24).
 
+pub mod auto_run;
 pub mod inventory;
 pub mod locator;
 pub mod lockfile;
