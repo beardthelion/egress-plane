@@ -1,14 +1,15 @@
 //! Go frontend: parses Go source with an exact-pinned `gosyn` behind a
 //! bounded prescan and a panic guard, and lowers it to the shared IR.
 //!
-//! [`lower`] handles one file. The package clause lands in
-//! [`FileIr::package`]; import and reference lowering is the next unit.
+//! [`lower`] handles one file: the package clause lands in
+//! [`FileIr::package`], and the [`lower`] module walks the AST into
+//! imports, references, constants, locals, and symbol paths.
 
+mod lower;
 mod positions;
 mod prescan;
 
 use egress_core::ir::FileIr;
-use egress_core::model::Language;
 
 /// Why a file could not be lowered; each maps to a fixed whole-file reason.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,7 +45,12 @@ pub fn lower(_path: &[u8], text: &str) -> Result<FileIr, LowerError> {
         }
         None => return Err(LowerError::Parse),
     };
-    let mut ir = FileIr::new(Language::Go);
+    let mut l = lower::Lowerer::new(text);
+    l.file(&file);
+    if l.too_deep {
+        return Err(LowerError::TooDeeplyNested);
+    }
+    let mut ir = l.finish();
     ir.package = Some(file.pkg_name.name.clone());
     Ok(ir)
 }

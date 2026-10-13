@@ -67,10 +67,6 @@ id = "rust/closure"
 reason = "The closure category belongs to the code layer hardening plan; see README \"Limitations\"."
 
 [[categories]]
-id = "go/tricky"
-reason = "The tricky category belongs to the code layer hardening plan; see README \"Limitations\"."
-
-[[categories]]
 id = "go/evasive"
 reason = "The evasive category belongs to the code layer hardening plan; see README \"Limitations\"."
 

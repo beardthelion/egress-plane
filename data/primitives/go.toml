@@ -937,12 +937,28 @@ name = "weak"
 class = "inert"
 justification = "Pending U9 curation."
 
-# The first curated entry: exercised by the pending ordinary case.
+# The first curated entries, exercised by the ordinary and U7 tricky
+# cases; the rest of `net/http` is still pending U9 curation.
 [[entry]]
 id = "go:net/http.Get"
 kind = "egress"
 mechanism = "network"
+destination = { arg = 1, form = "url" }
 fixture = "go/ordinary/http-get"
+
+[[entry]]
+id = "go:net/http.Client"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/tricky/zero-value-client"
+
+[[entry]]
+id = "go:net/http.Client.Get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/tricky/zero-value-client"
 
 [[entry]]
 id = "go:crypto/tls"

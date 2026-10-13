@@ -204,11 +204,11 @@ pub fn over_any_bound(tokens: &[LexicalToken], text: &str) -> bool {
         // counts.
         if let (Some(p), Some(s)) = (prev_tok, sig)
             && newline_between(&pos, bytes, p, t)
-                && semi_set(s)
-                && let Some(f) = frames.last_mut()
-            {
-                f.chain = 0;
-            }
+            && semi_set(s)
+            && let Some(f) = frames.last_mut()
+        {
+            f.chain = 0;
+        }
         match &t.token {
             Token::Comment(_) => {
                 prev_tok = Some(t);

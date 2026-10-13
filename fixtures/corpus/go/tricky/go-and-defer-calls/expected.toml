@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "fetch"
+mechanism = "go:net/http.Get"
+destination = "https://api.example.com/v1/ping"
+
+[[sites]]
+file = "main.go"
+symbol = "fetch"
+mechanism = "go:net/http.Get"
+destination = "https://api.example.com/v2/ping"

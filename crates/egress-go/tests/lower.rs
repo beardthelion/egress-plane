@@ -112,3 +112,360 @@ fn stdlib_files_survive_the_full_lower_path() {
     assert!(checked > 1000, "too few files: {checked}");
     assert_eq!(too_deep, 0, "non-testdata files tripped a bound");
 }
+
+// ---- the walker ---------------------------------------------------------------
+
+use egress_core::ir::{Expr, FileIr, Reference, Root, UseKind};
+
+fn ir(src: &str) -> FileIr {
+    let src = format!("package p\n\n{src}");
+    lower(&src).unwrap()
+}
+
+fn refs(ir: &FileIr, kind: UseKind) -> Vec<&Reference> {
+    ir.references
+        .iter()
+        .filter(|r| r.use_kind == kind)
+        .collect()
+}
+
+fn is_client(r: &&Reference) -> bool {
+    matches!(&r.root, Root::Import(l) if l == "http") && r.members == ["Client"]
+}
+
+/// `import "net/http"` binds `http`; every other specifier name lands on
+/// the import's local.
+#[test]
+fn import_locals_follow_the_go_name_rules() {
+    let ir = ir("import \"net/http\"\n\
+         import nh \"net/http/httputil\"\n\
+         import \"gopkg.in/yaml.v3\"\n\
+         import \"github.com/redis/go-redis/v9\"\n");
+    let locals: Vec<_> = ir
+        .imports
+        .iter()
+        .map(|i| (i.specifier.as_str(), i.local.as_deref()))
+        .collect();
+    assert_eq!(
+        locals,
+        [
+            ("net/http", Some("http")),
+            ("net/http/httputil", Some("nh")),
+            ("gopkg.in/yaml.v3", Some("yaml")),
+            ("github.com/redis/go-redis/v9", Some("redis")),
+        ]
+    );
+    assert!(ir.imports.iter().all(|i| i.symbol == "<module>" && !i.star));
+}
+
+#[test]
+fn a_dot_import_is_a_star_and_names_go_unqualified() {
+    let ir = ir("import . \"net/http\"\n\nfunc f() { Get(\"u\") }\n");
+    let star = &ir.imports[0];
+    assert!(star.star && star.local.is_none() && star.specifier == "net/http");
+    let calls = refs(&ir, UseKind::Call);
+    assert_eq!(calls.len(), 1);
+    // The lowerer cannot say which file the name comes from; the core's
+    // star-import lookup finishes it.
+    assert!(matches!(calls[0].root, Root::Ambient(ref n) if n == "Get"));
+}
+
+#[test]
+fn a_blank_import_is_a_value_use_of_the_whole_package() {
+    let ir = ir("import _ \"net/mail\"\n");
+    let escapes = refs(&ir, UseKind::ValueEscape);
+    assert_eq!(escapes.len(), 1);
+    assert!(matches!(&escapes[0].root, Root::Import(l) if l.starts_with("_#")));
+    assert!(escapes[0].members.is_empty());
+    assert_eq!(escapes[0].location.line, 3);
+}
+
+#[test]
+fn a_qualified_call_is_a_call_reference() {
+    let ir = ir("import \"net/http\"\n\n\
+         func main() { http.Get(\"https://api.example.com/v1/ping\") }\n");
+    let calls = refs(&ir, UseKind::Call);
+    assert_eq!(calls.len(), 1);
+    let c = calls[0];
+    assert!(matches!(&c.root, Root::Import(l) if l == "http"));
+    assert_eq!(c.members, ["Get"]);
+    assert_eq!(c.calls_in_chain, [0]);
+    assert_eq!(
+        c.args,
+        [Expr::Literal("https://api.example.com/v1/ping".into())]
+    );
+    assert_eq!(c.symbol, "main");
+    // The site sits at the callee's `h`, not the call's `(`.
+    assert_eq!(c.location.column, "func main() { ".len() as u32 + 1);
+}
+
+#[test]
+fn a_deeper_selector_call_keeps_its_members() {
+    let ir = ir("import \"net/http\"\n\nfunc f() { http.DefaultClient.Do(nil) }\n");
+    let calls = refs(&ir, UseKind::Call);
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].members, ["DefaultClient", "Do"]);
+}
+
+#[test]
+fn a_typed_var_binds_the_constructor_type() {
+    let ir = ir("import \"net/http\"\n\nfunc f() {\nvar c http.Client\nc.Get(u)\n}\n");
+    let constructs = refs(&ir, UseKind::Construct);
+    assert_eq!(constructs.len(), 1);
+    assert!(is_client(&constructs[0]));
+    assert_eq!(constructs[0].symbol, "f");
+    let calls = refs(&ir, UseKind::Call);
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].members, ["Client", "Get"]);
+    // `c` is a local binding to the construct.
+    let c = ir.locals.iter().find(|l| l.name == "c").expect("c binds");
+    assert_eq!(c.symbol, "f");
+    assert!(matches!(&c.value, Expr::Reference(r) if r.use_kind == UseKind::Construct));
+}
+
+#[test]
+fn a_package_level_typed_var_constructs_under_module() {
+    let ir = ir("import \"net/http\"\n\nvar c http.Client\n\nfunc f() { c.Get(u) }\n");
+    let constructs = refs(&ir, UseKind::Construct);
+    assert_eq!(constructs.len(), 1);
+    assert_eq!(constructs[0].symbol, "<module>");
+    let calls = refs(&ir, UseKind::Call);
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].members, ["Client", "Get"]);
+}
+
+#[test]
+fn new_composite_and_address_forms_construct() {
+    let ir = ir("import \"net/http\"\n\nfunc f() {\n\
+         _ = new(http.Client)\n\
+         _ = http.Client{}\n\
+         _ = &http.Client{Timeout: 1}\n\
+         }\n");
+    let constructs = refs(&ir, UseKind::Construct);
+    assert_eq!(constructs.len(), 3);
+    assert!(constructs.iter().all(is_client));
+}
+
+#[test]
+fn a_pointer_var_is_a_type_position_not_a_construct() {
+    let ir = ir("import \"net/http\"\n\nfunc f() { var c *http.Client; _ = c }\n");
+    assert!(refs(&ir, UseKind::Construct).is_empty());
+    let types = refs(&ir, UseKind::TypePosition);
+    assert!(types.iter().any(is_client));
+}
+
+#[test]
+fn function_values_are_value_escapes() {
+    let ir = ir(
+        "import \"net/http\"\nimport \"os\"\n\nfunc f(run func(string)) {\n\
+         _ = http.Get\n\
+         run(http.Get)\n\
+         }\n",
+    );
+    let escapes = refs(&ir, UseKind::ValueEscape);
+    let gets: Vec<_> = escapes.iter().filter(|r| r.members == ["Get"]).collect();
+    assert_eq!(gets.len(), 2);
+}
+
+#[test]
+fn go_and_defer_emit_call_references() {
+    let ir = ir("import \"net/http\"\n\nfunc f() {\nvar c http.Client\n\
+         go http.Get(u)\n\
+         defer c.Close()\n\
+         }\n");
+    let calls = refs(&ir, UseKind::Call);
+    let members: Vec<_> = calls.iter().map(|r| r.members.as_slice()).collect();
+    assert!(members.iter().any(|m| *m == ["Get"].as_slice()));
+    assert!(members.iter().any(|m| *m == ["Client", "Close"].as_slice()));
+}
+
+#[test]
+fn an_embedded_type_is_a_value_use_not_a_construct() {
+    let ir = ir("import \"net/http\"\n\n\
+         type C struct {\n\thttp.Client\n\tcl http.Client\n\tp *http.Cookie\n}\n");
+    let escapes: Vec<_> = refs(&ir, UseKind::ValueEscape)
+        .into_iter()
+        .filter(|r| r.symbol == "<module>")
+        .collect();
+    assert!(escapes.iter().any(|r| r.members == ["Client"]));
+    // A named field is a value-carrying position.
+    let constructs = refs(&ir, UseKind::Construct);
+    assert!(constructs.iter().any(|r| r.members == ["Client"]));
+    // A pointer field is a plain type position.
+    let types = refs(&ir, UseKind::TypePosition);
+    assert!(types.iter().any(|r| r.members.as_slice() == ["Cookie"]));
+}
+
+#[test]
+fn value_carrying_type_positions_construct() {
+    let ir = ir("import \"net/http\"\n\ntype Client = http.Client\n\n\
+         func mk() (c http.Client) { return }\n\
+         func f() {\n\
+         \tvar cs [2]http.Client\n\
+         \t_ = cs\n\
+         \t_ = make([]http.Client, 3)\n\
+         \tvar c Client\n\
+         \t_ = c\n\
+         }\n");
+    let constructs = refs(&ir, UseKind::Construct);
+    assert!(
+        constructs.len() >= 4,
+        "named result, array var, make slice, alias: {constructs:?}"
+    );
+    assert!(constructs.iter().all(is_client));
+    // The named result carries a Construct; the alias `var c Client`
+    // resolves through the alias target.
+    assert!(constructs.iter().any(|r| r.symbol == "mk"));
+    assert!(constructs.iter().any(|r| r.text == "Client"));
+}
+
+#[test]
+fn an_elided_literal_is_a_resolution_limit() {
+    let ir = ir("import \"net/http\"\n\nfunc f() {\n\
+         \t_ = []http.Client{{Timeout: 1}}\n\
+         \t_ = http.Client{Jar: {}}\n\
+         }\n");
+    let limits: Vec<_> = ir
+        .constructs
+        .iter()
+        .filter(|c| c.kind == egress_core::ir::ConstructKind::ResolutionLimit)
+        .collect();
+    assert_eq!(limits.len(), 2, "{:?}", ir.constructs);
+}
+
+#[test]
+fn a_local_type_elided_literal_is_not_flagged() {
+    let ir = ir("type Point struct{ x, y int }\n\nfunc f() { _ = []Point{{1, 2}} }\n");
+    assert!(ir.constructs.is_empty());
+}
+
+#[test]
+fn a_package_var_candidate_is_a_module_local() {
+    let ir = ir("var endpoint = \"https://api.example.com/v1/ping\"\n");
+    let l = ir
+        .locals
+        .iter()
+        .find(|l| l.name == "endpoint")
+        .expect("endpoint binds");
+    assert_eq!(l.symbol, "<module>");
+    assert_eq!(
+        l.value,
+        Expr::Literal("https://api.example.com/v1/ping".into())
+    );
+    assert!(ir.constants.iter().all(|c| c.name != "endpoint"));
+}
+
+#[test]
+fn package_var_mutations_drop_the_binding_and_leave_a_record() {
+    for body in ["u = \"y\"", "u++", "f(&u)", "f(&u.field)"] {
+        let ir = ir(&format!(
+            "var u = \"https://x\"\nvar v = 0\n\nfunc f(p *string) {{ {body} }}\n"
+        ));
+        assert!(
+            ir.locals.iter().all(|l| l.name != "u"),
+            "{body}: u must not bind"
+        );
+    }
+    // `=` and `&` leave an `AssignmentTarget` record for `link` to read.
+    let ir = ir("var u = \"x\"\n\nfunc f(p *string) { u = \"y\"; f(&u) }\n");
+    let targets = refs(&ir, UseKind::AssignmentTarget);
+    assert_eq!(targets.len(), 2, "{:?}", ir.references);
+    assert!(
+        targets
+            .iter()
+            .all(|r| matches!(&r.root, Root::Local(n) if n == "u"))
+    );
+}
+
+#[test]
+fn const_declarations_lower_to_module_constants() {
+    let ir = ir("const Exported = \"v\"\n\
+         const hidden = `raw\nstr`\n\
+         const esc = \"a\\nb\"\n\
+         const (\n\ta = \"x\"\n\tb\n\tk = iota\n\tm\n)\n");
+    let get = |n: &str| ir.constants.iter().find(|c| c.name == n).unwrap();
+    assert!(get("Exported").exported);
+    assert!(!get("hidden").exported);
+    assert_eq!(get("hidden").value, Expr::Literal("raw\nstr".into()));
+    assert_eq!(get("esc").value, Expr::Literal("a\nb".into()));
+    // A grouped spec with no values repeats the previous expression.
+    assert_eq!(get("b").value, Expr::Literal("x".into()));
+    // `iota` is never guessed.
+    assert!(matches!(get("k").value, Expr::Opaque(_)));
+    assert!(matches!(get("m").value, Expr::Opaque(_)));
+}
+
+#[test]
+fn a_string_concat_is_a_template() {
+    let ir =
+        ir("const base = \"https://api.example.com\"\n\nfunc f() { u := base + \"/v1\"; _ = u }\n");
+    let u = ir.locals.iter().find(|l| l.name == "u").unwrap();
+    assert_eq!(
+        u.value,
+        Expr::Template(vec![Expr::Name("base".into()), Expr::Literal("/v1".into())])
+    );
+}
+
+#[test]
+fn single_assignment_locals_bind_and_reassignment_drops_them() {
+    let ir = ir(
+        "func f() {\n\tx := \"a\"\n\ty := \"b\"\n\ty = \"c\"\n\tz := f2()\n\t_ = x\n\t_ = z\n}\n",
+    );
+    let names: Vec<_> = ir.locals.iter().map(|l| l.name.as_str()).collect();
+    assert!(names.contains(&"x"));
+    assert!(names.contains(&"z"));
+    assert!(!names.contains(&"y"), "reassigned locals do not bind");
+}
+
+#[test]
+fn symbol_paths_follow_the_shape() {
+    let top = ir("import \"net/http\"\n\n\
+         func Get() {}\n\
+         type Store[K, V any] struct{ m map[K]V }\n\
+         func (s *Store[K, V]) Put(k K) {}\n\
+         func init() {}\n\
+         func init() {}\n\
+         func f() { g := func() { os.Getenv(\"X\") }; g() }\n");
+    let paths: Vec<_> = top.symbols.iter().map(|s| s.path.as_str()).collect();
+    assert!(paths.contains(&"Get"));
+    assert!(paths.contains(&"Store.Put"));
+    assert!(paths.contains(&"init"));
+    assert!(paths.contains(&"init#2"));
+    assert!(paths.contains(&"f.<closure>"));
+    // Package-level initializers live under `<module>`: the `var` below.
+    let ir2 = ir("import \"net/http\"\n\nvar c = http.Client{}\n");
+    let constructs = refs(&ir2, UseKind::Construct);
+    assert_eq!(constructs[0].symbol, "<module>");
+}
+
+#[test]
+fn a_method_on_a_typed_param_resolves_its_chain() {
+    let ir = ir("import \"net/http\"\n\nfunc f(c *http.Client) { c.Get(u) }\n");
+    let calls = refs(&ir, UseKind::Call);
+    assert_eq!(calls.len(), 1);
+    assert_eq!(calls[0].members, ["Client", "Get"]);
+}
+
+#[test]
+fn the_call_argument_exprs_drive_destinations() {
+    let ir = ir("import \"net/http\"\nimport \"os\"\n\nfunc f(u string) {\n\
+         \thttp.Get(u)\n\
+         \thttp.Get(os.Getenv(\"HOME\"))\n\
+         }\n");
+    let calls = refs(&ir, UseKind::Call);
+    let get = calls.iter().find(|r| r.members == ["Get"]).unwrap();
+    assert_eq!(get.args, [Expr::Param(1)]);
+    let getenv = calls.iter().find(|r| r.members == ["Getenv"]).unwrap();
+    assert_eq!(getenv.args, [Expr::Literal("HOME".into())]);
+    // `http.Get(os.Getenv("HOME"))`'s argument is the call's reference.
+    let nested = calls
+        .iter()
+        .filter(|r| r.members == ["Get"])
+        .nth(1)
+        .unwrap();
+    assert!(
+        matches!(&nested.args[0], Expr::Reference(r) if r.members == ["Getenv"]),
+        "{:?}",
+        nested.args
+    );
+}

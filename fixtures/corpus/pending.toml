@@ -1,7 +1,3 @@
 # Cases not yet expected to pass. A pending case that passes fails
 # the run, so each unit removes its slice as its detectors land.
-cases = [
-    # Pending until the egress-go frontend exists (U6) and its
-    # net/http entries land (U9).
-    "go/ordinary/http-get",
-]
+cases = []
