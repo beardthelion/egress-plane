@@ -1,0 +1,16 @@
+[package]
+name = "egress-go"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# Exact pin: the prescan bounds and the `too many depth` reason string are
+# measured against this release. Default features stay off so the serde
+# option never enters the tree.
+[dependencies]
+egress-core.workspace = true
+gosyn = { version = "=0.2.15", default-features = false }
+
+[dev-dependencies]
+egress-scan = { path = "../egress-scan" }

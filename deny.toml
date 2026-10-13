@@ -11,7 +11,19 @@ version = 2
 yanked = "deny"
 unmaintained = "all"
 unsound = "all"
-ignore = []
+# The five unic-* crates enter only through gosyn 0.2.15's unic-ucd-category
+# dependency, which classifies identifier characters in untrusted Go source.
+# Each notice is unmaintained-informational with no vulnerability; a later
+# non-informational advisory against any of them must be re-evaluated, not
+# ignored. Verified with `cargo audit --no-fetch -D unmaintained` (cargo-deny
+# is not installed on the build host).
+ignore = [
+    { id = "RUSTSEC-2025-0075", reason = "unic-char-range: reached only through gosyn's unic-ucd-category; unmaintained notice, no vulnerability; classifies identifier characters in untrusted Go source, so a later non-informational advisory must be re-evaluated" },
+    { id = "RUSTSEC-2025-0080", reason = "unic-common: reached only through gosyn's unic-ucd-category; unmaintained notice, no vulnerability; classifies identifier characters in untrusted Go source, so a later non-informational advisory must be re-evaluated" },
+    { id = "RUSTSEC-2025-0081", reason = "unic-char-property: reached only through gosyn's unic-ucd-category; unmaintained notice, no vulnerability; classifies identifier characters in untrusted Go source, so a later non-informational advisory must be re-evaluated" },
+    { id = "RUSTSEC-2025-0094", reason = "unic-ucd-category: reached only through gosyn; unmaintained notice, no vulnerability; classifies identifier characters in untrusted Go source, so a later non-informational advisory must be re-evaluated" },
+    { id = "RUSTSEC-2025-0098", reason = "unic-ucd-version: reached only through gosyn's unic-ucd-category; unmaintained notice, no vulnerability; classifies identifier characters in untrusted Go source, so a later non-informational advisory must be re-evaluated" },
+]
 
 [sources]
 unknown-registry = "deny"

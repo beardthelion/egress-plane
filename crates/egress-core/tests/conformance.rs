@@ -193,7 +193,7 @@ fn repo() -> PathBuf {
 /// `pending.toml` for corpus cases. The entry leaves when the frontend
 /// lands (egress-go registers in P8 U6); a listed language that gains a
 /// frontend without leaving the list fails the stale-entry guard.
-const FRONTEND_PENDING: &[&str] = &["go"];
+const FRONTEND_PENDING: &[&str] = &[];
 
 /// The real repository, checked once per `Language::ALL` entry.
 #[test]

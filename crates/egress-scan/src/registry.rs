@@ -50,6 +50,15 @@ impl From<egress_rust::LowerError> for FrontendError {
     }
 }
 
+impl From<egress_go::LowerError> for FrontendError {
+    fn from(e: egress_go::LowerError) -> Self {
+        match e {
+            egress_go::LowerError::Parse => FrontendError::Parse,
+            egress_go::LowerError::TooDeeplyNested => FrontendError::TooDeeplyNested,
+        }
+    }
+}
+
 /// One file handed to a frontend.
 #[derive(Debug, Clone, Copy)]
 pub struct SourceInput<'a> {
@@ -146,6 +155,19 @@ impl Frontend for Rust {
     }
 }
 
+/// The Go frontend.
+struct Go;
+
+impl Frontend for Go {
+    fn language(&self) -> Language {
+        Language::Go
+    }
+
+    fn lower(&self, input: &SourceInput<'_>) -> Result<FileIr, FrontendError> {
+        egress_go::lower(input.path, input.text).map_err(Into::into)
+    }
+}
+
 /// Frontends by language.
 #[derive(Clone, Default)]
 pub struct Registry {
@@ -165,6 +187,7 @@ impl Registry {
         r.register(Python(egress_python::PythonRules));
         r.register(crate::js::JsFrontend);
         r.register(Rust);
+        r.register(Go);
         r
     }
 

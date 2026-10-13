@@ -83,9 +83,5 @@ id = "go/primitives"
 reason = "Go primitive curation lands in U9; the provisional module classifications carry deferred fixture names."
 
 [[categories]]
-id = "go/completeness"
-reason = "Go completeness cases await the egress-go frontend."
-
-[[categories]]
 id = "go/dependencies"
 reason = "Go module source scanning belongs to the dependency source scan plan."

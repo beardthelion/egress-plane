@@ -309,8 +309,9 @@ fn absent_text_never_appears_in_either_format() {
     );
 }
 
-const TRAPS: [&str; 12] = [
-    "cargo", "rustc", "node", "python", "python3", "tsc", "git", "npm", "pip", "uv", "poetry", "go",
+const TRAPS: [&str; 14] = [
+    "cargo", "rustc", "node", "python", "python3", "tsc", "git", "npm", "pip", "uv", "poetry",
+    "go", "gofmt", "gopls",
 ];
 const SENTINELS: [(&str, &str); 3] = [
     ("CARGO_MANIFEST_DIR", "sentinel-manifest-dir-7c41"),
@@ -424,6 +425,16 @@ fn must_not_spawn_tools_or_read_host_environment() {
             out.stdout.contains("WEBHOOK_URL"),
             "the env name is reported"
         );
+
+        // The Go root is scanned too: without it the `go`, `gofmt`, and
+        // `gopls` traps sit unexercised.
+        assert!(corpus().join("go").join("ordinary").exists());
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_egress-plane"));
+        cmd.args([OsStr::new("scan"), corpus().join("go").as_os_str()])
+            .args(["--format", format])
+            .env("PATH", &bin);
+        let out = run_with(&mut cmd);
+        assert!(matches!(out.code, 0 | 2), "{format}: {}", out.stderr);
         for (_, v) in SENTINELS {
             assert!(!out.stdout.contains(v), "{format}: stdout holds {v}");
             assert!(!out.stderr.contains(v), "{format}: stderr holds {v}");

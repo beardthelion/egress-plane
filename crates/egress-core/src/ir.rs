@@ -20,6 +20,10 @@ pub struct Span {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileIr {
     pub language: Language,
+    /// The file's package clause, for languages whose package is not the
+    /// file (Go's `package` line). Read by the frontend's `link` hook;
+    /// other frontends leave it `None`.
+    pub package: Option<String>,
     /// Imports, re-exports, and `use` items.
     pub imports: Vec<Import>,
     /// References in every position the runtime evaluates.
@@ -48,6 +52,7 @@ impl FileIr {
     pub fn new(language: Language) -> Self {
         Self {
             language,
+            package: None,
             imports: Vec::new(),
             references: Vec::new(),
             constructs: Vec::new(),

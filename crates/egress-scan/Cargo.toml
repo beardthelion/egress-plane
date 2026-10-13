@@ -10,6 +10,7 @@ egress-core.workspace = true
 egress-python = { path = "../egress-python" }
 egress-js.workspace = true
 egress-rust = { path = "../egress-rust" }
+egress-go = { path = "../egress-go" }
 
 [dev-dependencies]
 libc = "=0.2.189"
