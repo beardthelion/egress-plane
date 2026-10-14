@@ -37,10 +37,14 @@ pub enum ManifestKind {
     SetupCfg,
     GoMod,
     GoWork,
+    /// `vendor/modules.txt`. It is never routed by name alone: discovery
+    /// parses it only when its parent directory is named `vendor` and a
+    /// `go.mod` or `go.work` sits at or above that directory (KTD9).
+    GoModules,
 }
 
 impl ManifestKind {
-    pub const ALL: [ManifestKind; 7] = [
+    pub const ALL: [ManifestKind; 8] = [
         Self::Cargo,
         Self::PackageJson,
         Self::TsConfig,
@@ -48,6 +52,7 @@ impl ManifestKind {
         Self::SetupCfg,
         Self::GoMod,
         Self::GoWork,
+        Self::GoModules,
     ];
 
     /// The file name that routes to this kind.
@@ -60,11 +65,16 @@ impl ManifestKind {
             Self::SetupCfg => b"setup.cfg",
             Self::GoMod => b"go.mod",
             Self::GoWork => b"go.work",
+            Self::GoModules => b"modules.txt",
         }
     }
 
     /// The language whose spec row lists this manifest's file name.
     pub fn language(self) -> Language {
+        // `modules.txt` is path-routed, so no spec row lists it.
+        if self == Self::GoModules {
+            return Language::Go;
+        }
         let name = self.file_name();
         Language::ALL
             .into_iter()
@@ -72,8 +82,13 @@ impl ManifestKind {
             .unwrap_or_else(|| panic!("manifest kind has no spec row"))
     }
 
+    /// The kind a file name routes to. `GoModules` is absent: a
+    /// `vendor/modules.txt` is routed by the vendor-directory path gate
+    /// in `discover`, never by name.
     pub fn for_name(name: &[u8]) -> Option<ManifestKind> {
-        Self::ALL.into_iter().find(|k| k.file_name() == name)
+        Self::ALL
+            .into_iter()
+            .find(|k| *k != ManifestKind::GoModules && k.file_name() == name)
     }
 }
 
@@ -213,6 +228,27 @@ pub struct GoWork {
     pub replace: Vec<GoReplace>,
 }
 
+/// One package a `vendor/modules.txt` lists under its module.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GoVendorPackage {
+    /// The package's import path, for example `github.com/acme/lib/sub`.
+    pub path: String,
+    /// The module the package was vendored from.
+    pub module: String,
+    /// The module version the `#` line records.
+    pub version: Option<String>,
+}
+
+/// A parsed `vendor/modules.txt` (KTD9). Discovery parses it only under
+/// `vendor/` with a `go.mod` or `go.work` at or above; `link` keys the
+/// vendored package set by the file's governing vendor directory.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GoModules {
+    pub path: Vec<u8>,
+    /// Vendored package paths in file order.
+    pub packages: Vec<GoVendorPackage>,
+}
+
 /// Parsed manifest facts later stages map into the file index.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Manifests {
@@ -223,6 +259,8 @@ pub struct Manifests {
     pub setup_cfg: Vec<SetupCfg>,
     pub go_mod: Vec<GoMod>,
     pub go_work: Vec<GoWork>,
+    /// Parsed `vendor/modules.txt` lists.
+    pub go_modules: Vec<GoModules>,
     /// Declared Python distribution names from `pyproject.toml`,
     /// `setup.cfg`, and `requirements*.txt`, in index order (KTD17).
     pub python_declarations: Vec<String>,
@@ -248,6 +286,7 @@ pub enum Parsed {
     SetupCfg(SetupCfg),
     GoMod(GoMod),
     GoWork(GoWork),
+    GoModules(GoModules),
 }
 
 /// The parse result: the manifest and the keys that named an out-of-root
@@ -305,6 +344,7 @@ pub fn parse(kind: ManifestKind, path: &[u8], text: &str) -> Result<ParseOutcome
         ManifestKind::SetupCfg => Parsed::SetupCfg(setup_cfg(path, text)?),
         ManifestKind::GoMod => Parsed::GoMod(go_mod(path, text, &mut refs)?),
         ManifestKind::GoWork => Parsed::GoWork(go_work(path, text, &mut refs)?),
+        ManifestKind::GoModules => Parsed::GoModules(go_modules(path, text)?),
     };
     Ok((parsed, refs.outside))
 }
@@ -1040,4 +1080,70 @@ fn go_work(path: &[u8], text: &str, refs: &mut Refs<'_>) -> Result<GoWork, Malfo
         }
     }
     Ok(w)
+}
+
+/// Go's lexical check on an import path or module path: non-empty, no
+/// element empty or `.`/`..`, and no control, quote, space, or backslash
+/// bytes (x/mod's `checkPath` shape). Import paths and `modules.txt`
+/// paths are validated with it before any directory mapping, so a path
+/// that cannot name a package never maps to files.
+pub fn go_import_path(s: &str) -> bool {
+    // `:` is excluded so no source-written specifier can carry the
+    // frontend's synthetic `gofile:` namespace.
+    !s.is_empty()
+        && !s.chars().any(|c| {
+            c.is_control() || c.is_whitespace() || matches!(c, '"' | '\'' | '\\' | '`' | '#' | ':')
+        })
+        && s.split('/').all(|e| !e.is_empty() && e != "." && e != "..")
+}
+
+/// Parses `vendor/modules.txt`: `# module version [=> target]` module
+/// lines, `## explicit; go X.Y` marker lines, and the package import
+/// paths that follow each module line. Only the module side matters to
+/// vendoring; the `=>` side is recorded for a reader that needs the
+/// replacement and otherwise ignored. A package line before any module
+/// line, a malformed `#` line, or a path failing `go_import_path` is a
+/// parse error.
+fn go_modules(path: &[u8], text: &str) -> Result<GoModules, Malformed> {
+    let mut out = GoModules {
+        path: path.to_vec(),
+        packages: Vec::new(),
+    };
+    let mut module: Option<(String, Option<String>)> = None;
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with("##") {
+            continue;
+        }
+        if let Some(decl) = line.strip_prefix('#') {
+            if decl.starts_with('#') {
+                continue;
+            }
+            // `<path> [<version>] [=> ...]`: only the left side is read.
+            let left = decl.trim().split("=>").next().unwrap_or_default().trim();
+            let mut it = left.split_whitespace();
+            let path = it.next().ok_or(Malformed)?;
+            if !go_import_path(path) {
+                return Err(Malformed);
+            }
+            let version = it.next().map(str::to_string);
+            if it.next().is_some() {
+                return Err(Malformed);
+            }
+            module = Some((path.to_string(), version));
+            continue;
+        }
+        let Some((mpath, mver)) = &module else {
+            return Err(Malformed);
+        };
+        if !go_import_path(line) {
+            return Err(Malformed);
+        }
+        out.packages.push(GoVendorPackage {
+            path: line.to_string(),
+            module: mpath.clone(),
+            version: mver.clone(),
+        });
+    }
+    Ok(out)
 }

@@ -1,0 +1,9 @@
+state = "complete"
+exit_code = 0
+
+absent_text = ["../escape"]
+
+[[blind_spots]]
+file = "main.go"
+symbol = "<module>"
+kind = "unresolved-module"

@@ -15,3 +15,11 @@ id = "go-version-newer-than-supported"
 languages = ["go"]
 go_newer_than = "1.26"
 text = "A go.mod or go.work declares a Go release newer than the supported 1.18-1.26 range; files using newer syntax become parse errors."
+
+# Fires when a Go package-level var supplies a resolved destination: the
+# linker can rewrite it with -ldflags -X without a source change.
+[[caveat]]
+id = "go-var-ldflags"
+languages = ["go"]
+trigger = "go-var-ldflags"
+text = "A Go package-level var supplied a resolved destination; a link-time -ldflags -X override can change it without a source change."

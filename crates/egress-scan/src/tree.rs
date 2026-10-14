@@ -80,6 +80,7 @@ pub fn run(
     }
 
     let mut budget_exceeded = d.budget_exceeded.clone();
+    let mut link_steps = 0u64;
     let mut linked = Vec::new();
     for lang in Language::ALL {
         if let Some(fe) = options.registry.get(lang) {
@@ -88,8 +89,16 @@ pub fn run(
                 .filter(|f| f.language == lang)
                 .map(|f| (f.path.as_slice(), &mut f.ir))
                 .collect();
-            if let Some(rules) = fe.link(&d.manifests, &d.index, &mut view) {
-                linked.push((lang, rules));
+            let outcome = fe.link(&d.manifests, &d.index, &mut view, tree.resolver_budget);
+            if let Some(outcome) = outcome {
+                link_steps = link_steps.saturating_add(outcome.resolver_steps);
+                if outcome.budget_exhausted
+                    && !budget_exceeded.contains(&BudgetReason::ResolverSteps)
+                {
+                    budget_exceeded.push(BudgetReason::ResolverSteps);
+                }
+                blind_spots.extend(outcome.blind_spots);
+                linked.push((lang, outcome.rules));
             } else if let Some(rules) = fe.repo_rules(d) {
                 linked.push((lang, rules));
             }
@@ -116,8 +125,10 @@ pub fn run(
             },
         );
     }
-    let classified = classify(data, &program, tree.resolver_budget);
+    let mut classified = classify(data, &program, tree.resolver_budget);
     drop(program);
+    // Steps the link hooks charged count against the same budget.
+    classified.resolver_steps = classified.resolver_steps.saturating_add(link_steps);
     blind_spots.extend(classified.blind_spots.iter().cloned());
     coverage.unsupported.skipped += classified.loaded_as_code;
     // Discovery charges symlink resolution against the same budget and may

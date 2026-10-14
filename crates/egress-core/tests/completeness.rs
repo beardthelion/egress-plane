@@ -84,12 +84,12 @@ fn hooks_and_construct_blind_spots_leave_the_state_alone() {
 #[test]
 fn js_trees_carry_the_browser_dom_caveat() {
     let js: BTreeSet<Language> = [Language::Javascript, Language::Python].into();
-    let c = caveats(&js, &[]);
+    let c = caveats(&js, &[], &std::collections::BTreeSet::new());
     assert_eq!(c.len(), 1);
     assert_eq!(c[0].id, "browser-dom");
     assert!(c[0].text.contains("src") && c[0].text.contains("form submission"));
     let py: BTreeSet<Language> = [Language::Python].into();
-    assert!(caveats(&py, &[]).is_empty());
+    assert!(caveats(&py, &[], &std::collections::BTreeSet::new()).is_empty());
 }
 
 /// The newer-Go caveat is trigger-bound, not language-bound: it fires on
@@ -98,16 +98,19 @@ fn js_trees_carry_the_browser_dom_caveat() {
 fn a_go_directive_newer_than_the_supported_range_carries_a_caveat() {
     let go: BTreeSet<Language> = [Language::Go].into();
     for v in ["1.27", "1.27rc1", "2.0"] {
-        let c = caveats(&go, &[v]);
+        let c = caveats(&go, &[v], &std::collections::BTreeSet::new());
         assert_eq!(c.len(), 1, "{v}");
         assert_eq!(c[0].id, "go-version-newer-than-supported");
     }
     for v in ["1.18", "1.26", "1.26.3"] {
-        assert!(caveats(&go, &[v]).is_empty(), "{v}");
+        assert!(
+            caveats(&go, &[v], &std::collections::BTreeSet::new()).is_empty(),
+            "{v}"
+        );
     }
     // Language presence alone does not trigger it, and a Python-only
     // tree (no go.mod or go.work, so no parsed versions) never gets it.
-    assert!(caveats(&go, &[]).is_empty());
+    assert!(caveats(&go, &[], &std::collections::BTreeSet::new()).is_empty());
     let py: BTreeSet<Language> = [Language::Python].into();
-    assert!(caveats(&py, &[]).is_empty());
+    assert!(caveats(&py, &[], &std::collections::BTreeSet::new()).is_empty());
 }

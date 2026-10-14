@@ -5,11 +5,14 @@
 //! [`FileIr::package`], and the [`lower`] module walks the AST into
 //! imports, references, constants, locals, and symbol paths.
 
+pub mod link;
 mod lower;
 mod positions;
 mod prescan;
 
 use egress_core::ir::FileIr;
+
+pub use link::{GoRules, Linked, link, link_with};
 
 /// Why a file could not be lowered; each maps to a fixed whole-file reason.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

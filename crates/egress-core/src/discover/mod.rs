@@ -30,7 +30,7 @@ use crate::model::{
     BlindSpot, BlindSpotKind, BudgetReason, Coverage, Excluded, ExcludedReason, Label, Language,
     ToolError,
 };
-use crate::paths::file_name;
+use crate::paths::{dir_of, file_name};
 
 pub use budgets::Budgets;
 pub use manifests::Manifests;
@@ -208,6 +208,27 @@ fn join(dir: &[u8], name: &[u8]) -> Vec<u8> {
         name.to_vec()
     } else {
         [dir, b"/", name].concat()
+    }
+}
+
+/// `modules.txt` is a Go manifest only under a `vendor` directory with a
+/// `go.mod` or `go.work` at or above it (KTD9); anywhere else the name is
+/// ordinary data.
+fn go_modules_candidate(path: &[u8], index: &BTreeMap<Vec<u8>, FileKind>) -> bool {
+    if file_name(path) != b"modules.txt" || file_name(dir_of(path)) != b"vendor" {
+        return false;
+    }
+    // The go.mod or go.work must sit at or above the vendor directory,
+    // not inside it.
+    let mut dir = dir_of(dir_of(path));
+    loop {
+        if index.contains_key(&join(dir, b"go.mod")) || index.contains_key(&join(dir, b"go.work")) {
+            return true;
+        }
+        if dir.is_empty() {
+            return false;
+        }
+        dir = dir_of(dir);
     }
 }
 
@@ -755,7 +776,9 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
     let mut failed_cargo = Vec::new();
     let mut ts_queue: Vec<Vec<u8>> = Vec::new();
     for path in index.keys() {
-        let Some(kind) = ManifestKind::for_name(file_name(path)) else {
+        let kind = ManifestKind::for_name(file_name(path))
+            .or_else(|| go_modules_candidate(path, &index).then_some(ManifestKind::GoModules));
+        let Some(kind) = kind else {
             continue;
         };
         let lang = kind.language();
@@ -795,6 +818,7 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
                     }
                     Parsed::GoMod(g) => manifests.go_mod.push(g),
                     Parsed::GoWork(g) => manifests.go_work.push(g),
+                    Parsed::GoModules(g) => manifests.go_modules.push(g),
                 }
             }
             Err(k) => {

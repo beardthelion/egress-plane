@@ -35,9 +35,7 @@ use crate::ir::{
 use crate::model::{
     BlindSpot, BlindSpotKind, Bucket, Destination, Language, Location, Site, UnscannedDependency,
 };
-use crate::resolve::{
-    Binding, Limit, Program, ProgramFile, Resolver, Target, module_segments, package_name,
-};
+use crate::resolve::{Binding, Limit, Program, ProgramFile, Resolver, Target, module_segments};
 
 /// Findings from the classification stage.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -54,6 +52,10 @@ pub struct Classified {
     pub loaded_as_code: u64,
     pub resolver_budget_exceeded: bool,
     pub resolver_steps: u64,
+    /// Classification facts a caveat triggers on: a Go package-level `var`
+    /// that supplied a resolved destination fires `go-var-ldflags` (KTD11),
+    /// since the linker can rewrite it without a source change.
+    pub caveat_triggers: BTreeSet<String>,
 }
 
 /// What produced one unscanned-dependency entry (KTD10): the full
@@ -400,7 +402,13 @@ fn labels_at(cx: Ctx<'_, '_>, symbol: &str) -> Vec<crate::model::Label> {
 
 /// Whether `module` is known to the runtime data: it classifies, or (for a
 /// Rust crate root such as `std`) it prefixes a declared module.
-fn known_module(rt: &RuntimeData, lang: Language, module: &str, members: &[String]) -> bool {
+fn known_module(
+    rt: &RuntimeData,
+    lang: Language,
+    module: &str,
+    members: &[String],
+    drop_inert: bool,
+) -> bool {
     let segs = module_segments(lang, module);
     let rest: Vec<&str> = segs[1..]
         .iter()
@@ -410,7 +418,12 @@ fn known_module(rt: &RuntimeData, lang: Language, module: &str, members: &[Strin
     // A `Package` classification means the name resolves through a
     // catalogued package's own code with no catalogued
     // classification: the package joins the dependency list (KTD23).
-    if let Some(c) = rt.lookup(&segs[0], &rest)
+    let c = if drop_inert {
+        rt.lookup_replaced(&segs[0], &rest)
+    } else {
+        rt.lookup(&segs[0], &rest)
+    };
+    if let Some(c) = c
         && !matches!(c, Classification::Package(_))
     {
         return true;
@@ -634,8 +647,11 @@ impl<'p, 'a> State<'p, 'a> {
                     self.external(cx, &synthetic, &module, &members, false);
                     return;
                 }
-                if !known_module(cx.rt, cx.lang(), &module, &members) {
-                    self.dep(cx, package_name(cx.lang(), &module), &module, &members);
+                let rules = self.program.rules(cx.lang());
+                let replaced = rules.replaced(cx.path, &module);
+                if !known_module(cx.rt, cx.lang(), &module, &members, replaced) {
+                    let key = rules.package_key(cx.lang(), cx.path, &module);
+                    self.dep(cx, key, &module, &members);
                 }
             }
             _ => {}
@@ -874,9 +890,26 @@ impl<'p, 'a> State<'p, 'a> {
         module: &str,
         chain: &[String],
     ) -> Option<Classification<'r>> {
+        Self::lookup_in(rt, lang, module, chain, false)
+    }
+
+    /// [`State::lookup`] with `drop_inert` passed to the runtime: a module
+    /// re-keyed by a manifest-level `replace` does not inherit the
+    /// original's `[[inert]]` rows (KTD9).
+    fn lookup_in<'r>(
+        rt: &'r RuntimeData,
+        lang: Language,
+        module: &str,
+        chain: &[String],
+        drop_inert: bool,
+    ) -> Option<Classification<'r>> {
         if module == rt.ambient.module && !module.is_empty() {
             let c: Vec<&str> = chain.iter().map(String::as_str).collect();
-            return rt.lookup(module, &c);
+            return if drop_inert {
+                rt.lookup_replaced(module, &c)
+            } else {
+                rt.lookup(module, &c)
+            };
         }
         let segs = module_segments(lang, module);
         let rest: Vec<&str> = segs[1..]
@@ -884,7 +917,11 @@ impl<'p, 'a> State<'p, 'a> {
             .chain(chain.iter())
             .map(String::as_str)
             .collect();
-        rt.lookup(&segs[0], &rest)
+        if drop_inert {
+            rt.lookup_replaced(&segs[0], &rest)
+        } else {
+            rt.lookup(&segs[0], &rest)
+        }
     }
 
     // ---- references -----------------------------------------------------------------
@@ -1104,7 +1141,12 @@ impl<'p, 'a> State<'p, 'a> {
             self.escape(cx, rf, module, true);
             return;
         }
-        match Self::lookup(rt, cx.lang(), module, chain) {
+        // A module re-keyed by a manifest-level `replace` ships the
+        // replacement's code: the original's inert rows do not silence
+        // it, and the dependency is keyed by the replacement (KTD9).
+        let rules = self.program.rules(cx.lang());
+        let replaced = rules.replaced(cx.path, module);
+        match Self::lookup_in(rt, cx.lang(), module, chain, replaced) {
             Some(Classification::Entry(e)) => {
                 // An inert member call on a catalogued package: the
                 // member's code runs with no egress classification, so
@@ -1142,16 +1184,21 @@ impl<'p, 'a> State<'p, 'a> {
             Some(Classification::Package(p)) => {
                 // The package itself used as a value escapes; a
                 // member in neither list lists the package.
-                let name = p.name.clone();
                 if chain.is_empty() && module_segments(cx.lang(), module).len() == 1 {
                     self.escape(cx, rf, module, false);
                 } else {
+                    let name = if replaced {
+                        rules.package_key(cx.lang(), cx.path, module)
+                    } else {
+                        p.name.clone()
+                    };
                     self.dep(cx, name, module, chain);
                 }
             }
             None => {
                 if !ambient {
-                    self.dep(cx, package_name(cx.lang(), module), module, chain);
+                    let key = rules.package_key(cx.lang(), cx.path, module);
+                    self.dep(cx, key, module, chain);
                 }
             }
         }
@@ -1177,6 +1224,7 @@ impl<'p, 'a> State<'p, 'a> {
                 EntryKind::Inert { .. } => {}
             }
         }
+        let rules = self.program.rules(cx.lang());
         let package = rt.package_for(module).map(|p| p.name.clone());
         if blind {
             self.blind(cx, rf, BlindSpotKind::ModuleEscape);
@@ -1189,9 +1237,15 @@ impl<'p, 'a> State<'p, 'a> {
             let mechanism = format!("{}:{module}", cx.lang().as_str());
             self.site(cx, rf, bucket, &mechanism, destination::expr(&rf.text));
         } else if let Some(p) = package {
-            self.dep(cx, p, module, &[]);
+            let key = if rules.replaced(cx.path, module) {
+                rules.package_key(cx.lang(), cx.path, module)
+            } else {
+                p
+            };
+            self.dep(cx, key, module, &[]);
         } else if rt.module(module).is_none() {
-            self.dep(cx, package_name(cx.lang(), module), module, &[]);
+            let key = rules.package_key(cx.lang(), cx.path, module);
+            self.dep(cx, key, module, &[]);
         }
     }
 
@@ -1518,7 +1572,16 @@ impl<'p, 'a> State<'p, 'a> {
             return self.eval(path, symbol, &l.value, depth + 1);
         }
         if let Some(l) = ix.local("<module>", name) {
-            return self.eval(path, "<module>", &l.value, depth + 1);
+            let v = self.eval(path, "<module>", &l.value, depth + 1);
+            // A Go package-level `var` lives at `<module>`: when its
+            // literal feeds a destination, `-ldflags -X` can still
+            // rewrite it without a source change (KTD11).
+            if cx.lang() == Language::Go && matches!(v, Val::Lit(_)) {
+                self.out
+                    .caveat_triggers
+                    .insert("go-var-ldflags".to_string());
+            }
+            return v;
         }
         if let Some(c) = ix.constants.get(name) {
             return self.eval(path, "<module>", &c.value, depth + 1);

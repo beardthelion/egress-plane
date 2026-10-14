@@ -1,0 +1,12 @@
+state = "incomplete"
+exit_code = 2
+
+[[blind_spots]]
+file = "go.mod"
+symbol = "<module>"
+kind = "reference-outside-root"
+
+[[blind_spots]]
+file = "main.go"
+symbol = "<module>"
+kind = "reference-outside-root"

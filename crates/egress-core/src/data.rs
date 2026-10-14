@@ -220,6 +220,10 @@ pub struct Package {
     pub name: String,
     /// Module specifiers this package declares, the package name first.
     pub modules: Vec<String>,
+    /// The source-level package name when it differs from the last
+    /// specifier segment (Go's package clause, for example `nats` for
+    /// `github.com/nats-io/nats.go`).
+    pub package_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -414,13 +418,29 @@ impl RuntimeData {
     /// first extended into the longest declared submodule (`os` plus `path` is
     /// `os.path`), then entries are matched longest-prefix.
     pub fn lookup(&self, module: &str, members: &[&str]) -> Option<Classification<'_>> {
+        self.lookup_drop_inert(module, members, false)
+    }
+
+    /// [`lookup`] with the module's `[[inert]]` rows skipped, for a
+    /// module re-keyed by a manifest-level replace: the original's inert
+    /// classifications do not describe the replacement's code (KTD9).
+    pub fn lookup_replaced(&self, module: &str, members: &[&str]) -> Option<Classification<'_>> {
+        self.lookup_drop_inert(module, members, true)
+    }
+
+    fn lookup_drop_inert(
+        &self,
+        module: &str,
+        members: &[&str],
+        drop_inert: bool,
+    ) -> Option<Classification<'_>> {
         // An ambient member that is a module object continues into that module.
         if !self.ambient.module.is_empty()
             && module == self.ambient.module
             && let Some((first, rest)) = members.split_first()
             && let Some(target) = self.ambient.module_members.get(*first)
         {
-            return self.lookup(target, rest);
+            return self.lookup_drop_inert(target, rest, drop_inert);
         }
         let sep = self.sep();
         // Extend the module into the longest declared module.
@@ -439,6 +459,9 @@ impl RuntimeData {
         let mut best: Option<(&Entry, usize, bool)> = None;
         for e in &self.entries {
             if !module_name_matches(&e.module, &module_name) || e.members.len() > rest.len() {
+                continue;
+            }
+            if drop_inert && matches!(e.kind, EntryKind::Inert { .. }) {
                 continue;
             }
             let mut exact = true;
@@ -466,7 +489,9 @@ impl RuntimeData {
         if let Some((e, _, _)) = best {
             return Some(Classification::Entry(e));
         }
-        if let Some(m) = self.module(&module_name) {
+        if let Some(m) = self.module(&module_name)
+            && !(drop_inert && m.class == ModuleClass::Inert)
+        {
             return Some(Classification::Module(m));
         }
         self.package_for(&module_name).map(Classification::Package)
@@ -623,6 +648,9 @@ struct RawPackage {
     name: String,
     #[serde(default)]
     modules: Vec<String>,
+    /// The source-level package name when it differs from the last
+    /// specifier segment (KTD9).
+    package_name: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -896,6 +924,7 @@ pub fn load_runtime(
             Package {
                 name: p.name,
                 modules: mods,
+                package_name: p.package_name,
             },
         );
     }

@@ -1,0 +1,11 @@
+state = "complete"
+exit_code = 0
+
+[[blind_spots]]
+file = "main.go"
+symbol = "main"
+kind = "resolution-limit"
+
+[[unscanned_dependencies]]
+language = "go"
+package = "github.com/x/driver"

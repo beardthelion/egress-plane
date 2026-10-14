@@ -127,6 +127,11 @@ fn unrouted_extensions_stay_other_and_shebangs_route() {
 #[test]
 fn manifest_kinds_route_through_the_language_table() {
     for kind in ManifestKind::ALL {
+        // `GoModules` is path-routed to `vendor/modules.txt`; no spec row
+        // lists `modules.txt`, so it has no name-based owners.
+        if kind == ManifestKind::GoModules {
+            continue;
+        }
         let owners: Vec<Language> = Language::ALL
             .into_iter()
             .filter(|l| {

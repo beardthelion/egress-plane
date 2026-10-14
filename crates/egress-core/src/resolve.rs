@@ -55,6 +55,22 @@ pub trait SpecifierRules: Send + Sync {
     fn submodule(&self, _specifier: &str, _member: &str) -> Option<String> {
         None
     }
+
+    /// The unscanned-dependency key `module` takes for a use in `from`,
+    /// defaulting to [`package_name`]. Go keys a dependency by the
+    /// longest matching `require` module of the importing file's `go.mod`,
+    /// re-keyed to `path@version` when a module-path `replace` applies
+    /// (KTD9, KTD10).
+    fn package_key(&self, language: Language, _from: &[u8], module: &str) -> String {
+        package_name(language, module)
+    }
+
+    /// Whether `module` in `from` is re-keyed by a manifest-level
+    /// `replace` (Go). When it is, the original module's inert catalog
+    /// rows do not apply: the code that ships is the replacement's.
+    fn replaced(&self, _from: &[u8], _module: &str) -> bool {
+        false
+    }
 }
 
 /// Rules that resolve `./` and `../` specifiers by appending each extension

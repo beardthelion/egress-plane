@@ -58,11 +58,22 @@ struct RawCaveat {
     /// language presence.
     #[serde(default)]
     go_newer_than: Option<String>,
+    /// When set, the caveat is triggered by a classification fact the
+    /// pass records, not by language presence.
+    #[serde(default)]
+    trigger: Option<String>,
+}
+
+/// What a caveat's trigger checks: a `go` directive version bound, or a
+/// classification fact the pass records.
+enum Trigger {
+    NewerGo(String),
+    Finding(String),
 }
 
 /// One table row: the caveat, its languages, and an optional trigger
-/// bound replacing the language rule.
-type CaveatRow = (Caveat, Vec<Language>, Option<String>);
+/// replacing the language rule.
+type CaveatRow = (Caveat, Vec<Language>, Option<Trigger>);
 
 fn table() -> &'static [CaveatRow] {
     static T: OnceLock<Vec<CaveatRow>> = OnceLock::new();
@@ -76,13 +87,19 @@ fn table() -> &'static [CaveatRow] {
                     .iter()
                     .map(|l| Language::parse(l).expect("caveat language"))
                     .collect();
+                let trigger = match (c.go_newer_than, c.trigger) {
+                    (Some(bound), None) => Some(Trigger::NewerGo(bound)),
+                    (None, Some(t)) => Some(Trigger::Finding(t)),
+                    (None, None) => None,
+                    (Some(_), Some(_)) => panic!("a caveat takes one trigger"),
+                };
                 (
                     Caveat {
                         id: c.id,
                         text: c.text,
                     },
                     langs,
-                    c.go_newer_than,
+                    trigger,
                 )
             })
             .collect()
@@ -115,13 +132,19 @@ fn go_version_newer(version: &str, bound: &str) -> bool {
 /// The fixed caveats that apply to a tree holding these languages, sorted by
 /// ID. `go_versions` carries the parsed `go` directive versions of every
 /// `go.mod` and `go.work` in the tree; a `go_newer_than` entry fires when
-/// one names a release newer than its bound. Caveats never change the
+/// one names a release newer than its bound, and a `trigger` entry fires
+/// when classification recorded the named fact. Caveats never change the
 /// state.
-pub fn caveats(languages: &BTreeSet<Language>, go_versions: &[&str]) -> Vec<Caveat> {
+pub fn caveats(
+    languages: &BTreeSet<Language>,
+    go_versions: &[&str],
+    triggers: &BTreeSet<String>,
+) -> Vec<Caveat> {
     let mut out: Vec<Caveat> = table()
         .iter()
         .filter(|(_, langs, trigger)| match trigger {
-            Some(bound) => go_versions.iter().any(|v| go_version_newer(v, bound)),
+            Some(Trigger::NewerGo(bound)) => go_versions.iter().any(|v| go_version_newer(v, bound)),
+            Some(Trigger::Finding(t)) => triggers.contains(t),
             None => langs.iter().any(|l| languages.contains(l)),
         })
         .map(|(c, _, _)| c.clone())

@@ -1,0 +1,5 @@
+module example.com/m
+
+go 1.22
+
+require github.com/acme/vlib v1.0.0

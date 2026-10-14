@@ -146,9 +146,9 @@ fn is_major_version(s: &str) -> bool {
 /// Go's local-name rule for an unaliased import: the last path element,
 /// skipping a final `vN` major-version element and dropping a `.vN`
 /// suffix (`gopkg.in/yaml.v3` is `yaml`), then dropping a `go-` prefix
-/// (`github.com/redis/go-redis/v9` is `redis`). U8 replaces a first-party
-/// guess with the package clause it actually declares.
-fn guessed_local(path: &str) -> String {
+/// (`github.com/redis/go-redis/v9` is `redis`). `link` replaces a
+/// first-party guess with the package clause it actually declares.
+pub(crate) fn guessed_local(path: &str) -> String {
     let mut last = path.rsplit('/').next().unwrap_or(path);
     if is_major_version(last) {
         last = path.rsplit('/').nth(1).unwrap_or(last);
@@ -424,6 +424,10 @@ pub struct Lowerer<'a> {
     mutations: HashSet<String>,
     /// Package-level `var` initializer candidates: (name, value, span).
     candidates: Vec<(String, Expr, Span)>,
+    /// Named method receivers: (symbol, name, span). They become
+    /// opaque-valued local bindings after the `lets` so they shadow a
+    /// package-level name without hiding a same-symbol `let`.
+    receivers: Vec<(String, String, Span)>,
 }
 
 impl<'a> Lowerer<'a> {
@@ -449,6 +453,7 @@ impl<'a> Lowerer<'a> {
             pkg_vars: HashSet::new(),
             mutations: HashSet::new(),
             candidates: Vec::new(),
+            receivers: Vec::new(),
         }
     }
 
@@ -478,6 +483,18 @@ impl<'a> Lowerer<'a> {
                     span,
                 });
             }
+        }
+        // A named receiver is a local binding with an opaque value: it
+        // shadows a package-level name in every evaluation and never
+        // supplies one itself. Appended last so a same-symbol `let`
+        // wins `ix.local`'s first match.
+        for (symbol, name, span) in std::mem::take(&mut self.receivers) {
+            self.ir.locals.push(LocalBinding {
+                symbol,
+                value: Expr::Opaque(name.clone()),
+                name,
+                span,
+            });
         }
         self.ir
     }
@@ -836,6 +853,18 @@ impl<'a> Lowerer<'a> {
                 scope.locals.insert(spec.name.name.clone());
                 scope.types.insert(spec.name.name.clone());
             }
+            // A top-level `type` declaration is a package-scope name the
+            // package index must see (a `pkg.T` member binds to the file
+            // declaring it, KTD8).
+            if self.symbols.is_empty() {
+                self.ir.symbols.push(SymbolSpan {
+                    path: spec.name.name.clone(),
+                    kind: SymbolKind::Class,
+                    params: Vec::new(),
+                    strict: None,
+                    span: self.ident_span(&spec.name),
+                });
+            }
             // Type parameters are scoped to the declaration.
             self.scopes.push((Scope::default(), self.symbol()));
             for f in &spec.params.list {
@@ -1021,8 +1050,12 @@ impl<'a> Lowerer<'a> {
             for f in &r.list {
                 self.ty(&f.typ, TyCtx::Plain);
                 for n in &f.name {
-                    let (scope, _) = self.scopes.last_mut().unwrap();
-                    scope.locals.insert(n.name.clone());
+                    if n.name != "_" {
+                        let (scope, _) = self.scopes.last_mut().unwrap();
+                        scope.locals.insert(n.name.clone());
+                        self.receivers
+                            .push((self.symbol(), n.name.clone(), self.ident_span(n)));
+                    }
                 }
             }
         }
@@ -1489,48 +1522,66 @@ impl<'a> Lowerer<'a> {
         }
     }
 
-    fn mark_assigned(&mut self, name: &str, e: &Expression) {
-        for (s, sym) in self.scopes.iter().rev() {
-            if s.locals.contains(name) && !self.pkg_vars.contains(name) {
-                self.reassigned.insert((sym.clone(), name.to_string()));
-                break;
+    /// Whether `name` names a package-level binding for this file: bound
+    /// nowhere above the file scope, or bound at file scope itself.
+    /// Params and import locals are never package names.
+    fn package_target(&self, name: &str) -> bool {
+        for (i, (s, _)) in self.scopes.iter().enumerate() {
+            if s.locals.contains(name) {
+                return i == 0;
             }
         }
-        if self.pkg_vars.contains(name) {
-            self.mutations.insert(name.to_string());
-            let (start, end) = (expr_pos(e), expr_end(e));
-            let r = self.reference(
-                Root::Local(name.to_string()),
-                Vec::new(),
-                UseKind::AssignmentTarget,
-                Vec::new(),
-                start,
-                end,
-            );
-            self.emit(r);
+        !self
+            .fns
+            .last()
+            .is_some_and(|f| f.params.iter().any(|p| p == name))
+            && !self.import_locals.contains(name)
+    }
+
+    /// The `AssignmentTarget` marker `link` reads to retire a
+    /// package-level `var` candidate, including a sibling file's.
+    fn mutation_marker(&mut self, name: &str, e: &Expression) {
+        self.mutations.insert(name.to_string());
+        let (start, end) = (expr_pos(e), expr_end(e));
+        let r = self.reference(
+            Root::Local(name.to_string()),
+            Vec::new(),
+            UseKind::AssignmentTarget,
+            Vec::new(),
+            start,
+            end,
+        );
+        self.emit(r);
+    }
+
+    fn mark_assigned(&mut self, name: &str, e: &Expression) {
+        for (i, (s, sym)) in self.scopes.iter().enumerate().rev() {
+            if s.locals.contains(name) {
+                if i == 0 {
+                    break;
+                }
+                self.reassigned.insert((sym.clone(), name.to_string()));
+                return;
+            }
+        }
+        // The name binds only at file scope or nowhere here: the write
+        // targets a package-level name, possibly declared in a sibling
+        // file, and `link` decides whether it retires a candidate.
+        if self.package_target(name) {
+            self.mutation_marker(name, e);
         }
     }
 
     /// `&x` or `&x.f` on a package-level `var`: the address escapes, so
     /// the constant candidacy ends (a `-ldflags -X` rewrite or a
     /// `flag.StringVar` bind can change the value without a source
-    /// assignment).
+    /// assignment). The name may be declared in a sibling file.
     fn mark_address_taken(&mut self, e: &Expression) {
         let Some(id) = root_ident(e) else {
             return;
         };
-        if self.pkg_vars.contains(&id.name) {
-            self.mutations.insert(id.name.clone());
-            let (start, end) = (expr_pos(e), expr_end(e));
-            let r = self.reference(
-                Root::Local(id.name.clone()),
-                Vec::new(),
-                UseKind::AssignmentTarget,
-                Vec::new(),
-                start,
-                end,
-            );
-            self.emit(r);
+        if self.package_target(&id.name) {
+            self.mutation_marker(&id.name, e);
         }
     }
 

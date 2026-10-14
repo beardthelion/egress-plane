@@ -1,0 +1,10 @@
+state = "complete"
+exit_code = 0
+
+absent_text = ["https://prod.example.com", "https://dev.example.com"]
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net/http.Get"
+destination = "expr:endpoint"

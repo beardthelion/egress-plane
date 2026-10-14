@@ -1,0 +1,6 @@
+state = "complete"
+exit_code = 0
+
+[[unscanned_dependencies]]
+language = "go"
+package = "github.com/acme/lib"

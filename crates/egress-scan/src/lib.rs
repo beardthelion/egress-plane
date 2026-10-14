@@ -142,7 +142,11 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
             budget_exceeded: budget_exceeded.clone(),
             coverage,
         },
-        caveats: caveats(&discovery.languages, &go_versions(&discovery)),
+        caveats: caveats(
+            &discovery.languages,
+            &go_versions(&discovery),
+            &classified.caveat_triggers,
+        ),
         sites: classified.sites.clone(),
         blind_spots,
         unscanned_dependencies: classified.unscanned_dependencies.clone(),

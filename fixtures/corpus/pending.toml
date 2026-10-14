@@ -1,3 +1,7 @@
 # Cases not yet expected to pass. A pending case that passes fails
 # the run, so each unit removes its slice as its detectors land.
-cases = []
+#
+# catalog-package-name-nats: needs a `package_name` row (and the Connect
+# entry) for github.com/nats-io/nats.go in data/catalog/go.toml, which is
+# U9 data curation.
+cases = ["go/tricky/catalog-package-name-nats"]

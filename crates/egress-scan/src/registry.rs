@@ -10,7 +10,7 @@ use egress_core::discover::Discovery;
 use egress_core::discover::FileKind;
 use egress_core::discover::manifests::Manifests;
 use egress_core::ir::FileIr;
-use egress_core::model::Language;
+use egress_core::model::{BlindSpot, Language};
 use egress_core::resolve::SpecifierRules;
 
 /// Why a frontend could not lower a file. Each maps to a fixed whole-file
@@ -100,13 +100,43 @@ pub trait Frontend: Send + Sync {
     /// with this frontend's lowered files. A frontend may add facts only the
     /// whole program reveals and return specifier rules built from the
     /// program, which replace [`Frontend::specifier_rules`].
+    /// `resolver_budget` is the resolver-step budget the link charges
+    /// its work against.
     fn link(
         &self,
         _manifests: &Manifests,
         _index: &BTreeMap<Vec<u8>, FileKind>,
         _files: &mut [(&[u8], &mut FileIr)],
-    ) -> Option<Box<dyn SpecifierRules>> {
+        _resolver_budget: u64,
+    ) -> Option<LinkOutcome> {
         None
+    }
+}
+
+/// What a frontend's `link` produced: the specifier rules replacing
+/// `repo_rules`, any blind spots the link itself emits (a failed link's
+/// gap marker), and the resolver-budget accounting to merge into the
+/// scan's.
+pub struct LinkOutcome {
+    pub rules: Box<dyn SpecifierRules>,
+    /// Blind spots the link emits itself; findings the IR rewrites
+    /// produce land through classification, not here.
+    pub blind_spots: Vec<BlindSpot>,
+    /// Resolver steps the link charged.
+    pub resolver_steps: u64,
+    /// The link ran out of resolver budget.
+    pub budget_exhausted: bool,
+}
+
+impl LinkOutcome {
+    /// Rules-only outcome, for links that charge no budget.
+    pub fn rules(rules: Box<dyn SpecifierRules>) -> LinkOutcome {
+        LinkOutcome {
+            rules,
+            blind_spots: Vec::new(),
+            resolver_steps: 0,
+            budget_exhausted: false,
+        }
     }
 }
 
@@ -150,8 +180,11 @@ impl Frontend for Rust {
         manifests: &Manifests,
         index: &BTreeMap<Vec<u8>, FileKind>,
         files: &mut [(&[u8], &mut FileIr)],
-    ) -> Option<Box<dyn SpecifierRules>> {
-        Some(Box::new(egress_rust::link(manifests, index, files)))
+        _resolver_budget: u64,
+    ) -> Option<LinkOutcome> {
+        Some(LinkOutcome::rules(Box::new(egress_rust::link(
+            manifests, index, files,
+        ))))
     }
 }
 
@@ -165,6 +198,47 @@ impl Frontend for Go {
 
     fn lower(&self, input: &SourceInput<'_>) -> Result<FileIr, FrontendError> {
         egress_go::lower(input.path, input.text).map_err(Into::into)
+    }
+
+    /// Whole-program link (KTD8): under a panic guard, so a link failure
+    /// degrades the tree to unresolved-module gaps and a `link` marker
+    /// on the first Go file rather than aborting the scan.
+    fn link(
+        &self,
+        manifests: &Manifests,
+        index: &BTreeMap<Vec<u8>, FileKind>,
+        files: &mut [(&[u8], &mut FileIr)],
+        resolver_budget: u64,
+    ) -> Option<LinkOutcome> {
+        // A path for the fallback marker is taken before `files` moves
+        // into the guarded call.
+        let first_path = files.first().map(|(p, _)| p.to_vec());
+        let linked = egress_core::discover::run_guarded(move || {
+            egress_go::link(manifests, index, files, resolver_budget)
+        });
+        match linked {
+            Some(l) => Some(LinkOutcome {
+                rules: Box::new(l.rules),
+                blind_spots: Vec::new(),
+                resolver_steps: l.steps,
+                budget_exhausted: l.budget_exhausted,
+            }),
+            None => Some(LinkOutcome {
+                rules: Box::new(egress_go::GoRules::fallback()),
+                blind_spots: first_path
+                    .iter()
+                    .map(|p| {
+                        egress_core::discover::whole_file_blind_spot(
+                            p,
+                            egress_core::model::BlindSpotKind::FrontendFailure,
+                            Some(Language::Go),
+                        )
+                    })
+                    .collect(),
+                resolver_steps: 0,
+                budget_exhausted: false,
+            }),
+        }
     }
 }
 

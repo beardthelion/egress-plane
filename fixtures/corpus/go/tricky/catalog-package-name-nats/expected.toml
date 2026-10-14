@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:github.com/nats-io/nats.go.Connect"
+destination = "nats://localhost:4222"
+
+[[unscanned_dependencies]]
+language = "go"
+package = "github.com/nats-io/nats.go"
