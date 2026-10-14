@@ -1,5 +1,3 @@
-
-
 def probe():
     return (
         ArithmeticError,
@@ -23,7 +21,6 @@ def probe():
         EnvironmentError,
         Exception,
         ExceptionGroup,
-        False,
         FileExistsError,
         FileNotFoundError,
         FloatingPointError,
@@ -42,7 +39,6 @@ def probe():
         MemoryError,
         ModuleNotFoundError,
         NameError,
-        None,
         NotADirectoryError,
         NotImplemented,
         NotImplementedError,
@@ -65,7 +61,6 @@ def probe():
         SystemExit,
         TabError,
         TimeoutError,
-        True,
         TypeError,
         UnboundLocalError,
         UnicodeDecodeError,

@@ -4,6 +4,6 @@ def probe():
     return (
         ABNF,
         enableTrace,
-        setdefaulttimeout,
         getdefaulttimeout,
+        setdefaulttimeout,
     )

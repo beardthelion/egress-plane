@@ -2,14 +2,14 @@ from urllib3 import HTTPHeaderDict, Retry, Timeout, __version__, add_stderr_logg
 
 def probe():
     return (
-        Timeout,
+        HTTPHeaderDict,
         Retry,
+        Timeout,
+        __version__,
+        add_stderr_logger,
+        disable_warnings,
         fields,
         filepost,
-        HTTPHeaderDict,
-        disable_warnings,
-        add_stderr_logger,
         make_headers,
         util,
-        __version__,
     )

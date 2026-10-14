@@ -2,18 +2,18 @@ from httpx import Auth, BasicAuth, Cookies, DigestAuth, Headers, Limits, MockTra
 
 def probe():
     return (
-        URL,
-        Headers,
-        QueryParams,
+        Auth,
+        BasicAuth,
         Cookies,
-        Timeout,
+        DigestAuth,
+        Headers,
         Limits,
+        MockTransport,
+        QueryParams,
         Request,
         Response,
-        codes,
-        BasicAuth,
-        DigestAuth,
-        Auth,
-        MockTransport,
+        Timeout,
+        URL,
         __version__,
+        codes,
     )

@@ -2,11 +2,11 @@ from websockets import ConnectionClosed, ConnectionClosedError, ConnectionClosed
 
 def probe():
     return (
-        exceptions,
         ConnectionClosed,
-        ConnectionClosedOK,
         ConnectionClosedError,
-        InvalidURI,
+        ConnectionClosedOK,
         InvalidHandshake,
+        InvalidURI,
         WebSocketException,
+        exceptions,
     )

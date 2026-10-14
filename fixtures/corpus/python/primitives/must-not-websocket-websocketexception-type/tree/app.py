@@ -2,8 +2,8 @@ from websocket import WebSocketBadStatusException, WebSocketConnectionClosedExce
 
 def probe():
     return (
-        WebSocketException,
-        WebSocketConnectionClosedException,
-        WebSocketTimeoutException,
         WebSocketBadStatusException,
+        WebSocketConnectionClosedException,
+        WebSocketException,
+        WebSocketTimeoutException,
     )

@@ -2,13 +2,13 @@ from httpx import ConnectError, ConnectTimeout, HTTPError, HTTPStatusError, Inva
 
 def probe():
     return (
-        HTTPError,
-        RequestError,
-        HTTPStatusError,
-        TransportError,
-        TimeoutException,
         ConnectError,
         ConnectTimeout,
-        ReadTimeout,
+        HTTPError,
+        HTTPStatusError,
         InvalidURL,
+        ReadTimeout,
+        RequestError,
+        TimeoutException,
+        TransportError,
     )

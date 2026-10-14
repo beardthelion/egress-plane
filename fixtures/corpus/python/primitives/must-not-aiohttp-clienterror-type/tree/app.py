@@ -2,11 +2,11 @@ from aiohttp import ClientConnectionError, ClientConnectorError, ClientError, Cl
 
 def probe():
     return (
-        ClientError,
-        ClientResponseError,
         ClientConnectionError,
         ClientConnectorError,
+        ClientError,
+        ClientPayloadError,
+        ClientResponseError,
         ContentTypeError,
         ServerTimeoutError,
-        ClientPayloadError,
     )

@@ -2,14 +2,14 @@ from requests import ConnectTimeout, ConnectionError, HTTPError, JSONDecodeError
 
 def probe():
     return (
-        exceptions,
-        RequestException,
-        HTTPError,
-        ConnectionError,
-        Timeout,
         ConnectTimeout,
+        ConnectionError,
+        HTTPError,
+        JSONDecodeError,
         ReadTimeout,
+        RequestException,
+        Timeout,
         TooManyRedirects,
         URLRequired,
-        JSONDecodeError,
+        exceptions,
     )

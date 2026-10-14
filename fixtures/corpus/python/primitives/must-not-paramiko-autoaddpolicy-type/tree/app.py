@@ -2,15 +2,15 @@ from paramiko import Agent, AutoAddPolicy, DSSKey, ECDSAKey, Ed25519Key, HostKey
 
 def probe():
     return (
+        Agent,
         AutoAddPolicy,
+        DSSKey,
+        ECDSAKey,
+        Ed25519Key,
+        HostKeys,
+        MissingHostKeyPolicy,
+        PKey,
+        RSAKey,
         RejectPolicy,
         WarningPolicy,
-        MissingHostKeyPolicy,
-        RSAKey,
-        Ed25519Key,
-        ECDSAKey,
-        DSSKey,
-        PKey,
-        HostKeys,
-        Agent,
     )

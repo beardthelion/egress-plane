@@ -2,15 +2,15 @@ pub fn probe() {
     let _ = (
         tokio::fs,
         tokio::io,
+        tokio::join,
+        tokio::main,
+        tokio::pin,
         tokio::runtime,
+        tokio::select,
         tokio::signal,
         tokio::spawn,
-        tokio::join,
-        tokio::select,
-        tokio::try_join,
-        tokio::pin,
-        tokio::main,
-        tokio::test,
         tokio::spawn_blocking,
+        tokio::test,
+        tokio::try_join,
     );
 }

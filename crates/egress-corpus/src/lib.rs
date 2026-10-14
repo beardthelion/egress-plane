@@ -64,6 +64,7 @@
 //!   unenforced label would assert nothing.
 
 pub mod compare;
+pub mod generate;
 pub mod labels;
 pub mod probe;
 

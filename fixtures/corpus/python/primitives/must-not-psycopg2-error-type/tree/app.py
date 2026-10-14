@@ -2,15 +2,15 @@ from psycopg2 import DataError, DatabaseError, Error, IntegrityError, InterfaceE
 
 def probe():
     return (
-        Error,
-        Warning,
+        DataError,
         DatabaseError,
-        OperationalError,
+        Error,
         IntegrityError,
         InterfaceError,
-        DataError,
-        ProgrammingError,
         InternalError,
         NotSupportedError,
+        OperationalError,
+        ProgrammingError,
+        Warning,
         errors,
     )

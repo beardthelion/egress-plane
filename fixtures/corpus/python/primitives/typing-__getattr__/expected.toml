@@ -5,8 +5,3 @@ exit_code = 0
 file = "app.py"
 symbol = "probe"
 kind = "reflective-access"
-
-[[blind_spots]]
-file = "app.py"
-symbol = "probe"
-kind = "introspection"

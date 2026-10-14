@@ -2,8 +2,8 @@ from paramiko import AuthenticationException, BadHostKeyException, PasswordRequi
 
 def probe():
     return (
-        SSHException,
         AuthenticationException,
         BadHostKeyException,
         PasswordRequiredException,
+        SSHException,
     )

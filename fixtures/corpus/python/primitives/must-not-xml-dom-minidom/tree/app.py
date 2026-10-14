@@ -2,9 +2,9 @@ from xml.dom import NodeFilter, expatbuilder, minicompat, minidom, pulldom
 
 def probe():
     return (
-        minidom,
-        pulldom,
+        NodeFilter,
         expatbuilder,
         minicompat,
-        NodeFilter,
+        minidom,
+        pulldom,
     )

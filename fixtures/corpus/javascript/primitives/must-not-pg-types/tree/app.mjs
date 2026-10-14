@@ -2,10 +2,10 @@ import m from "pg";
 
 export function probe() {
   return [
-    m.types,
+    m.Query,
+    m.defaults,
     m.escapeIdentifier,
     m.escapeLiteral,
-    m.defaults,
-    m.Query,
+    m.types,
   ];
 }

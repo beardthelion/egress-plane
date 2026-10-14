@@ -1,3 +1,5 @@
+use libc;
+
 pub fn probe() {
-    let _ = libc::getpid;
+    let _ = libc::probe_member;
 }

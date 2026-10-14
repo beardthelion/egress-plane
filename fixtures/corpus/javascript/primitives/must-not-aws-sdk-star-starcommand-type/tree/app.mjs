@@ -1,4 +1,4 @@
-import m from "@aws-sdk/client-s3";
+import m from "@aws-sdk/pkg";
 
 export function probe() {
   return [

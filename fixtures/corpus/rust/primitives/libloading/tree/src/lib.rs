@@ -1,3 +1,5 @@
+use libloading;
+
 pub fn probe() {
-    let _ = libloading::Library;
+    let _ = libloading::probe_member;
 }

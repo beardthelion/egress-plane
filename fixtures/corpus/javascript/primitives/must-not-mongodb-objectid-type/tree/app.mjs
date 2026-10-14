@@ -2,14 +2,14 @@ import m from "mongodb";
 
 export function probe() {
   return [
-    m.ObjectId,
-    m.Long,
-    m.Decimal128,
-    m.Binary,
     m.BSON,
-    m.Timestamp,
+    m.Binary,
+    m.Decimal128,
+    m.Long,
+    m.ObjectId,
     m.ReadPreference,
-    m.WriteConcern,
     m.ReturnDocument,
+    m.Timestamp,
+    m.WriteConcern,
   ];
 }

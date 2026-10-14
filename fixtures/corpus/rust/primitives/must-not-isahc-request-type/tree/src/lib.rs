@@ -1,13 +1,13 @@
 pub fn probe() {
     let _ = (
-        isahc::Request,
-        isahc::Response,
-        isahc::Error,
-        isahc::Body,
         isahc::AsyncBody,
-        isahc::config,
-        isahc::prelude,
+        isahc::Body,
+        isahc::Error,
         isahc::HttpClient,
         isahc::HttpClientBuilder,
+        isahc::Request,
+        isahc::Response,
+        isahc::config,
+        isahc::prelude,
     );
 }

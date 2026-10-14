@@ -2,16 +2,16 @@ from aiohttp import BasicAuth, ClientResponse, ClientTimeout, CookieJar, FormDat
 
 def probe():
     return (
-        ClientTimeout,
         BasicAuth,
-        FormData,
         ClientResponse,
+        ClientTimeout,
         CookieJar,
+        FormData,
         TraceConfig,
         web.Application,
-        web.Response,
-        web.json_response,
-        web.Request,
-        web.RouteTableDef,
         web.HTTPException,
+        web.Request,
+        web.Response,
+        web.RouteTableDef,
+        web.json_response,
     )
