@@ -1,0 +1,177 @@
+# Closure spec matrix (KTD5). Same row schema as evasive-spec.toml;
+# `family` here is a code-plan KTD5 closure class: module-escape,
+# value-use, constructor-return, ambient-module, untracked-receiver.
+# module-escape, value-use, and constructor-return apply to all three
+# languages; ambient-module and untracked-receiver apply to python and
+# javascript.
+#
+# A closure case exercises one way a capability-bearing value reaches a
+# use: a module object, an egress member as a value, the return of a
+# reported site, the ambient module's members, or a receiver of
+# untracked provenance.
+
+# ---- python -------------------------------------------------------------------
+
+[[row]]
+case = "python/closure/module-as-value"
+language = "python"
+family = "module-escape"
+label = { kind = "module-escape", symbol = "probe", count = 1 }
+twin = "python/closure/must-not-inert-module-as-value"
+axis = "the module used as a value holds a blind-spot entry vs is wholly inert"
+status = "pending"
+
+[[row]]
+case = "python/closure/member-value-use"
+language = "python"
+family = "value-use"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "python/closure/must-not-inert-member-use"
+axis = "the value passed on is an egress member vs an inert member"
+status = "pending"
+
+[[row]]
+case = "python/closure/default-arg-member"
+language = "python"
+family = "value-use"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "python/closure/must-not-inert-default-arg"
+axis = "the default argument names an egress member vs an inert builtin"
+status = "pending"
+# The skipped default-argument value-use class.
+
+[[row]]
+case = "python/closure/decorator-member"
+language = "python"
+family = "value-use"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "python/closure/must-not-inert-decorator"
+axis = "the decorator expression names an egress member vs an inert name"
+status = "pending"
+# The skipped decorator value-use class.
+
+[[row]]
+case = "python/closure/constructor-return-use"
+language = "python"
+family = "constructor-return"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "python/closure/must-not-local-factory"
+axis = "the called constructor resolves to a catalogued egress entry vs a first-party function"
+status = "pending"
+
+[[row]]
+case = "python/closure/native-library-load"
+language = "python"
+family = "constructor-return"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "python/closure/must-not-local-loader"
+axis = "the loader call resolves to the ctypes CDLL entry vs a first-party callable"
+status = "pending"
+# The skipped "native library loading with a lib: destination" class.
+
+[[row]]
+case = "python/closure/ambient-builtin-member"
+language = "python"
+family = "ambient-module"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "python/closure/must-not-ambient-inert"
+axis = "the member read on the builtins ambient module is an egress entry vs an inert builtin"
+status = "pending"
+
+[[row]]
+case = "python/closure/factory-return-nonliteral-attr"
+language = "python"
+family = "untracked-receiver"
+label = { kind = "reflective-unknown", symbol = "probe", count = 1 }
+twin = "python/closure/must-not-helper-return-literal-attr"
+axis = "the attribute name on the first-party factory return is a non-literal variable vs a literal name"
+status = "pending"
+# AE27 python half; the twin is the skipped getattr(c, "close") class.
+
+# ---- javascript -----------------------------------------------------------------
+
+[[row]]
+case = "javascript/closure/module-as-value"
+language = "javascript"
+family = "module-escape"
+label = { kind = "module-escape", symbol = "probe", count = 1 }
+twin = "javascript/closure/must-not-inert-module-value"
+axis = "the module used as a value holds a blind-spot entry vs is wholly inert"
+status = "pending"
+
+[[row]]
+case = "javascript/closure/member-value-use"
+language = "javascript"
+family = "value-use"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "javascript/closure/must-not-inert-member"
+axis = "the value passed on is an egress member vs an inert member"
+status = "pending"
+
+[[row]]
+case = "javascript/closure/call-bind-shift"
+language = "javascript"
+family = "value-use"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "javascript/closure/must-not-call-on-inert"
+axis = "the shifted .call or .bind invokes an egress member vs an inert member"
+status = "pending"
+# The skipped .call/.bind argument-shift class.
+
+[[row]]
+case = "javascript/closure/client-instance-method"
+language = "javascript"
+family = "constructor-return"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "javascript/closure/must-not-local-factory-method"
+axis = "the factory is a catalogued constructor vs a first-party function"
+status = "pending"
+
+[[row]]
+case = "javascript/closure/ambient-global-member"
+language = "javascript"
+family = "ambient-module"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "javascript/closure/must-not-ambient-inert"
+axis = "the member read on globalThis is an egress entry vs an inert global"
+status = "pending"
+
+[[row]]
+case = "javascript/closure/package-return-computed-call"
+language = "javascript"
+family = "untracked-receiver"
+label = { kind = "reflective-unknown", symbol = "probe", count = 1 }
+twin = "javascript/closure/must-not-literal-key"
+axis = "the member key on the uncatalogued package call's return is a non-literal name vs a literal name"
+status = "pending"
+# AE27 javascript half.
+
+# ---- rust -----------------------------------------------------------------------
+
+[[row]]
+case = "rust/closure/glob-import-escape"
+language = "rust"
+family = "module-escape"
+label = { kind = "site", symbol = "<module>", count = 1 }
+twin = "rust/closure/must-not-glob-inert"
+axis = "the glob target module holds egress entries vs is wholly inert"
+status = "pending"
+# The skipped star-and-glob-import class, rust form.
+
+[[row]]
+case = "rust/closure/path-as-value"
+language = "rust"
+family = "value-use"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "rust/closure/must-not-inert-path-value"
+axis = "the path bound as a value names an egress item vs an inert item"
+status = "pending"
+
+[[row]]
+case = "rust/closure/client-constructor-return"
+language = "rust"
+family = "constructor-return"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "rust/closure/must-not-local-new"
+axis = "the constructor resolves to a catalogued client entry vs a first-party type"
+status = "pending"

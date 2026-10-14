@@ -1,0 +1,260 @@
+# Evasive spec matrix (KTD5). One [[row]] per planned case/twin pair.
+#
+# Fields: case (`<language>/evasive/<kebab-name>`), language, family
+# (the code plan KTD15 vocabulary: dynamic-loading, reflective-access,
+# scope-injection, import-system-mutation, introspection-roots,
+# native-and-macro-code), label (kind, symbol, count, optional
+# absent_text), twin (must-not- case id), axis (the one difference
+# between case and twin), status (pending | authored |
+# refused-by-safety-check), note (required when refused).
+#
+# Rows are labels first: the label is fixed before any source exists.
+# The corpus guard requires an authored row's twin tree to share the
+# case's file set and differ in at most one file and at most 3 lines.
+# Every family has at least one row per applicable language; the first
+# five families apply to python and javascript, native-and-macro-code
+# applies to rust.
+#
+# Rows marked AE<n> seed a skipped code-plan acceptance case.
+
+# ---- python: dynamic-loading ------------------------------------------------
+
+[[row]]
+case = "python/evasive/nonliteral-import"
+language = "python"
+family = "dynamic-loading"
+label = { kind = "dynamic-import", symbol = "probe", count = 1 }
+twin = "python/evasive/must-not-literal-import"
+axis = "the __import__ specifier is a non-literal name vs a literal module name"
+status = "pending"
+
+[[row]]
+case = "python/evasive/imported-module-reflective"
+language = "python"
+family = "dynamic-loading"
+label = { kind = "dynamic-import", symbol = "probe", count = 1 }
+twin = "python/evasive/must-not-literal-import-inert"
+axis = "the __import__ specifier is a non-literal name vs a literal name of a wholly inert module"
+status = "pending"
+# AE3: getattr(__import__(name), "member")(u).
+
+[[row]]
+case = "python/evasive/dynamic-code-token"
+language = "python"
+family = "dynamic-loading"
+label = { kind = "dynamic-code", symbol = "probe", count = 1, absent_text = ["ghp_placeholder_token"] }
+twin = "python/evasive/must-not-token-in-comment"
+axis = "the token-prefixed placeholder sits inside the dynamic-code argument vs only in a comment"
+status = "pending"
+# AE23: the construct text shows <redacted> where the placeholder stood.
+
+# ---- python: reflective-access -----------------------------------------------
+
+[[row]]
+case = "python/evasive/reflective-catalogued-module"
+language = "python"
+family = "reflective-access"
+label = { kind = "reflective-access", symbol = "probe", count = 1 }
+twin = "python/evasive/must-not-reflective-literal-name"
+axis = "the getattr name is a non-literal variable vs a literal member name"
+status = "pending"
+# AE22 deferred half; the twin is the skipped literal-name must-not class.
+
+# ---- python: scope-injection --------------------------------------------------
+
+[[row]]
+case = "python/evasive/globals-subscript"
+language = "python"
+family = "scope-injection"
+label = { kind = "scope-injection", symbol = "probe", count = 1 }
+twin = "python/evasive/must-not-literal-globals-key"
+axis = "the globals() subscript key is a non-literal name vs a literal key naming an inert global"
+status = "pending"
+
+[[row]]
+case = "python/evasive/star-import-egress"
+language = "python"
+family = "scope-injection"
+label = { kind = "site", symbol = "<module>", count = 1 }
+twin = "python/evasive/must-not-star-import-inert-submodule"
+axis = "the star-imported module holds egress entries vs is a wholly inert submodule"
+status = "pending"
+# The twin is the skipped "from os.path import *" must-not class.
+
+# ---- python: import-system-mutation -------------------------------------------
+
+[[row]]
+case = "python/evasive/sys-modules-write"
+language = "python"
+family = "import-system-mutation"
+label = { kind = "import-system-mutation", symbol = "probe", count = 1 }
+twin = "python/evasive/must-not-ordinary-mapping-write"
+axis = "the write target is sys.modules vs an ordinary mapping"
+status = "pending"
+
+[[row]]
+case = "python/evasive/monkeypatch-egress-member"
+language = "python"
+family = "import-system-mutation"
+label = { kind = "monkeypatch", symbol = "probe", count = 1 }
+twin = "python/evasive/must-not-inert-module-write"
+axis = "the assignment target is a member of an egress-bucket module vs an inert module"
+status = "pending"
+
+[[row]]
+case = "python/evasive/shadowed-requests"
+language = "python"
+family = "import-system-mutation"
+label = { kind = "shadowed-module", symbol = "probe", count = 1 }
+twin = "python/evasive/must-not-unshadowed-import"
+axis = "a first-party module shares the catalogued package's name vs no first-party module does"
+status = "pending"
+# The skipped shadowed-module class; the family is the closest
+# vocabulary member, resolution interception of the import system.
+
+# ---- python: introspection-roots ----------------------------------------------
+
+[[row]]
+case = "python/evasive/introspection-subclasses"
+language = "python"
+family = "introspection-roots"
+label = { kind = "introspection", symbol = "probe", count = 1 }
+twin = "python/evasive/must-not-type-name-read"
+axis = "the chain climbs past __class__ to a non-inert name vs reads only type(x).__name__"
+status = "pending"
+# AE21 python half; the twin is the skipped type-name-read must-not class.
+
+[[row]]
+case = "python/evasive/super-globals-reach"
+language = "python"
+family = "introspection-roots"
+label = { kind = "introspection", symbol = "probe", count = 1 }
+twin = "python/evasive/must-not-super-init"
+axis = "the bound superclass initializer's globals are reached through a dunder chain vs the initializer is only called"
+status = "pending"
+# The twin is the skipped superclass-initializer-call must-not class.
+
+# ---- javascript: dynamic-loading ----------------------------------------------
+
+[[row]]
+case = "javascript/evasive/require-nonliteral"
+language = "javascript"
+family = "dynamic-loading"
+label = { kind = "dynamic-import", symbol = "probe", count = 1 }
+twin = "javascript/evasive/must-not-require-literal"
+axis = "the require specifier is a non-literal name vs a literal specifier whose binding is unused"
+status = "pending"
+# AE4.
+
+[[row]]
+case = "javascript/evasive/import-expression"
+language = "javascript"
+family = "dynamic-loading"
+label = { kind = "dynamic-import", symbol = "probe", count = 1 }
+twin = "javascript/evasive/must-not-import-literal"
+axis = "the import() specifier is a non-literal name vs a literal relative specifier to an inert first-party module"
+status = "pending"
+
+[[row]]
+case = "javascript/evasive/string-timer"
+language = "javascript"
+family = "dynamic-loading"
+label = { kind = "dynamic-code", symbol = "probe", count = 1 }
+twin = "javascript/evasive/must-not-timer-callback"
+axis = "the timer receives a string argument vs a function value"
+status = "pending"
+
+[[row]]
+case = "javascript/evasive/worker-nonliteral"
+language = "javascript"
+family = "dynamic-loading"
+label = { kind = "dynamic-import", symbol = "probe", count = 1 }
+twin = "javascript/evasive/must-not-worker-literal"
+axis = "the Worker specifier is a non-literal name vs a literal relative path"
+status = "pending"
+
+# ---- javascript: reflective-access --------------------------------------------
+
+[[row]]
+case = "javascript/evasive/reflective-get-module"
+language = "javascript"
+family = "reflective-access"
+label = { kind = "reflective-access", symbol = "probe", count = 1 }
+twin = "javascript/evasive/must-not-reflect-literal-member"
+axis = "the Reflect.get member key is a non-literal name vs a literal inert member name"
+status = "pending"
+
+[[row]]
+case = "javascript/evasive/ambient-computed"
+language = "javascript"
+family = "reflective-access"
+label = { kind = "reflective-access", symbol = "probe", count = 1 }
+twin = "javascript/evasive/must-not-ambient-literal"
+axis = "the computed key on globalThis is a non-literal name vs a literal inert member"
+status = "pending"
+# AE16 deferred half: globalThis[name](u).
+
+# ---- javascript: scope-injection ----------------------------------------------
+
+[[row]]
+case = "javascript/evasive/with-statement"
+language = "javascript"
+family = "scope-injection"
+label = { kind = "scope-injection", symbol = "probe", count = 1 }
+twin = "javascript/evasive/must-not-plain-block"
+axis = "name resolution runs under a with statement vs an ordinary block"
+status = "pending"
+
+# ---- javascript: import-system-mutation ---------------------------------------
+
+[[row]]
+case = "javascript/evasive/require-cache-write"
+language = "javascript"
+family = "import-system-mutation"
+label = { kind = "import-system-mutation", symbol = "probe", count = 1 }
+twin = "javascript/evasive/must-not-plain-object-write"
+axis = "the write target is require.cache vs an ordinary object"
+status = "pending"
+
+[[row]]
+case = "javascript/evasive/shadowed-package"
+language = "javascript"
+family = "import-system-mutation"
+label = { kind = "shadowed-module", symbol = "probe", count = 1 }
+twin = "javascript/evasive/must-not-unshadowed-name"
+axis = "a first-party file shares the catalogued package's name vs none does"
+status = "pending"
+
+# ---- javascript: introspection-roots ------------------------------------------
+
+[[row]]
+case = "javascript/evasive/constructor-chain"
+language = "javascript"
+family = "introspection-roots"
+label = { kind = "dynamic-code", symbol = "probe", count = 1 }
+twin = "javascript/evasive/must-not-constructor-name-read"
+axis = "the constructor chain ends in a Function-constructor call vs only .constructor.name is read"
+status = "pending"
+# AE21 javascript half; the twin is the skipped constructor-name-read
+# must-not class.
+
+# ---- rust: native-and-macro-code -----------------------------------------------
+
+[[row]]
+case = "rust/evasive/extern-block"
+language = "rust"
+family = "native-and-macro-code"
+label = { kind = "native-code", symbol = "<module>", count = 1 }
+twin = "rust/evasive/must-not-safe-function"
+axis = "an extern block declares foreign symbols vs an ordinary safe function"
+status = "pending"
+
+[[row]]
+case = "rust/evasive/include-nonliteral"
+language = "rust"
+family = "native-and-macro-code"
+label = { kind = "macro-code", symbol = "<module>", count = 1 }
+twin = "rust/evasive/must-not-include-literal"
+axis = "the include! path is a non-literal or OUT_DIR path vs a literal in-tree path to an inert file"
+status = "pending"
+# The skipped Rust include! class.

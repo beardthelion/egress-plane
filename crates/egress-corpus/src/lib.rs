@@ -67,6 +67,7 @@ pub mod compare;
 pub mod generate;
 pub mod labels;
 pub mod probe;
+pub mod spec;
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};

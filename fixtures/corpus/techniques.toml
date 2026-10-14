@@ -1,0 +1,154 @@
+# Technique ledger (KTD6, R8, R9). One [[technique]] per paraphrased
+# technique class drawn from the public collections; no payload text
+# from a collection enters the repository.
+#
+# Fields: class (plain-English paraphrase), language (python or
+# javascript), source (collection URL), license (SPDX id or
+# none-detected; must match the license the source is listed under),
+# covered_by (a spec family or closure class, gap, outside-egress:
+# local-io, or outside-scope:unscanned-dependency), case (the proving
+# case id; required unless covered_by is gap or an outside-* value),
+# revision (commit SHA for a git source, sha256:<hex>@<YYYY-MM-DD> for
+# a web page), replay (pending | scanned | class-only).
+#
+# Revisions pinned 2026-10-14. A gap row fails the ledger guard with
+# "gap: fix by a new family or closure class (R9)" until a new family
+# or closure class covers it.
+
+[[technique]]
+class = "builtins recovery through frame attributes"
+language = "python"
+source = "https://hacktricks.wiki/en/generic-methodologies-and-resources/python/bypass-python-sandboxes/index.html"
+license = "CC-BY-SA-4.0"
+covered_by = "introspection-roots"
+case = "python/evasive/super-globals-reach"
+revision = "sha256:32116e6b24f842c4b8545e7baf2da65b3bb4332f3e18eb57de11b794547828a8@2026-10-14"
+replay = "pending"
+
+[[technique]]
+class = "import-mechanism bypass through module-table writes"
+language = "python"
+source = "https://hacktricks.wiki/en/generic-methodologies-and-resources/python/bypass-python-sandboxes/index.html"
+license = "CC-BY-SA-4.0"
+covered_by = "import-system-mutation"
+case = "python/evasive/sys-modules-write"
+revision = "sha256:32116e6b24f842c4b8545e7baf2da65b3bb4332f3e18eb57de11b794547828a8@2026-10-14"
+replay = "pending"
+
+[[technique]]
+class = "file read through builtin objects"
+language = "python"
+source = "https://hacktricks.wiki/en/generic-methodologies-and-resources/python/bypass-python-sandboxes/index.html"
+license = "CC-BY-SA-4.0"
+covered_by = "outside-egress:local-io"
+revision = "sha256:32116e6b24f842c4b8545e7baf2da65b3bb4332f3e18eb57de11b794547828a8@2026-10-14"
+replay = "class-only"
+
+[[technique]]
+class = "template-engine evaluation through an introspection walk"
+language = "python"
+source = "https://github.com/swisskyrepo/PayloadsAllTheThings"
+license = "MIT"
+covered_by = "introspection-roots"
+case = "python/evasive/introspection-subclasses"
+revision = "3ac27901c711bdf3f5b65a7b1d1820a1f65bd09a"
+replay = "pending"
+
+[[technique]]
+class = "scope injection through globals"
+language = "python"
+source = "https://github.com/swisskyrepo/PayloadsAllTheThings"
+license = "MIT"
+covered_by = "scope-injection"
+case = "python/evasive/globals-subscript"
+revision = "3ac27901c711bdf3f5b65a7b1d1820a1f65bd09a"
+replay = "pending"
+
+[[technique]]
+class = "builtins recovery through a subclass walk"
+language = "python"
+source = "https://github.com/jailctf/pyjailbreaker"
+license = "none-detected"
+covered_by = "introspection-roots"
+case = "python/evasive/introspection-subclasses"
+revision = "fb998df13e3008bb3b8f34d561dddf109cbbcc08"
+replay = "pending"
+
+[[technique]]
+class = "code-object construction from introspected types"
+language = "python"
+source = "https://github.com/jailctf/pyjailbreaker"
+license = "none-detected"
+covered_by = "introspection-roots"
+case = "python/evasive/introspection-subclasses"
+revision = "fb998df13e3008bb3b8f34d561dddf109cbbcc08"
+replay = "pending"
+
+[[technique]]
+class = "non-literal reflective builtin use"
+language = "python"
+source = "https://github.com/salvatore-abello/python-ctf-cheatsheet"
+license = "none-detected"
+covered_by = "reflective-access"
+case = "python/evasive/reflective-catalogued-module"
+revision = "98d7f53591d2a43ed839113fc221412a48c65042"
+replay = "pending"
+
+[[technique]]
+class = "insecure deserialization of functions"
+language = "python"
+source = "https://github.com/salvatore-abello/python-ctf-cheatsheet"
+license = "none-detected"
+covered_by = "outside-scope:unscanned-dependency"
+revision = "98d7f53591d2a43ed839113fc221412a48c65042"
+replay = "class-only"
+
+[[technique]]
+class = "host promise-rejection leak"
+language = "javascript"
+source = "https://github.com/patriksimek/vm2/security/advisories/GHSA-whpj-8f3w-67p5"
+license = "MIT"
+covered_by = "introspection-roots"
+case = "javascript/evasive/constructor-chain"
+revision = "sha256:f9a89f93a07c03ca86ae7ee7da4287f1f253a57deb15c75d629d246c7827d654@2026-10-14"
+replay = "pending"
+
+[[technique]]
+class = "host frame access through call-site APIs"
+language = "javascript"
+source = "https://github.com/patriksimek/vm2/security/advisories/GHSA-mrgp-mrhc-5jrq"
+license = "MIT"
+covered_by = "introspection-roots"
+case = "javascript/evasive/constructor-chain"
+revision = "sha256:3f861fc67509b879114a9b78fae7822bd972f0d972468b63e004e298fb1b5643@2026-10-14"
+replay = "pending"
+
+[[technique]]
+class = "host object leak through an error subclass"
+language = "javascript"
+source = "https://github.com/patriksimek/vm2/security/advisories/GHSA-55hx-c926-fr95"
+license = "MIT"
+covered_by = "introspection-roots"
+case = "javascript/evasive/constructor-chain"
+revision = "sha256:0a6d0b9ff3e3e17787895c00d37dfa4632dafc0ad6063217b5ac086a37af8870@2026-10-14"
+replay = "pending"
+
+[[technique]]
+class = "custom module resolution bypass"
+language = "javascript"
+source = "https://github.com/patriksimek/vm2/security/advisories"
+license = "MIT"
+covered_by = "import-system-mutation"
+case = "javascript/evasive/require-cache-write"
+revision = "sha256:ec92535ba7b2fb406f1294807441f18f9a6978d1690b12c82b69457e062f39f7@2026-10-14"
+replay = "pending"
+
+[[technique]]
+class = "nesting-guard require bypass"
+language = "javascript"
+source = "https://github.com/patriksimek/vm2/security/advisories"
+license = "MIT"
+covered_by = "dynamic-loading"
+case = "javascript/evasive/require-nonliteral"
+revision = "sha256:ec92535ba7b2fb406f1294807441f18f9a6978d1690b12c82b69457e062f39f7@2026-10-14"
+replay = "pending"
