@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:google.golang.org/grpc.Dial"
+destination = "grpc.example.com:443"
+
+[[unscanned_dependencies]]
+language = "go"
+package = "google.golang.org/grpc"

@@ -1,2 +1,1381 @@
-# Go package catalog: intentionally empty until U9 curations land.
+# Go egress catalog. A member matching neither an egress nor an inert
+# pattern lists its module as an unscanned dependency. `package_name` is
+# the package clause when the import path's last element cannot serve
+# as the local name.
+
 language = "go"
+
+# The root path's package clause is `cloud`.
+[[package]]
+name = "cloud.google.com/go"
+package_name = "cloud"
+modules = [
+    "cloud.google.com/go/compute/metadata",
+    "cloud.google.com/go/storage",
+]
+
+# The root path's package clause is `sdk`.
+[[package]]
+name = "github.com/Azure/azure-sdk-for-go"
+package_name = "sdk"
+modules = [
+    "github.com/Azure/azure-sdk-for-go/sdk/azcore",
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity",
+    "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob",
+]
+
+[[package]]
+name = "github.com/IBM/sarama"
+modules = ["github.com/IBM/sarama"]
+
+# The root path's package clause is `aws`.
+[[package]]
+name = "github.com/aws/aws-sdk-go-v2"
+package_name = "aws"
+modules = [
+    "github.com/aws/aws-sdk-go-v2/config",
+    "github.com/aws/aws-sdk-go-v2/service/*",
+]
+
+[[package]]
+name = "github.com/ebitengine/purego"
+modules = ["github.com/ebitengine/purego"]
+
+[[package]]
+name = "github.com/go-resty/resty"
+modules = ["github.com/go-resty/resty", "github.com/go-resty/resty/v2"]
+
+[[package]]
+name = "github.com/go-sql-driver/mysql"
+modules = ["github.com/go-sql-driver/mysql"]
+
+[[package]]
+name = "github.com/jackc/pgx"
+modules = [
+    "github.com/jackc/pgx",
+    "github.com/jackc/pgx/v5",
+    "github.com/jackc/pgx/v5/pgconn",
+    "github.com/jackc/pgx/v5/pgxpool",
+]
+
+[[package]]
+name = "github.com/lib/pq"
+modules = ["github.com/lib/pq"]
+
+[[package]]
+name = "github.com/miekg/dns"
+modules = ["github.com/miekg/dns"]
+
+# The import path ends in `.go`; the package clause is `nats`.
+[[package]]
+name = "github.com/nats-io/nats.go"
+modules = ["github.com/nats-io/nats.go"]
+package_name = "nats"
+
+# The import path ends in `-go`; the package clause is `amqp091`.
+[[package]]
+name = "github.com/rabbitmq/amqp091-go"
+modules = ["github.com/rabbitmq/amqp091-go"]
+package_name = "amqp091"
+
+[[package]]
+name = "github.com/redis/go-redis"
+modules = ["github.com/redis/go-redis", "github.com/redis/go-redis/v9"]
+
+# The import path ends in `-go`; the package clause is `kafka`.
+[[package]]
+name = "github.com/segmentio/kafka-go"
+package_name = "kafka"
+modules = ["github.com/segmentio/kafka-go"]
+
+[[package]]
+name = "github.com/valyala/fasthttp"
+modules = ["github.com/valyala/fasthttp"]
+
+# The root path holds no package; `driver` is the module's own clause
+# convention (x/mongo/driver).
+[[package]]
+name = "go.mongodb.org/mongo-driver"
+package_name = "driver"
+modules = [
+    "go.mongodb.org/mongo-driver/mongo",
+    "go.mongodb.org/mongo-driver/mongo/options",
+]
+
+[[package]]
+name = "golang.org/x/crypto"
+modules = ["golang.org/x/crypto", "golang.org/x/crypto/ssh"]
+
+[[package]]
+name = "golang.org/x/net"
+modules = [
+    "golang.org/x/net",
+    "golang.org/x/net/http2",
+    "golang.org/x/net/proxy",
+    "golang.org/x/net/websocket",
+]
+
+[[package]]
+name = "golang.org/x/sys"
+modules = [
+    "golang.org/x/sys",
+    "golang.org/x/sys/unix",
+    "golang.org/x/sys/windows",
+]
+
+[[package]]
+name = "google.golang.org/grpc"
+modules = ["google.golang.org/grpc"]
+
+# ---- cloud.google.com/go -------------------------------------------------
+
+[[entry]]
+id = "go:cloud.google.com/go/compute/metadata.Get"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/cloud-metadata-get"
+
+[[entry]]
+id = "go:cloud.google.com/go/compute/metadata.NewClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/cloud-metadata-new-client"
+
+[[entry]]
+id = "go:cloud.google.com/go/compute/metadata.OnGCE"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/cloud-metadata-on-gce"
+
+[[entry]]
+id = "go:cloud.google.com/go/storage.NewClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/cloud-storage-new-client"
+
+# ---- github.com/Azure/azure-sdk-for-go -----------------------------------
+
+[[entry]]
+id = "go:github.com/Azure/azure-sdk-for-go/sdk/azcore.NewClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/azure-azcore-new-client"
+
+[[entry]]
+id = "go:github.com/Azure/azure-sdk-for-go/sdk/azidentity.NewDefaultAzureCredential"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/azure-azidentity-new-default-credential"
+
+[[entry]]
+id = "go:github.com/Azure/azure-sdk-for-go/sdk/storage/azblob.NewClient"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/azure-azblob-new-client"
+
+[[entry]]
+id = "go:github.com/Azure/azure-sdk-for-go/sdk/storage/azblob.NewClientWithSharedKeyCredential"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/azure-azblob-new-client-shared-key"
+
+# ---- github.com/IBM/sarama ------------------------------------------------
+
+[[entry]]
+id = "go:github.com/IBM/sarama.NewAsyncProducer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/sarama-new-async-producer"
+
+[[entry]]
+id = "go:github.com/IBM/sarama.NewBroker"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "go/primitives/sarama-new-broker"
+
+[[entry]]
+id = "go:github.com/IBM/sarama.NewClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/sarama-new-client"
+
+[[entry]]
+id = "go:github.com/IBM/sarama.NewConsumer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/sarama-new-consumer"
+
+[[entry]]
+id = "go:github.com/IBM/sarama.NewConsumerGroup"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/sarama-new-consumer-group"
+
+[[entry]]
+id = "go:github.com/IBM/sarama.NewSyncProducer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/sarama-new-sync-producer"
+
+# ---- github.com/aws/aws-sdk-go-v2 ------------------------------------------
+
+[[entry]]
+id = "go:github.com/aws/aws-sdk-go-v2/config.LoadDefaultConfig"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/aws-config-load-default"
+
+[[entry]]
+id = "go:github.com/aws/aws-sdk-go-v2/service/*.New"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/aws-service-new"
+
+[[entry]]
+id = "go:github.com/aws/aws-sdk-go-v2/service/*.NewFromConfig"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/aws-service-new-from-config"
+
+# ---- github.com/ebitengine/purego ------------------------------------------
+
+[[entry]]
+id = "go:github.com/ebitengine/purego.Dlopen"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "loads a shared library at run time; the library's code is not part of the scan"
+fixture = "go/primitives/purego-dlopen"
+
+[[entry]]
+id = "go:github.com/ebitengine/purego.Dlsym"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "resolves a symbol in a loaded library; the symbol's code is not part of the scan"
+fixture = "go/primitives/purego-dlsym"
+
+[[entry]]
+id = "go:github.com/ebitengine/purego.NewCallback"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "builds a native-callable trampoline around a Go function; the call site is native code"
+fixture = "go/primitives/purego-new-callback"
+
+[[entry]]
+id = "go:github.com/ebitengine/purego.RegisterFunc"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "binds a Go function to a symbol in a loaded library; calls through it are native code"
+fixture = "go/primitives/purego-register-func"
+
+[[entry]]
+id = "go:github.com/ebitengine/purego.RegisterLibFunc"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "binds a Go function to a symbol in a loaded library; calls through it are native code"
+fixture = "go/primitives/purego-register-lib-func"
+
+[[entry]]
+id = "go:github.com/ebitengine/purego.SyscallN"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches a raw syscall by number"
+fixture = "go/primitives/purego-syscall-n"
+
+# ---- github.com/go-resty/resty ---------------------------------------------
+
+[[entry]]
+id = "go:github.com/go-resty/resty.New"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/resty-new"
+
+[[entry]]
+id = "go:github.com/go-resty/resty.NewWithClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/resty-new-with-client"
+
+[[entry]]
+id = "go:github.com/go-resty/resty/v2.New"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/resty-v2-new"
+
+[[entry]]
+id = "go:github.com/go-resty/resty/v2.NewWithClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/resty-v2-new-with-client"
+
+[[entry]]
+id = "go:github.com/go-resty/resty/v2.Client.R"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/resty-v2-client-r"
+
+[[entry]]
+id = "go:github.com/go-resty/resty/v2.Client.NewRequest"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/resty-v2-client-new-request"
+
+[[entry]]
+id = "go:github.com/go-resty/resty/v2.Request.Delete"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/resty-v2-request-delete"
+
+[[entry]]
+id = "go:github.com/go-resty/resty/v2.Request.Get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/resty-v2-request-get"
+
+[[entry]]
+id = "go:github.com/go-resty/resty/v2.Request.Head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/resty-v2-request-head"
+
+[[entry]]
+id = "go:github.com/go-resty/resty/v2.Request.Options"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/resty-v2-request-options"
+
+[[entry]]
+id = "go:github.com/go-resty/resty/v2.Request.Patch"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/resty-v2-request-patch"
+
+[[entry]]
+id = "go:github.com/go-resty/resty/v2.Request.Post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/resty-v2-request-post"
+
+[[entry]]
+id = "go:github.com/go-resty/resty/v2.Request.Put"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/resty-v2-request-put"
+
+# ---- github.com/go-sql-driver/mysql ----------------------------------------
+
+[[entry]]
+id = "go:github.com/go-sql-driver/mysql.MySQLDriver"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/mysql-driver-type"
+
+[[entry]]
+id = "go:github.com/go-sql-driver/mysql.MySQLDriver.OpenConnector"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/mysql-driver-open-connector"
+
+[[entry]]
+id = "go:github.com/go-sql-driver/mysql.NewConnector"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/mysql-new-connector"
+
+# ---- github.com/jackc/pgx ---------------------------------------------------
+
+[[entry]]
+id = "go:github.com/jackc/pgx/v5.Connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/pgx-connect"
+
+[[entry]]
+id = "go:github.com/jackc/pgx/v5.ConnectConfig"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/pgx-connect-config"
+
+[[entry]]
+id = "go:github.com/jackc/pgx/v5/pgconn.Connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+constructor = true
+fixture = "go/primitives/pgconn-connect"
+
+[[entry]]
+id = "go:github.com/jackc/pgx/v5/pgxpool.New"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+constructor = true
+fixture = "go/primitives/pgxpool-new"
+
+[[entry]]
+id = "go:github.com/jackc/pgx/v5/pgxpool.NewWithConfig"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/pgxpool-new-with-config"
+
+# ---- github.com/lib/pq ------------------------------------------------------
+
+[[entry]]
+id = "go:github.com/lib/pq.Connector"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/pq-connector"
+
+[[entry]]
+id = "go:github.com/lib/pq.Listener"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/pq-listener"
+
+[[entry]]
+id = "go:github.com/lib/pq.NewConnector"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/pq-new-connector"
+
+[[entry]]
+id = "go:github.com/lib/pq.NewDialListener"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/pq-new-dial-listener"
+
+[[entry]]
+id = "go:github.com/lib/pq.NewListener"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/pq-new-listener"
+
+[[entry]]
+id = "go:github.com/lib/pq.Open"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/pq-open"
+
+# ---- github.com/miekg/dns ----------------------------------------------------
+
+[[entry]]
+id = "go:github.com/miekg/dns.Client"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/dns-client"
+
+[[entry]]
+id = "go:github.com/miekg/dns.Client.Exchange"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/dns-client-exchange"
+
+[[entry]]
+id = "go:github.com/miekg/dns.Client.ExchangeContext"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/dns-client-exchange-context"
+
+[[entry]]
+id = "go:github.com/miekg/dns.Client.ExchangeWithConn"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/dns-client-exchange-with-conn"
+
+[[entry]]
+id = "go:github.com/miekg/dns.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/dns-dial"
+
+[[entry]]
+id = "go:github.com/miekg/dns.Exchange"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/dns-exchange"
+
+[[entry]]
+id = "go:github.com/miekg/dns.ExchangeContext"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "url" }
+fixture = "go/primitives/dns-exchange-context"
+
+[[entry]]
+id = "go:github.com/miekg/dns.ListenAndServe"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+fixture = "go/primitives/dns-listen-and-serve"
+
+[[entry]]
+id = "go:github.com/miekg/dns.Server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/dns-server"
+
+[[entry]]
+id = "go:github.com/miekg/dns.Server.ListenAndServe"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/dns-server-listen-and-serve"
+
+[[entry]]
+id = "go:github.com/miekg/dns.Server.Serve"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/dns-server-serve"
+
+# ---- github.com/nats-io/nats.go ----------------------------------------------
+
+[[entry]]
+id = "go:github.com/nats-io/nats.go.Conn"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/nats-conn"
+
+[[entry]]
+id = "go:github.com/nats-io/nats.go.Conn.Publish"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/nats-conn-publish"
+
+[[entry]]
+id = "go:github.com/nats-io/nats.go.Conn.QueueSubscribe"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/nats-conn-queue-subscribe"
+
+[[entry]]
+id = "go:github.com/nats-io/nats.go.Conn.Request"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/nats-conn-request"
+
+[[entry]]
+id = "go:github.com/nats-io/nats.go.Conn.Subscribe"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/nats-conn-subscribe"
+
+[[entry]]
+id = "go:github.com/nats-io/nats.go.Connect"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/nats-connect"
+
+[[entry]]
+id = "go:github.com/nats-io/nats.go.EncodedConn"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/nats-encoded-conn"
+
+[[entry]]
+id = "go:github.com/nats-io/nats.go.NewEncodedConn"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/nats-new-encoded-conn"
+
+# ---- github.com/rabbitmq/amqp091-go -------------------------------------------
+
+[[entry]]
+id = "go:github.com/rabbitmq/amqp091-go.Channel"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/amqp091-channel"
+
+[[entry]]
+id = "go:github.com/rabbitmq/amqp091-go.Channel.Consume"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/amqp091-channel-consume"
+
+[[entry]]
+id = "go:github.com/rabbitmq/amqp091-go.Channel.ExchangeDeclare"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/amqp091-channel-exchange-declare"
+
+[[entry]]
+id = "go:github.com/rabbitmq/amqp091-go.Channel.Publish"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/amqp091-channel-publish"
+
+[[entry]]
+id = "go:github.com/rabbitmq/amqp091-go.Channel.PublishWithContext"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "url" }
+fixture = "go/primitives/amqp091-channel-publish-with-context"
+
+[[entry]]
+id = "go:github.com/rabbitmq/amqp091-go.Channel.QueueDeclare"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/amqp091-channel-queue-declare"
+
+[[entry]]
+id = "go:github.com/rabbitmq/amqp091-go.Connection"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/amqp091-connection"
+
+[[entry]]
+id = "go:github.com/rabbitmq/amqp091-go.Connection.Channel"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/amqp091-connection-channel"
+
+[[entry]]
+id = "go:github.com/rabbitmq/amqp091-go.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/amqp091-dial"
+
+[[entry]]
+id = "go:github.com/rabbitmq/amqp091-go.DialConfig"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/amqp091-dial-config"
+
+[[entry]]
+id = "go:github.com/rabbitmq/amqp091-go.DialTLS"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/amqp091-dial-tls"
+
+[[entry]]
+id = "go:github.com/rabbitmq/amqp091-go.DialTLS_ExternalAuth"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/amqp091-dial-tls-external"
+
+# ---- github.com/redis/go-redis ------------------------------------------------
+
+[[entry]]
+id = "go:github.com/redis/go-redis/v9.Client"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/redis-client"
+
+[[entry]]
+id = "go:github.com/redis/go-redis/v9.NewClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/redis-new-client"
+
+[[entry]]
+id = "go:github.com/redis/go-redis/v9.NewClusterClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/redis-new-cluster-client"
+
+[[entry]]
+id = "go:github.com/redis/go-redis/v9.NewFailoverClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/redis-new-failover-client"
+
+[[entry]]
+id = "go:github.com/redis/go-redis/v9.NewFailoverClusterClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/redis-new-failover-cluster-client"
+
+[[entry]]
+id = "go:github.com/redis/go-redis/v9.NewRing"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/redis-new-ring"
+
+[[entry]]
+id = "go:github.com/redis/go-redis/v9.NewSentinelClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/redis-new-sentinel-client"
+
+[[entry]]
+id = "go:github.com/redis/go-redis/v9.NewUniversalClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/redis-new-universal-client"
+
+# ---- github.com/segmentio/kafka-go ----------------------------------------------
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/kafka-dial"
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.DialContext"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "host-port" }
+constructor = true
+fixture = "go/primitives/kafka-dial-context"
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.DialLeader"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "host-port" }
+constructor = true
+fixture = "go/primitives/kafka-dial-leader"
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.DialLeaderContext"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "host-port" }
+constructor = true
+fixture = "go/primitives/kafka-dial-leader-context"
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.Dialer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/kafka-dialer"
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.Dialer.DialContext"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/kafka-dialer-dial-context"
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.NewReader"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/kafka-new-reader"
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.NewWriter"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/kafka-new-writer"
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.Reader"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/kafka-reader"
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.Reader.FetchMessage"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/kafka-reader-fetch-message"
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.Reader.ReadMessage"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/kafka-reader-read-message"
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.Writer"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/kafka-writer"
+
+[[entry]]
+id = "go:github.com/segmentio/kafka-go.Writer.WriteMessages"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/kafka-writer-write-messages"
+
+# ---- github.com/valyala/fasthttp -------------------------------------------------
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Client"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/fasthttp-client"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Client.Do"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/fasthttp-client-do"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Client.DoDeadline"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/fasthttp-client-do-deadline"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Client.DoTimeout"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/fasthttp-client-do-timeout"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "go/primitives/fasthttp-dial"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.DialDualStack"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "go/primitives/fasthttp-dial-dual-stack"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.DialTimeout"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "go/primitives/fasthttp-dial-timeout"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/fasthttp-get"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/fasthttp-head"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.HostClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/fasthttp-host-client"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.HostClient.Do"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/fasthttp-host-client-do"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.ListenAndServe"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+fixture = "go/primitives/fasthttp-listen-and-serve"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.ListenAndServeTLS"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+fixture = "go/primitives/fasthttp-listen-and-serve-tls"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.ListenAndServeUNIX"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "address" }
+fixture = "go/primitives/fasthttp-listen-and-serve-unix"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/fasthttp-post"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/fasthttp-server"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Server.ListenAndServe"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/fasthttp-server-listen-and-serve"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Server.ListenAndServeTLS"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/fasthttp-server-listen-and-serve-tls"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Server.ListenAndServeUNIX"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/fasthttp-server-listen-and-serve-unix"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Server.Serve"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/fasthttp-server-serve"
+
+[[entry]]
+id = "go:github.com/valyala/fasthttp.Server.ServeTLS"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/fasthttp-server-serve-tls"
+
+# ---- go.mongodb.org/mongo-driver -------------------------------------------------
+
+[[entry]]
+id = "go:go.mongodb.org/mongo-driver/mongo.Client"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/mongo-client"
+
+[[entry]]
+id = "go:go.mongodb.org/mongo-driver/mongo.Client.Connect"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/mongo-client-connect"
+
+[[entry]]
+id = "go:go.mongodb.org/mongo-driver/mongo.Connect"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/mongo-connect"
+
+[[entry]]
+id = "go:go.mongodb.org/mongo-driver/mongo.NewClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/mongo-new-client"
+
+# ---- golang.org/x/crypto -----------------------------------------------------------
+
+[[entry]]
+id = "go:golang.org/x/crypto/ssh.Client"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/ssh-client"
+
+[[entry]]
+id = "go:golang.org/x/crypto/ssh.Client.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+fixture = "go/primitives/ssh-client-dial"
+
+[[entry]]
+id = "go:golang.org/x/crypto/ssh.Client.Listen"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+fixture = "go/primitives/ssh-client-listen"
+
+[[entry]]
+id = "go:golang.org/x/crypto/ssh.Client.NewSession"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/ssh-client-new-session"
+
+[[entry]]
+id = "go:golang.org/x/crypto/ssh.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/ssh-dial"
+
+[[entry]]
+id = "go:golang.org/x/crypto/ssh.Listen"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/ssh-listen"
+
+[[entry]]
+id = "go:golang.org/x/crypto/ssh.NewClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/ssh-new-client"
+
+[[entry]]
+id = "go:golang.org/x/crypto/ssh.NewClientConn"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/ssh-new-client-conn"
+
+[[entry]]
+id = "go:golang.org/x/crypto/ssh.NewServerConn"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/ssh-new-server-conn"
+
+# ---- golang.org/x/net ---------------------------------------------------------------
+
+[[entry]]
+id = "go:golang.org/x/net/http2.Transport"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/http2-transport"
+
+[[entry]]
+id = "go:golang.org/x/net/http2.Transport.RoundTrip"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/http2-transport-roundtrip"
+
+[[entry]]
+id = "go:golang.org/x/net/proxy.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+fixture = "go/primitives/proxy-dial"
+
+[[entry]]
+id = "go:golang.org/x/net/proxy.FromEnvironment"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/proxy-from-environment"
+
+[[entry]]
+id = "go:golang.org/x/net/proxy.SOCKS5"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/proxy-socks5"
+
+[[entry]]
+id = "go:golang.org/x/net/websocket.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/websocket-dial"
+
+# ---- golang.org/x/sys ------------------------------------------------------------------
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Accept"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/unix-accept"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Accept4"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/unix-accept4"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Bind"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/unix-bind"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Connect"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/unix-connect"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Exec"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, form = "program" }
+fixture = "go/primitives/unix-exec"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.ForkExec"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, form = "program" }
+fixture = "go/primitives/unix-fork-exec"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Kill"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/unix-kill"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Listen"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/unix-listen"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.RawSyscall"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/unix-raw-syscall"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.RawSyscall6"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/unix-raw-syscall6"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Recvfrom"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/unix-recvfrom"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Recvmsg"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/unix-recvmsg"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Sendmsg"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/unix-sendmsg"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Sendto"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/unix-sendto"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Shutdown"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/unix-shutdown"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Socket"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/unix-socket"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Socketpair"
+kind = "egress"
+mechanism = "ipc"
+fixture = "go/primitives/unix-socketpair"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.StartProcess"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, form = "program" }
+fixture = "go/primitives/unix-start-process"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Syscall"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/unix-syscall"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Syscall6"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/unix-syscall6"
+
+[[entry]]
+id = "go:golang.org/x/sys/unix.Syscall9"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/unix-syscall9"
+
+[[entry]]
+id = "go:golang.org/x/sys/windows.GetProcAddress"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "resolves a symbol in a loaded DLL; the symbol's code is not part of the scan"
+fixture = "go/primitives/windows-get-proc-address"
+
+[[entry]]
+id = "go:golang.org/x/sys/windows.LoadLibrary"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+fixture = "go/primitives/windows-load-library"
+
+[[entry]]
+id = "go:golang.org/x/sys/windows.MustLoadDLL"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+fixture = "go/primitives/windows-must-load-dll"
+
+[[entry]]
+id = "go:golang.org/x/sys/windows.NewLazyDLL"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+fixture = "go/primitives/windows-new-lazy-dll"
+
+[[entry]]
+id = "go:golang.org/x/sys/windows.NewLazySystemDLL"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+fixture = "go/primitives/windows-new-lazy-system-dll"
+
+[[entry]]
+id = "go:golang.org/x/sys/windows.Syscall"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary DLL call by symbol"
+fixture = "go/primitives/windows-syscall"
+
+# ---- google.golang.org/grpc --------------------------------------------------------------
+
+[[entry]]
+id = "go:google.golang.org/grpc.ClientConn"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/grpc-client-conn"
+
+[[entry]]
+id = "go:google.golang.org/grpc.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "go/primitives/grpc-dial"
+
+[[entry]]
+id = "go:google.golang.org/grpc.DialContext"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/grpc-dial-context"
+
+[[entry]]
+id = "go:google.golang.org/grpc.NewClient"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "go/primitives/grpc-new-client"
+
+[[entry]]
+id = "go:google.golang.org/grpc.NewServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/grpc-new-server"
+
+[[entry]]
+id = "go:google.golang.org/grpc.Server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/grpc-server"
+
+[[entry]]
+id = "go:google.golang.org/grpc.Server.Serve"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/grpc-server-serve"

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use egress_core::data::guards::{self, Deferred};
 use egress_core::data::{
-    Classification, Data, EMBEDDED, EntryKind, ModuleClass, RuntimeData, data_digest,
+    Classification, Data, EMBEDDED, EntryKind, ModuleClass, RuntimeData, data_digest, separator,
 };
 use egress_core::model::Language;
 
@@ -193,6 +193,7 @@ fn deleting_an_inert_module_turns_the_stdlib_guard_red() {
         (Language::Python, "json"),
         (Language::Javascript, "path"),
         (Language::Rust, "std::fmt"),
+        (Language::Go, "net/url"),
     ] {
         let mut rt = d.runtime(lang).clone();
         assert_eq!(rt.module(name).map(|m| m.class), Some(ModuleClass::Inert));
@@ -355,6 +356,8 @@ fn marking_a_deny_list_module_inert_turns_the_guard_red() {
         (Language::Javascript, "module"),
         (Language::Go, "net/http"),
         (Language::Go, "os"),
+        (Language::Go, "os/exec"),
+        (Language::Go, "os/user"),
     ] {
         let mut rt = d.runtime(lang).clone();
         let m = rt
@@ -398,6 +401,14 @@ fn removing_a_socket_member_classification_turns_the_inventory_guard_red() {
         v.iter().any(|s| s.contains("socket.create_connection")),
         "{v:?}"
     );
+
+    let mut rt = d.runtime(Language::Go).clone();
+    let members = rt.inventory.members["net"].clone();
+    assert!(members.iter().any(|m| m == "Dial"));
+    rt.entries.retain(|e| e.id != "go:net.Dial");
+    let list = deny(Language::Go, &rt);
+    let v = guards::inventory(&rt, &deny_refs(&list));
+    assert!(v.iter().any(|s| s.contains("net.Dial")), "{v:?}");
 }
 
 #[test]
@@ -832,4 +843,189 @@ fn the_distribution_table_is_embedded_and_moves_the_digest() {
         })
         .collect();
     assert_ne!(with, data_digest(&changed));
+}
+
+// ---- Go curation guards -------------------------------------------------------
+
+/// A deny-list module holds at least one egress or blind-spot entry: an
+/// egress-class module whose members are all inert rows fails closed.
+#[test]
+fn every_go_deny_module_holds_a_non_inert_entry() {
+    let d = data();
+    let rt = d.runtime(Language::Go);
+    let mut v = Vec::new();
+    for name in deny(Language::Go, rt) {
+        if !rt
+            .entries
+            .iter()
+            .any(|e| e.module == name && !matches!(e.kind, EntryKind::Inert { .. }))
+        {
+            v.push(format!("{name} holds no non-inert entry"));
+        }
+    }
+    assert_clean("deny modules without a non-inert entry", v);
+}
+
+#[test]
+fn a_deny_module_of_only_inert_rows_turns_the_guard_red() {
+    let d = data();
+    for name in ["os/exec", "net/http/cgi", "os/user", "database/sql/driver"] {
+        let mut rt = d.runtime(Language::Go).clone();
+        rt.entries.retain(|e| e.module != name);
+        assert!(
+            !rt.entries
+                .iter()
+                .any(|e| e.module == name && !matches!(e.kind, EntryKind::Inert { .. })),
+            "{name} still holds a non-inert entry"
+        );
+        let v: Vec<String> = deny(Language::Go, &rt)
+            .into_iter()
+            .filter(|m| {
+                !rt.entries
+                    .iter()
+                    .any(|e| e.module == *m && !matches!(e.kind, EntryKind::Inert { .. }))
+            })
+            .collect();
+        assert!(v.contains(&name.to_string()), "{name}: {v:?}");
+    }
+}
+
+/// Every method row `T.M` in the inventory whose type `T` has an egress
+/// entry carries a member-level row of its own, so naming `T` cannot
+/// swallow the classification of `T.M`.
+#[test]
+fn methods_on_egress_types_have_member_level_rows() {
+    let d = data();
+    let mut v = Vec::new();
+    for lang in Language::ALL {
+        let rt = d.runtime(lang);
+        let sep = separator(lang);
+        for (module, members) in &rt.inventory.members {
+            for m in members {
+                let Some((ty, _)) = m.split_once(sep) else {
+                    continue;
+                };
+                let type_is_egress = rt.entries.iter().any(|e| {
+                    e.module == *module
+                        && e.members.len() == 1
+                        && e.members[0] == ty
+                        && matches!(e.kind, EntryKind::Egress(_))
+                });
+                if !type_is_egress {
+                    continue;
+                }
+                let path = format!("{module}{sep}{m}");
+                match lookup(rt, &path) {
+                    Some(Classification::Entry(e)) if e.members.len() >= 2 => {}
+                    other => v.push(format!("{path} classified as {other:?}")),
+                }
+            }
+        }
+    }
+    assert_clean("method rows under egress types without member rows", v);
+}
+
+#[test]
+fn dropping_a_method_row_under_an_egress_type_turns_the_guard_red() {
+    let d = data();
+    let rt = d.runtime(Language::Go);
+    // `Client.Get` must exist for the mutation to mean anything.
+    assert!(rt.entry("go:net/http.Client.Get").is_some());
+    let mut mutated = rt.clone();
+    mutated.entries.retain(|e| e.id != "go:net/http.Client.Get");
+    // Run the rule by hand on the mutated data.
+    let mut v = Vec::new();
+    for (module, members) in &mutated.inventory.members {
+        for m in members {
+            let Some((ty, _)) = m.split_once('.') else {
+                continue;
+            };
+            let type_is_egress = mutated.entries.iter().any(|e| {
+                e.module == *module
+                    && e.members.len() == 1
+                    && e.members[0] == *ty
+                    && matches!(e.kind, EntryKind::Egress(_))
+            });
+            if !type_is_egress {
+                continue;
+            }
+            let path = format!("{module}.{m}");
+            match lookup(&mutated, &path) {
+                Some(Classification::Entry(e)) if e.members.len() >= 2 => {}
+                other => v.push(format!("{path} classified as {other:?}")),
+            }
+        }
+    }
+    assert!(
+        v.iter().any(|s| s.starts_with("net/http.Client.Get")),
+        "{v:?}"
+    );
+}
+
+/// A catalog `[[package]]` whose last path element is not usable as the
+/// local name (not a Go identifier, or a `vN` element hiding it) needs
+/// `package_name` (KTD13).
+#[test]
+fn go_catalog_package_names_cover_non_identifier_paths() {
+    fn is_major_version(s: &str) -> bool {
+        s.len() > 1 && s.starts_with('v') && s[1..].chars().all(|c| c.is_ascii_digit())
+    }
+    // Mirrors guessed_local in egress-go.
+    fn guessed_local(path: &str) -> &str {
+        let mut last = path.rsplit('/').next().unwrap_or(path);
+        if is_major_version(last) {
+            last = path.rsplit('/').nth(1).unwrap_or(last);
+        }
+        if let Some((stem, suffix)) = last.rsplit_once('.')
+            && is_major_version(suffix)
+        {
+            last = stem;
+        }
+        last.strip_prefix("go-").unwrap_or(last)
+    }
+    fn valid_ident(s: &str) -> bool {
+        let mut cs = s.chars();
+        cs.next().is_some_and(|c| c.is_alphabetic() || c == '_')
+            && cs.all(|c| c.is_alphanumeric() || c == '_')
+    }
+    let d = data();
+    let rt = d.runtime(Language::Go);
+    let mut v = Vec::new();
+    for p in &rt.packages {
+        for m in &p.modules {
+            if m.contains('*') {
+                continue;
+            }
+            if !valid_ident(guessed_local(m)) && p.package_name.is_none() {
+                v.push(format!("{m} (package {}) has no package_name", p.name));
+            }
+        }
+    }
+    assert_clean("catalog paths whose clause name cannot be guessed", v);
+}
+
+/// The seed rows for the messaging packages carry their package clauses.
+#[test]
+fn go_catalog_package_name_rows() {
+    let d = data();
+    let rt = d.runtime(Language::Go);
+    for (name, want) in [
+        ("github.com/nats-io/nats.go", "nats"),
+        ("github.com/rabbitmq/amqp091-go", "amqp091"),
+    ] {
+        let p = rt
+            .packages
+            .iter()
+            .find(|p| p.name == name)
+            .unwrap_or_else(|| panic!("{name} missing from the catalog"));
+        assert_eq!(p.package_name.as_deref(), Some(want), "{name}");
+    }
+    // A row whose guessed clause is right needs no package_name.
+    let mut v = Vec::new();
+    for p in &rt.packages {
+        if p.package_name.is_none() && p.name.ends_with("-go") {
+            v.push(p.name.clone());
+        }
+    }
+    assert_clean("-go rows without package_name", v);
 }

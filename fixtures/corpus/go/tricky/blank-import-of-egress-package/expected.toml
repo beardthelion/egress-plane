@@ -1,7 +1,8 @@
 state = "complete"
 exit_code = 0
 
-[[blind_spots]]
+[[sites]]
 file = "main.go"
 symbol = "<module>"
-kind = "resolution-limit"
+mechanism = "go:net/http"
+destination = 'expr:_ "net/http"'

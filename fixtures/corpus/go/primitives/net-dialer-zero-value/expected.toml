@@ -1,0 +1,26 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.Dialer"
+destination = "expr:net.Dialer"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.Dialer"
+destination = "expr:net.Dialer"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.Dialer.Dial"
+destination = "dial.example.com:443"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.Dialer.Dial"
+destination = "dial2.example.com:443"

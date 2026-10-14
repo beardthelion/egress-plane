@@ -1,7 +1,8 @@
-# Provisional Go standard-library classification (U5). Every package
-# sits in the module table pending real curation (U9): packages on the
-# plan's deny list are class = "egress" with a module-level blind-spot
-# entry standing in for member rows; every other package is inert.
+# Go standard-library classification. Packages on the deny list
+# (the net tree minus its parse-only packages, plus the process,
+# code-loading, and runtime-introspection packages) are class =
+# "egress" with member-level entries; every other package is inert
+# with the justification naming what it can do.
 language = "go"
 runtime_range = "1.18-1.26"
 
@@ -10,1155 +11,4367 @@ runtime_range = "1.18-1.26"
 [[module]]
 name = "archive/tar"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Reads and writes archive formats over reader and writer streams the caller supplies; opens nothing."
 
 [[module]]
 name = "archive/zip"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Reads and writes archive formats over reader and writer streams the caller supplies; opens nothing."
 
 [[module]]
 name = "arena"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Experimental arena allocator; memory management only."
 
 [[module]]
 name = "bufio"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Buffered I/O over reader and writer interfaces the caller supplies."
 
 [[module]]
 name = "bytes"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "In-memory byte-slice operations."
 
 [[module]]
 name = "cmp"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ordering constraints and comparison helpers."
 
 [[module]]
 name = "compress/bzip2"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Compression codecs over streams the caller supplies; opens nothing."
 
 [[module]]
 name = "compress/flate"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Compression codecs over streams the caller supplies; opens nothing."
 
 [[module]]
 name = "compress/gzip"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Compression codecs over streams the caller supplies; opens nothing."
 
 [[module]]
 name = "compress/lzw"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Compression codecs over streams the caller supplies; opens nothing."
 
 [[module]]
 name = "compress/zlib"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Compression codecs over streams the caller supplies; opens nothing."
 
 [[module]]
 name = "container/heap"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "In-memory data structures; opens nothing."
 
 [[module]]
 name = "container/list"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "In-memory data structures; opens nothing."
 
 [[module]]
 name = "container/ring"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "In-memory data structures; opens nothing."
 
 [[module]]
 name = "context"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Cancellation signals and request-scoped values; opens nothing."
 
 [[module]]
 name = "crypto"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Hash, cipher, and signer interfaces plus key types; no IO."
 
 [[module]]
 name = "crypto/aes"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/boring"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "BoringCrypto binding internals surfaced for the crypto packages; key and cipher operations only."
 
 [[module]]
 name = "crypto/cipher"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/des"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/dsa"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/ecdh"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/ecdsa"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/ed25519"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/elliptic"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/fips140"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "FIPS service indicator bookkeeping; no IO."
 
 [[module]]
 name = "crypto/hkdf"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/hmac"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/hpke"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/md5"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/mlkem"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/mlkem/mlkemtest"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "ML-KEM test-vector helpers; pure data."
 
 [[module]]
 name = "crypto/pbkdf2"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/rand"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Reads OS randomness into a caller buffer; returns bytes only."
 
 [[module]]
 name = "crypto/rc4"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/rsa"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/sha1"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/sha256"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/sha3"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/sha512"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/subtle"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Ciphers, hashes, signatures, and key material over data in hand; no IO."
 
 [[module]]
 name = "crypto/tls"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "crypto/tls/fipsonly"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Cipher-suite filter enabled by a build tag; no IO."
 
 [[module]]
 name = "crypto/x509"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Certificate parse and verify over caller-provided material; any revocation fetch runs through a dialer the caller supplies."
 
 [[module]]
 name = "crypto/x509/pkix"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "DER structures for certificate data; pure data."
 
 [[module]]
 name = "database/sql"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "database/sql/driver"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "debug/buildinfo"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Parses binary and runtime metadata from files or the running image; local reads only."
 
 [[module]]
 name = "debug/dwarf"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Parses binary and runtime metadata from files or the running image; local reads only."
 
 [[module]]
 name = "debug/elf"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Parses binary and runtime metadata from files or the running image; local reads only."
 
 [[module]]
 name = "debug/gosym"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Parses binary and runtime metadata from files or the running image; local reads only."
 
 [[module]]
 name = "debug/macho"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Parses binary and runtime metadata from files or the running image; local reads only."
 
 [[module]]
 name = "debug/pe"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Parses binary and runtime metadata from files or the running image; local reads only."
 
 [[module]]
 name = "debug/plan9obj"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Parses binary and runtime metadata from files or the running image; local reads only."
 
 [[module]]
 name = "embed"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Compile-time embedding of files read while building; no runtime IO."
 
 [[module]]
 name = "encoding"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoder interfaces; conversion over data in hand."
 
 [[module]]
 name = "encoding/ascii85"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "encoding/asn1"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "encoding/base32"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "encoding/base64"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "encoding/binary"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "encoding/csv"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "encoding/gob"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "encoding/hex"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "encoding/json"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "encoding/json/jsontext"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "encoding/json/v2"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "encoding/pem"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "encoding/xml"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Encoders and decoders over data the caller supplies; no IO."
 
 [[module]]
 name = "errors"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Error values, wrapping, and inspection."
 
 [[module]]
 name = "expvar"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "flag"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Command-line flag parsing into caller variables; output goes to a caller-chosen stream."
 
 [[module]]
 name = "fmt"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Formats values to strings or caller-supplied writers; writes to stdout and stderr only."
 
 [[module]]
 name = "go/ast"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Go source, type, and toolchain data structures; parsing, formatting, and analysis with no subprocess or network."
 
 [[module]]
 name = "go/build"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "go/build/constraint"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Go source, type, and toolchain data structures; parsing, formatting, and analysis with no subprocess or network."
 
 [[module]]
 name = "go/constant"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Go source, type, and toolchain data structures; parsing, formatting, and analysis with no subprocess or network."
 
 [[module]]
 name = "go/doc"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Go source, type, and toolchain data structures; parsing, formatting, and analysis with no subprocess or network."
 
 [[module]]
 name = "go/doc/comment"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Go source, type, and toolchain data structures; parsing, formatting, and analysis with no subprocess or network."
 
 [[module]]
 name = "go/format"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Go source, type, and toolchain data structures; parsing, formatting, and analysis with no subprocess or network."
 
 [[module]]
 name = "go/importer"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "go/parser"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Go source, type, and toolchain data structures; parsing, formatting, and analysis with no subprocess or network."
 
 [[module]]
 name = "go/printer"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Go source, type, and toolchain data structures; parsing, formatting, and analysis with no subprocess or network."
 
 [[module]]
 name = "go/scanner"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Go source, type, and toolchain data structures; parsing, formatting, and analysis with no subprocess or network."
 
 [[module]]
 name = "go/token"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Go source, type, and toolchain data structures; parsing, formatting, and analysis with no subprocess or network."
 
 [[module]]
 name = "go/types"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Type-checks source through an importer the caller supplies; opens nothing itself."
 
 [[module]]
 name = "go/version"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Go source, type, and toolchain data structures; parsing, formatting, and analysis with no subprocess or network."
 
 [[module]]
 name = "hash"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Hash interfaces over data in hand."
 
 [[module]]
 name = "hash/adler32"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Hash functions over data in hand."
 
 [[module]]
 name = "hash/crc32"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Hash functions over data in hand."
 
 [[module]]
 name = "hash/crc64"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Hash functions over data in hand."
 
 [[module]]
 name = "hash/fnv"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Hash functions over data in hand."
 
 [[module]]
 name = "hash/maphash"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Hash functions over data in hand."
 
 [[module]]
 name = "html"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "HTML escaping over strings in hand."
 
 [[module]]
 name = "html/template"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "HTML templating written to a caller-supplied writer."
 
 [[module]]
 name = "image"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Image interfaces and decoded pixels in memory."
 
 [[module]]
 name = "image/color"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Image codecs over streams the caller supplies."
 
 [[module]]
 name = "image/color/palette"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Shared palette tables; pure data."
 
 [[module]]
 name = "image/draw"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Image codecs over streams the caller supplies."
 
 [[module]]
 name = "image/gif"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Image codecs over streams the caller supplies."
 
 [[module]]
 name = "image/jpeg"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Image codecs over streams the caller supplies."
 
 [[module]]
 name = "image/png"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Image codecs over streams the caller supplies."
 
 [[module]]
 name = "index/suffixarray"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "In-memory suffix index over a byte slice."
 
 [[module]]
 name = "io"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Reader and writer interfaces plus helpers over handles in hand."
 
 [[module]]
 name = "io/fs"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "File-system interfaces and helpers over a caller-supplied tree."
 
 [[module]]
 name = "io/ioutil"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "I/O helpers over handles in hand."
 
 [[module]]
 name = "iter"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Iterator helpers over in-memory sequences."
 
 [[module]]
 name = "log"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Formats log lines to a writer the caller supplies; opens nothing."
 
 [[module]]
 name = "log/slog"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Structured logging to handlers and writers the caller supplies; opens nothing."
 
 [[module]]
 name = "log/syslog"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "maps"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "In-memory map and sequence helpers."
 
 [[module]]
 name = "math"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Arithmetic over values in hand."
 
 [[module]]
 name = "math/big"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Arithmetic and PRNG over values in hand."
 
 [[module]]
 name = "math/bits"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Arithmetic and PRNG over values in hand."
 
 [[module]]
 name = "math/cmplx"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Arithmetic and PRNG over values in hand."
 
 [[module]]
 name = "math/rand"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Arithmetic and PRNG over values in hand."
 
 [[module]]
 name = "math/rand/v2"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Arithmetic and PRNG over values in hand."
 
 [[module]]
 name = "mime"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "MIME type tables and parsing over data in hand."
 
 [[module]]
 name = "mime/multipart"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "MIME type tables and multipart framing over data in hand."
 
 [[module]]
 name = "mime/quotedprintable"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "MIME type tables and multipart framing over data in hand."
 
 [[module]]
 name = "net"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "net/http"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "net/http/cgi"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "net/http/cookiejar"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "net/http/fcgi"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "net/http/httptest"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "net/http/httptrace"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "net/http/httputil"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "net/http/pprof"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "net/mail"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Parses RFC 5322 address headers; opens no connection."
 
 [[module]]
 name = "net/netip"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "IP address and prefix values; pure data."
 
 [[module]]
 name = "net/rpc"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "net/rpc/jsonrpc"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "net/smtp"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "net/textproto"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Text-protocol line framing over a connection the caller opened."
 
 [[module]]
 name = "net/url"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "URL parsing and formatting; the request happens in net/http."
 
 [[module]]
 name = "os"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "os/exec"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "os/signal"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Delivers process signals to channels the caller registers; opens nothing."
 
 [[module]]
 name = "os/user"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "path"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Slash-path string manipulation; touches no file system."
 
 [[module]]
 name = "path/filepath"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "File-path string manipulation; touches no file system."
 
 [[module]]
 name = "plugin"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "reflect"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "regexp"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Pattern compile and match over strings in hand."
 
 [[module]]
 name = "regexp/syntax"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Regexp parse trees; pure data."
 
 [[module]]
 name = "runtime"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "runtime/asan"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Address-sanitizer runtime glue, linked only under -asan."
 
 [[module]]
 name = "runtime/cgo"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "runtime/coverage"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Coverage counters the runtime writes to its coverage directory."
 
 [[module]]
 name = "runtime/debug"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "runtime/metrics"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Runtime metric reads into caller-provided buffers."
 
 [[module]]
 name = "runtime/msan"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Memory-sanitizer runtime glue, linked only under -msan."
 
 [[module]]
 name = "runtime/pprof"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Profile capture written to a caller-provided writer."
 
 [[module]]
 name = "runtime/race"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Race-detector runtime glue, linked only under -race."
 
 [[module]]
 name = "runtime/secret"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Invokes a caller function with register and stack wiping; no IO."
 
 [[module]]
 name = "runtime/trace"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Execution-trace capture to a caller-provided writer."
 
 [[module]]
 name = "simd/archsimd"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "SIMD intrinsics; arithmetic on vector registers only."
 
 [[module]]
 name = "slices"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "In-memory slice helpers."
 
 [[module]]
 name = "sort"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "In-memory sorting."
 
 [[module]]
 name = "strconv"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "String and number conversions."
 
 [[module]]
 name = "strings"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "String operations in memory."
 
 [[module]]
 name = "structs"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Host-layout markers for struct fields; pure types."
 
 [[module]]
 name = "sync"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "In-process synchronization; runs only work the caller passes."
 
 [[module]]
 name = "sync/atomic"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "In-process atomic operations."
 
 [[module]]
 name = "syscall"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "syscall/js"
-class = "inert"
-justification = "Pending U9 curation."
+class = "egress"
 
 [[module]]
 name = "testing"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Test harness; checks and benchmarks run inside the test binary."
 
 [[module]]
 name = "testing/cryptotest"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Test fixtures, fakes, and assertion helpers; run inside the test binary."
 
 [[module]]
 name = "testing/fstest"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Test fixtures, fakes, and assertion helpers; run inside the test binary."
 
 [[module]]
 name = "testing/iotest"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Test fixtures, fakes, and assertion helpers; run inside the test binary."
 
 [[module]]
 name = "testing/quick"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Test fixtures, fakes, and assertion helpers; run inside the test binary."
 
 [[module]]
 name = "testing/slogtest"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Test fixtures, fakes, and assertion helpers; run inside the test binary."
 
 [[module]]
 name = "testing/synctest"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Test fixtures, fakes, and assertion helpers; run inside the test binary."
 
 [[module]]
 name = "text/scanner"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Tokenizing over source text in hand."
 
 [[module]]
 name = "text/tabwriter"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Column formatting to a caller-supplied writer."
 
 [[module]]
 name = "text/template"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Template expansion to a caller-supplied writer."
 
 [[module]]
 name = "text/template/parse"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Template parse trees; pure data."
 
 [[module]]
 name = "time"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Clock reads, timers, and durations; no sockets or processes."
 
 [[module]]
 name = "time/tzdata"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Embedded zoneinfo tables."
 
 [[module]]
 name = "unicode"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Unicode property tables and case folding."
 
 [[module]]
 name = "unicode/utf16"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "UTF-16 encode and decode over data in hand."
 
 [[module]]
 name = "unicode/utf8"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "UTF-8 encode and decode over data in hand."
 
 [[module]]
 name = "unique"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Value interning in memory."
 
 [[module]]
 name = "unsafe"
 class = "egress"
-justification = "Pending U9 curation."
 
 [[module]]
 name = "weak"
 class = "inert"
-justification = "Pending U9 curation."
+justification = "Weak pointer wrappers; no IO."
 
-# The first curated entries, exercised by the ordinary and U7 tricky
-# cases; the rest of `net/http` is still pending U9 curation.
 [[entry]]
-id = "go:net/http.Get"
+id = "go:crypto/tls.Client"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/crypto-tls-client"
+
+[[entry]]
+id = "go:crypto/tls.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/crypto-tls-dial"
+
+[[entry]]
+id = "go:crypto/tls.DialWithDialer"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 4, form = "host-port" }
+constructor = true
+fixture = "go/primitives/crypto-tls-dialwithdialer"
+
+[[entry]]
+id = "go:crypto/tls.Dialer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/tls-dialer-zero-value"
+
+[[entry]]
+id = "go:crypto/tls.Dialer.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "host-port" }
+fixture = "go/primitives/crypto-tls-dialer-dial"
+
+[[entry]]
+id = "go:crypto/tls.Dialer.DialContext"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "host-port" }
+fixture = "go/primitives/crypto-tls-dialer-dialcontext"
+
+[[entry]]
+id = "go:crypto/tls.Listen"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/crypto-tls-listen"
+
+[[entry]]
+id = "go:crypto/tls.NewListener"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/crypto-tls-newlistener"
+
+[[entry]]
+id = "go:crypto/tls.QUICClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/crypto-tls-quicclient"
+
+[[entry]]
+id = "go:crypto/tls.QUICServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/crypto-tls-quicserver"
+
+[[entry]]
+id = "go:crypto/tls.Server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/crypto-tls-server"
+
+[[entry]]
+id = "go:database/sql.Conn"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/database-sql-handles"
+
+[[entry]]
+id = "go:database/sql.DB"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/database-sql-handles"
+
+[[entry]]
+id = "go:database/sql.Open"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+constructor = true
+fixture = "go/primitives/database-sql-open"
+
+[[entry]]
+id = "go:database/sql.OpenDB"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/database-sql-opendb"
+
+[[entry]]
+id = "go:database/sql.Register"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "registers a driver under a name; the driver's Open runs third-party connection code the scan does not see"
+fixture = "go/primitives/database-sql-register"
+
+[[entry]]
+id = "go:database/sql.Rows"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/database-sql-handles"
+
+[[entry]]
+id = "go:database/sql.Stmt"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/database-sql-handles"
+
+[[entry]]
+id = "go:database/sql.Tx"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/database-sql-handles"
+
+[[entry]]
+id = "go:database/sql/driver.Conn"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "interface implemented by drivers registered by name; calling through it runs third-party connection code the scan does not see"
+fixture = "go/primitives/database-sql-driver-conn"
+
+[[entry]]
+id = "go:database/sql/driver.Connector"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "interface implemented by drivers registered by name; calling through it runs third-party connection code the scan does not see"
+fixture = "go/primitives/database-sql-driver-connector"
+
+[[entry]]
+id = "go:database/sql/driver.Driver"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "interface implemented by drivers registered by name; calling through it runs third-party connection code the scan does not see"
+fixture = "go/primitives/database-sql-driver-driver"
+
+[[entry]]
+id = "go:database/sql/driver.DriverContext"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "interface implemented by drivers registered by name; calling through it runs third-party connection code the scan does not see"
+fixture = "go/primitives/database-sql-driver-drivercontext"
+
+[[entry]]
+id = "go:expvar.Handler"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/expvar-handler"
+
+[[entry]]
+id = "go:expvar.NewFloat"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/expvar-new-float"
+
+[[entry]]
+id = "go:expvar.NewInt"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/expvar-new-int"
+
+[[entry]]
+id = "go:expvar.NewMap"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/expvar-new-map"
+
+[[entry]]
+id = "go:expvar.NewString"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/expvar-new-string"
+
+[[entry]]
+id = "go:expvar.Publish"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/expvar-publish"
+
+[[entry]]
+id = "go:go/build.Context.Import"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/go-build-context-import"
+
+[[entry]]
+id = "go:go/build.Context.ImportDir"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/go-build-context-importdir"
+
+[[entry]]
+id = "go:go/build.Default.Import"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/go-build-default-import"
+
+[[entry]]
+id = "go:go/build.Default.ImportDir"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/go-build-default-importdir"
+
+[[entry]]
+id = "go:go/build.Import"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/go-build-import"
+
+[[entry]]
+id = "go:go/build.ImportDir"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/go-build-importdir"
+
+[[entry]]
+id = "go:go/importer.Default"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/go-importer-default"
+
+[[entry]]
+id = "go:go/importer.For"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/go-importer-for"
+
+[[entry]]
+id = "go:go/importer.ForCompiler"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/go-importer-forcompiler"
+
+[[entry]]
+id = "go:log/syslog.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/log-syslog-dial"
+
+[[entry]]
+id = "go:log/syslog.New"
+kind = "egress"
+mechanism = "ipc"
+constructor = true
+fixture = "go/primitives/log-syslog-new"
+
+[[entry]]
+id = "go:log/syslog.NewLogger"
+kind = "egress"
+mechanism = "ipc"
+constructor = true
+fixture = "go/primitives/log-syslog-newlogger"
+
+[[entry]]
+id = "go:net.DefaultResolver"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-defaultresolver"
+
+[[entry]]
+id = "go:net.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/net-dial"
+
+[[entry]]
+id = "go:net.DialIP"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-dialip"
+
+[[entry]]
+id = "go:net.DialTCP"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-dialtcp"
+
+[[entry]]
+id = "go:net.DialTimeout"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/net-dialtimeout"
+
+[[entry]]
+id = "go:net.DialUDP"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-dialudp"
+
+[[entry]]
+id = "go:net.DialUnix"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-dialunix"
+
+[[entry]]
+id = "go:net.Dialer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-dialer-zero-value"
+
+[[entry]]
+id = "go:net.Dialer.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+fixture = "go/primitives/net-dialer-dial"
+
+[[entry]]
+id = "go:net.Dialer.DialContext"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "host-port" }
+fixture = "go/primitives/net-dialer-dialcontext"
+
+[[entry]]
+id = "go:net.Dialer.DialIP"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-dialer-dialip"
+
+[[entry]]
+id = "go:net.Dialer.DialTCP"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-dialer-dialtcp"
+
+[[entry]]
+id = "go:net.Dialer.DialUDP"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-dialer-dialudp"
+
+[[entry]]
+id = "go:net.Dialer.DialUnix"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-dialer-dialunix"
+
+[[entry]]
+id = "go:net.FileConn"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-fileconn"
+
+[[entry]]
+id = "go:net.FileListener"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-filelistener"
+
+[[entry]]
+id = "go:net.FilePacketConn"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-filepacketconn"
+
+[[entry]]
+id = "go:net.IPConn.SyscallConn"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "returns the raw socket descriptor to a caller-supplied callback; operations inside it bypass member-level classification"
+fixture = "go/primitives/net-ipconn-syscallconn"
+
+[[entry]]
+id = "go:net.Listen"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/net-listen"
+
+[[entry]]
+id = "go:net.ListenConfig"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-listen-config-zero-value"
+
+[[entry]]
+id = "go:net.ListenConfig.Listen"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "host-port" }
+fixture = "go/primitives/net-listenconfig-listen"
+
+[[entry]]
+id = "go:net.ListenConfig.ListenPacket"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "host-port" }
+fixture = "go/primitives/net-listenconfig-listenpacket"
+
+[[entry]]
+id = "go:net.ListenIP"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-listenip"
+
+[[entry]]
+id = "go:net.ListenMulticastUDP"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-listenmulticastudp"
+
+[[entry]]
+id = "go:net.ListenPacket"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-listenpacket"
+
+[[entry]]
+id = "go:net.ListenTCP"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-listentcp"
+
+[[entry]]
+id = "go:net.ListenUDP"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-listenudp"
+
+[[entry]]
+id = "go:net.ListenUnix"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-listenunix"
+
+[[entry]]
+id = "go:net.ListenUnixgram"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-listenunixgram"
+
+[[entry]]
+id = "go:net.LookupAddr"
 kind = "egress"
 mechanism = "network"
 destination = { arg = 1, form = "url" }
-fixture = "go/ordinary/http-get"
+fixture = "go/primitives/net-lookupaddr"
+
+[[entry]]
+id = "go:net.LookupCNAME"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-lookupcname"
+
+[[entry]]
+id = "go:net.LookupHost"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-lookup-host"
+
+[[entry]]
+id = "go:net.LookupIP"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/net-lookupip"
+
+[[entry]]
+id = "go:net.LookupMX"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-lookupmx"
+
+[[entry]]
+id = "go:net.LookupNS"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-lookupns"
+
+[[entry]]
+id = "go:net.LookupPort"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/net-lookupport"
+
+[[entry]]
+id = "go:net.LookupSRV"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "url" }
+fixture = "go/primitives/net-lookupsrv"
+
+[[entry]]
+id = "go:net.LookupTXT"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-lookuptxt"
+
+[[entry]]
+id = "go:net.Resolver"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-resolver-zero-value"
+
+[[entry]]
+id = "go:net.Resolver.LookupAddr"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/net-resolver-lookupaddr"
+
+[[entry]]
+id = "go:net.Resolver.LookupCNAME"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/net-resolver-lookupcname"
+
+[[entry]]
+id = "go:net.Resolver.LookupHost"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/net-resolver-lookuphost"
+
+[[entry]]
+id = "go:net.Resolver.LookupIP"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "url" }
+fixture = "go/primitives/net-resolver-lookupip"
+
+[[entry]]
+id = "go:net.Resolver.LookupIPAddr"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/net-resolver-lookupipaddr"
+
+[[entry]]
+id = "go:net.Resolver.LookupMX"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/net-resolver-lookupmx"
+
+[[entry]]
+id = "go:net.Resolver.LookupNS"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/net-resolver-lookupns"
+
+[[entry]]
+id = "go:net.Resolver.LookupNetIP"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "url" }
+fixture = "go/primitives/net-resolver-lookupnetip"
+
+[[entry]]
+id = "go:net.Resolver.LookupPort"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "url" }
+fixture = "go/primitives/net-resolver-lookupport"
+
+[[entry]]
+id = "go:net.Resolver.LookupSRV"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 4, form = "url" }
+fixture = "go/primitives/net-resolver-lookupsrv"
+
+[[entry]]
+id = "go:net.Resolver.LookupTXT"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/net-resolver-lookuptxt"
+
+[[entry]]
+id = "go:net.TCPConn.SyscallConn"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "returns the raw socket descriptor to a caller-supplied callback; operations inside it bypass member-level classification"
+fixture = "go/primitives/net-tcpconn-syscallconn"
+
+[[entry]]
+id = "go:net.TCPListener.SyscallConn"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "returns the raw socket descriptor to a caller-supplied callback; operations inside it bypass member-level classification"
+fixture = "go/primitives/net-tcplistener-syscallconn"
+
+[[entry]]
+id = "go:net.UDPConn.SyscallConn"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "returns the raw socket descriptor to a caller-supplied callback; operations inside it bypass member-level classification"
+fixture = "go/primitives/net-udpconn-syscallconn"
+
+[[entry]]
+id = "go:net.UnixConn.SyscallConn"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "returns the raw socket descriptor to a caller-supplied callback; operations inside it bypass member-level classification"
+fixture = "go/primitives/net-unixconn-syscallconn"
+
+[[entry]]
+id = "go:net.UnixListener.SyscallConn"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "returns the raw socket descriptor to a caller-supplied callback; operations inside it bypass member-level classification"
+fixture = "go/primitives/net-unixlistener-syscallconn"
 
 [[entry]]
 id = "go:net/http.Client"
 kind = "egress"
 mechanism = "network"
 constructor = true
-fixture = "go/tricky/zero-value-client"
+fixture = "go/primitives/net-http-client-zero-value"
+
+[[entry]]
+id = "go:net/http.Client.Do"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-http-client-do"
 
 [[entry]]
 id = "go:net/http.Client.Get"
 kind = "egress"
 mechanism = "network"
 destination = { arg = 1, form = "url" }
-fixture = "go/tricky/zero-value-client"
+fixture = "go/primitives/net-http-client-zero-value"
 
 [[entry]]
-id = "go:crypto/tls"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/crypto-tls"
+id = "go:net/http.Client.Head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-http-client-head"
 
 [[entry]]
-id = "go:database/sql"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/database-sql"
+id = "go:net/http.Client.Post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-http-client-post"
 
 [[entry]]
-id = "go:database/sql/driver"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/database-sql-driver"
+id = "go:net/http.Client.PostForm"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-http-client-postform"
 
 [[entry]]
-id = "go:expvar"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/expvar"
+id = "go:net/http.DefaultClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-default-client"
 
 [[entry]]
-id = "go:go/build"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/go-build"
+id = "go:net/http.DefaultClient.Do"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-http-defaultclient-do"
 
 [[entry]]
-id = "go:go/importer"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/go-importer"
+id = "go:net/http.DefaultClient.Get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-http-defaultclient-get"
 
 [[entry]]
-id = "go:log/syslog"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/log-syslog"
+id = "go:net/http.DefaultClient.Head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-http-defaultclient-head"
 
 [[entry]]
-id = "go:net"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/net"
+id = "go:net/http.DefaultClient.Post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-http-defaultclient-post"
 
 [[entry]]
-id = "go:net/http"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/net-http"
+id = "go:net/http.DefaultClient.PostForm"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-http-defaultclient-postform"
 
 [[entry]]
-id = "go:net/http/cgi"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/net-http-cgi"
+id = "go:net/http.DefaultTransport"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-defaulttransport"
 
 [[entry]]
-id = "go:net/http/cookiejar"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/net-http-cookiejar"
+id = "go:net/http.DefaultTransport.RoundTrip"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-defaulttransport-roundtrip"
 
 [[entry]]
-id = "go:net/http/fcgi"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/net-http-fcgi"
+id = "go:net/http.Get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/ordinary/http-get"
 
 [[entry]]
-id = "go:net/http/httptest"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/net-http-httptest"
+id = "go:net/http.HandlerFunc.ServeHTTP"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-handlerfunc-servehttp"
 
 [[entry]]
-id = "go:net/http/httptrace"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/net-http-httptrace"
+id = "go:net/http.Head"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/net-http-head"
 
 [[entry]]
-id = "go:net/http/httputil"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/net-http-httputil"
+id = "go:net/http.ListenAndServe"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+fixture = "go/primitives/net-http-listen-and-serve"
 
 [[entry]]
-id = "go:net/http/pprof"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/net-http-pprof"
+id = "go:net/http.ListenAndServeTLS"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+fixture = "go/primitives/net-http-listenandservetls"
 
 [[entry]]
-id = "go:net/rpc"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/net-rpc"
+id = "go:net/http.NewRequest"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "url" }
+fixture = "go/primitives/net-http-newrequest"
 
 [[entry]]
-id = "go:net/rpc/jsonrpc"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/net-rpc-jsonrpc"
+id = "go:net/http.NewRequestWithContext"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 3, form = "url" }
+fixture = "go/primitives/net-http-newrequestwithcontext"
 
 [[entry]]
-id = "go:net/smtp"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/net-smtp"
+id = "go:net/http.Post"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/net-http-post"
 
 [[entry]]
-id = "go:os"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/os"
+id = "go:net/http.PostForm"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/net-http-postform"
 
 [[entry]]
-id = "go:os/exec"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/os-exec"
+id = "go:net/http.Serve"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-serve"
 
 [[entry]]
-id = "go:os/user"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/os-user"
+id = "go:net/http.ServeMux.ServeHTTP"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-servemux-servehttp"
 
 [[entry]]
-id = "go:plugin"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/plugin"
+id = "go:net/http.ServeTLS"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-servetls"
 
 [[entry]]
-id = "go:reflect"
-kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/reflect"
+id = "go:net/http.Server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/http-server-zero-value"
 
 [[entry]]
-id = "go:runtime"
+id = "go:net/http.Server.ListenAndServe"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-server-listenandserve"
+
+[[entry]]
+id = "go:net/http.Server.ListenAndServeTLS"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-server-listenandservetls"
+
+[[entry]]
+id = "go:net/http.Server.Serve"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-server-serve"
+
+[[entry]]
+id = "go:net/http.Server.ServeTLS"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-server-servetls"
+
+[[entry]]
+id = "go:net/http.Transport"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/http-transport-zero-value"
+
+[[entry]]
+id = "go:net/http.Transport.NewClientConn"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-transport-newclientconn"
+
+[[entry]]
+id = "go:net/http.Transport.RoundTrip"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-transport-roundtrip"
+
+[[entry]]
+id = "go:net/http/cgi.Handler"
+kind = "egress"
+mechanism = "process"
+constructor = true
+fixture = "go/primitives/net-http-cgi-handler"
+
+[[entry]]
+id = "go:net/http/cgi.Handler.ServeHTTP"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/net-http-cgi-handler-servehttp"
+
+[[entry]]
+id = "go:net/http/cgi.Serve"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-cgi-serve"
+
+[[entry]]
+id = "go:net/http/cookiejar.Jar"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-cookiejar-jar"
+
+[[entry]]
+id = "go:net/http/cookiejar.Jar.Cookies"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-http-cookiejar-jar-cookies"
+
+[[entry]]
+id = "go:net/http/cookiejar.Jar.SetCookies"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-http-cookiejar-jar-setcookies"
+
+[[entry]]
+id = "go:net/http/cookiejar.New"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-cookiejar-new"
+
+[[entry]]
+id = "go:net/http/fcgi.Serve"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-fcgi-serve"
+
+[[entry]]
+id = "go:net/http/httptest.NewServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-httptest-newserver"
+
+[[entry]]
+id = "go:net/http/httptest.NewTLSServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-httptest-newtlsserver"
+
+[[entry]]
+id = "go:net/http/httptest.NewUnstartedServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-httptest-newunstartedserver"
+
+[[entry]]
+id = "go:net/http/httptest.Server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-httptest-server"
+
+[[entry]]
+id = "go:net/http/httptest.Server.Client"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-httptest-server-client"
+
+[[entry]]
+id = "go:net/http/httptest.Server.Start"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-httptest-server-start"
+
+[[entry]]
+id = "go:net/http/httptest.Server.StartTLS"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-httptest-server-starttls"
+
+[[entry]]
+id = "go:net/http/httptrace.ClientTrace"
+kind = "blind-spot"
+blind_spot = "introspection"
+reason = "its hooks observe dial, DNS, and TLS internals of a request in flight"
+fixture = "go/primitives/net-http-httptrace-clienttrace"
+
+[[entry]]
+id = "go:net/http/httputil.NewClientConn"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-httputil-newclientconn"
+
+[[entry]]
+id = "go:net/http/httputil.NewProxyClientConn"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-httputil-newproxyclientconn"
+
+[[entry]]
+id = "go:net/http/httputil.NewServerConn"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-http-httputil-newserverconn"
+
+[[entry]]
+id = "go:net/http/httputil.NewSingleHostReverseProxy"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+constructor = true
+fixture = "go/primitives/net-http-httputil-newsinglehostreverseproxy"
+
+[[entry]]
+id = "go:net/http/httputil.ProxyRequest.SetURL"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "go/primitives/net-http-httputil-proxyrequest-seturl"
+
+[[entry]]
+id = "go:net/http/httputil.ReverseProxy"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/httputil-reverse-proxy-zero-value"
+
+[[entry]]
+id = "go:net/http/httputil.ReverseProxy.ServeHTTP"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-httputil-reverseproxy-servehttp"
+
+[[entry]]
+id = "go:net/http/pprof.Cmdline"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-pprof-cmdline"
+
+[[entry]]
+id = "go:net/http/pprof.Handler"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-pprof-handler"
+
+[[entry]]
+id = "go:net/http/pprof.Index"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-pprof-index"
+
+[[entry]]
+id = "go:net/http/pprof.Profile"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-pprof-profile"
+
+[[entry]]
+id = "go:net/http/pprof.Symbol"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-pprof-symbol"
+
+[[entry]]
+id = "go:net/http/pprof.Trace"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-http-pprof-trace"
+
+[[entry]]
+id = "go:net/rpc.Accept"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-accept"
+
+[[entry]]
+id = "go:net/rpc.Client"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/rpc-client-zero-value"
+
+[[entry]]
+id = "go:net/rpc.Client.Call"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-client-call"
+
+[[entry]]
+id = "go:net/rpc.Client.Go"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-client-go"
+
+[[entry]]
+id = "go:net/rpc.DefaultServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-rpc-defaultserver"
+
+[[entry]]
+id = "go:net/rpc.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/net-rpc-dial"
+
+[[entry]]
+id = "go:net/rpc.DialHTTP"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/net-rpc-dialhttp"
+
+[[entry]]
+id = "go:net/rpc.DialHTTPPath"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/net-rpc-dialhttppath"
+
+[[entry]]
+id = "go:net/rpc.HandleHTTP"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-handlehttp"
+
+[[entry]]
+id = "go:net/rpc.NewClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-rpc-newclient"
+
+[[entry]]
+id = "go:net/rpc.NewClientWithCodec"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-rpc-newclientwithcodec"
+
+[[entry]]
+id = "go:net/rpc.NewServer"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-rpc-newserver"
+
+[[entry]]
+id = "go:net/rpc.ServeCodec"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-servecodec"
+
+[[entry]]
+id = "go:net/rpc.ServeConn"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-serveconn"
+
+[[entry]]
+id = "go:net/rpc.ServeRequest"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-serverequest"
+
+[[entry]]
+id = "go:net/rpc.Server"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-rpc-server"
+
+[[entry]]
+id = "go:net/rpc.Server.Accept"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-server-accept"
+
+[[entry]]
+id = "go:net/rpc.Server.HandleHTTP"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-server-handlehttp"
+
+[[entry]]
+id = "go:net/rpc.Server.ServeCodec"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-server-servecodec"
+
+[[entry]]
+id = "go:net/rpc.Server.ServeConn"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-server-serveconn"
+
+[[entry]]
+id = "go:net/rpc.Server.ServeHTTP"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-server-servehttp"
+
+[[entry]]
+id = "go:net/rpc.Server.ServeRequest"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-server-serverequest"
+
+[[entry]]
+id = "go:net/rpc/jsonrpc.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 2, form = "host-port" }
+constructor = true
+fixture = "go/primitives/net-rpc-jsonrpc-dial"
+
+[[entry]]
+id = "go:net/rpc/jsonrpc.NewClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-rpc-jsonrpc-newclient"
+
+[[entry]]
+id = "go:net/rpc/jsonrpc.NewClientCodec"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-rpc-jsonrpc-newclientcodec"
+
+[[entry]]
+id = "go:net/rpc/jsonrpc.NewServerCodec"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-rpc-jsonrpc-newservercodec"
+
+[[entry]]
+id = "go:net/rpc/jsonrpc.ServeConn"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-rpc-jsonrpc-serveconn"
+
+[[entry]]
+id = "go:net/smtp.Client"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/smtp-client-zero-value"
+
+[[entry]]
+id = "go:net/smtp.Client.Auth"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-smtp-client-auth"
+
+[[entry]]
+id = "go:net/smtp.Client.Data"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-smtp-client-data"
+
+[[entry]]
+id = "go:net/smtp.Client.Extension"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-smtp-client-extension"
+
+[[entry]]
+id = "go:net/smtp.Client.Hello"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-smtp-client-hello"
+
+[[entry]]
+id = "go:net/smtp.Client.Mail"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-smtp-client-mail"
+
+[[entry]]
+id = "go:net/smtp.Client.Noop"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-smtp-client-noop"
+
+[[entry]]
+id = "go:net/smtp.Client.Quit"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-smtp-client-quit"
+
+[[entry]]
+id = "go:net/smtp.Client.Rcpt"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-smtp-client-rcpt"
+
+[[entry]]
+id = "go:net/smtp.Client.Reset"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-smtp-client-reset"
+
+[[entry]]
+id = "go:net/smtp.Client.StartTLS"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-smtp-client-starttls"
+
+[[entry]]
+id = "go:net/smtp.Client.Verify"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/net-smtp-client-verify"
+
+[[entry]]
+id = "go:net/smtp.Dial"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+constructor = true
+fixture = "go/primitives/net-smtp-dial"
+
+[[entry]]
+id = "go:net/smtp.NewClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "go/primitives/net-smtp-newclient"
+
+[[entry]]
+id = "go:net/smtp.SendMail"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+fixture = "go/primitives/net-smtp-send-mail"
+
+[[entry]]
+id = "go:os.File.SyscallConn"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "hands the file's raw descriptor to caller-supplied callbacks; operations inside them bypass member-level classification"
+fixture = "go/primitives/os-file-syscallconn"
+
+[[entry]]
+id = "go:os.FindProcess"
+kind = "egress"
+mechanism = "process"
+constructor = true
+fixture = "go/primitives/os-findprocess"
+
+[[entry]]
+id = "go:os.Process"
+kind = "egress"
+mechanism = "process"
+constructor = true
+fixture = "go/primitives/os-process"
+
+[[entry]]
+id = "go:os.Process.Kill"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/os-process-kill"
+
+[[entry]]
+id = "go:os.Process.Signal"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/os-process-signal"
+
+[[entry]]
+id = "go:os.StartProcess"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, form = "program" }
+constructor = true
+fixture = "go/primitives/os-start-process"
+
+[[entry]]
+id = "go:os/exec.Cmd"
+kind = "egress"
+mechanism = "process"
+constructor = true
+fixture = "go/primitives/exec-cmd-zero-value"
+
+[[entry]]
+id = "go:os/exec.Cmd.CombinedOutput"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/os-exec-cmd-combinedoutput"
+
+[[entry]]
+id = "go:os/exec.Cmd.Output"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/os-exec-cmd-output"
+
+[[entry]]
+id = "go:os/exec.Cmd.Run"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/os-exec-cmd-run"
+
+[[entry]]
+id = "go:os/exec.Cmd.Start"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/os-exec-cmd-start"
+
+[[entry]]
+id = "go:os/exec.Command"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, form = "program" }
+constructor = true
+fixture = "go/primitives/os-exec-command"
+
+[[entry]]
+id = "go:os/exec.CommandContext"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 2, form = "program" }
+constructor = true
+fixture = "go/primitives/os-exec-commandcontext"
+
+[[entry]]
+id = "go:os/user.Current"
 kind = "blind-spot"
 blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/runtime"
+reason = "the pure-Go path reads local files only, but a cgo build resolves users and groups through NSS, which can reach the network"
+fixture = "go/primitives/os-user-current"
+
+[[entry]]
+id = "go:os/user.Lookup"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "the pure-Go path reads local files only, but a cgo build resolves users and groups through NSS, which can reach the network"
+fixture = "go/primitives/os-user-lookup"
+
+[[entry]]
+id = "go:os/user.LookupGroup"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "the pure-Go path reads local files only, but a cgo build resolves users and groups through NSS, which can reach the network"
+fixture = "go/primitives/os-user-lookupgroup"
+
+[[entry]]
+id = "go:os/user.LookupGroupId"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "the pure-Go path reads local files only, but a cgo build resolves users and groups through NSS, which can reach the network"
+fixture = "go/primitives/os-user-lookupgroupid"
+
+[[entry]]
+id = "go:os/user.LookupId"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "the pure-Go path reads local files only, but a cgo build resolves users and groups through NSS, which can reach the network"
+fixture = "go/primitives/os-user-lookupid"
+
+[[entry]]
+id = "go:os/user.User.GroupIds"
+kind = "blind-spot"
+blind_spot = "resolution-limit"
+reason = "the pure-Go path reads local files only, but a cgo build resolves users and groups through NSS, which can reach the network"
+fixture = "go/primitives/os-user-user-groupids"
+
+[[entry]]
+id = "go:plugin.Open"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "loads a shared object at run time; the .so's code is not part of the scan"
+fixture = "go/primitives/plugin-open"
+
+[[entry]]
+id = "go:plugin.Plugin.Lookup"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "resolves a symbol in a loaded plugin; the returned value is plugin code"
+fixture = "go/primitives/plugin-plugin-lookup"
+
+[[entry]]
+id = "go:reflect.Value.Call"
+kind = "blind-spot"
+blind_spot = "reflective-unknown"
+reason = "dispatches a call on an arbitrary reflected value; the callee is whatever the value holds"
+fixture = "go/primitives/reflect-value-call"
+
+[[entry]]
+id = "go:reflect.Value.CallSlice"
+kind = "blind-spot"
+blind_spot = "reflective-unknown"
+reason = "dispatches a call on an arbitrary reflected value; the callee is whatever the value holds"
+fixture = "go/primitives/reflect-value-callslice"
+
+[[entry]]
+id = "go:runtime.Caller"
+kind = "blind-spot"
+blind_spot = "introspection"
+reason = "reaches the stack frames of running code"
+fixture = "go/primitives/runtime-caller"
+
+[[entry]]
+id = "go:runtime.Callers"
+kind = "blind-spot"
+blind_spot = "introspection"
+reason = "reaches the stack frames of running code"
+fixture = "go/primitives/runtime-callers"
+
+[[entry]]
+id = "go:runtime.FuncForPC"
+kind = "blind-spot"
+blind_spot = "introspection"
+reason = "reaches the stack frames of running code"
+fixture = "go/primitives/runtime-funcforpc"
+
+[[entry]]
+id = "go:runtime.Stack"
+kind = "blind-spot"
+blind_spot = "introspection"
+reason = "reaches the stack frames of running code"
+fixture = "go/primitives/runtime-stack"
 
 [[entry]]
 id = "go:runtime/cgo"
 kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/runtime-cgo"
+blind_spot = "native-code"
+reason = "the package bridges Go values and C pointers for cgo; uses reach native code the scan does not see"
+fixture = "go/primitives/runtime-cgo-"
 
 [[entry]]
-id = "go:runtime/debug"
+id = "go:runtime/debug.PrintStack"
 kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/runtime-debug"
+blind_spot = "introspection"
+reason = "prints the stacks of all goroutines"
+fixture = "go/primitives/runtime-debug-printstack"
 
 [[entry]]
-id = "go:syscall"
+id = "go:runtime/debug.SetCrashOutput"
+kind = "egress"
+mechanism = "ipc"
+fixture = "go/primitives/runtime-debug-setcrashoutput"
+
+[[entry]]
+id = "go:runtime/debug.Stack"
 kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/syscall"
+blind_spot = "introspection"
+reason = "returns the current goroutine's stack"
+fixture = "go/primitives/runtime-debug-stack"
+
+[[entry]]
+id = "go:runtime/debug.WriteHeapDump"
+kind = "egress"
+mechanism = "ipc"
+fixture = "go/primitives/runtime-debug-writeheapdump"
+
+[[entry]]
+id = "go:syscall.Accept"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-accept"
+
+[[entry]]
+id = "go:syscall.Accept4"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-accept4"
+
+[[entry]]
+id = "go:syscall.AcceptEx"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-acceptex"
+
+[[entry]]
+id = "go:syscall.Bind"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-bind"
+
+[[entry]]
+id = "go:syscall.Connect"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-connect"
+
+[[entry]]
+id = "go:syscall.ConnectEx"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-connectex"
+
+[[entry]]
+id = "go:syscall.CreateProcess"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-createprocess"
+
+[[entry]]
+id = "go:syscall.CreateProcessAsUser"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-createprocessasuser"
+
+[[entry]]
+id = "go:syscall.DLL.FindProc"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reaches a symbol or callback in a loaded library; the call goes to native code the scan does not see"
+fixture = "go/primitives/syscall-dll-findproc"
+
+[[entry]]
+id = "go:syscall.DLL.Load"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+fixture = "go/primitives/syscall-dll-load"
+
+[[entry]]
+id = "go:syscall.DLL.MustFindProc"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reaches a symbol or callback in a loaded library; the call goes to native code the scan does not see"
+fixture = "go/primitives/syscall-dll-mustfindproc"
+
+[[entry]]
+id = "go:syscall.Exec"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, form = "program" }
+fixture = "go/primitives/syscall-exec"
+
+[[entry]]
+id = "go:syscall.ForkExec"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, form = "program" }
+fixture = "go/primitives/syscall-forkexec"
+
+[[entry]]
+id = "go:syscall.GetProcAddress"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reaches a symbol or callback in a loaded library; the call goes to native code the scan does not see"
+fixture = "go/primitives/syscall-getprocaddress"
+
+[[entry]]
+id = "go:syscall.Kill"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-kill"
+
+[[entry]]
+id = "go:syscall.LazyDLL.Load"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+fixture = "go/primitives/syscall-lazydll-load"
+
+[[entry]]
+id = "go:syscall.LazyDLL.NewProc"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reaches a symbol or callback in a loaded library; the call goes to native code the scan does not see"
+fixture = "go/primitives/syscall-lazydll-newproc"
+
+[[entry]]
+id = "go:syscall.LazyProc.Call"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reaches a symbol or callback in a loaded library; the call goes to native code the scan does not see"
+fixture = "go/primitives/syscall-lazyproc-call"
+
+[[entry]]
+id = "go:syscall.LazyProc.Find"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reaches a symbol or callback in a loaded library; the call goes to native code the scan does not see"
+fixture = "go/primitives/syscall-lazyproc-find"
+
+[[entry]]
+id = "go:syscall.Listen"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-listen"
+
+[[entry]]
+id = "go:syscall.LoadDLL"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+fixture = "go/primitives/syscall-loaddll"
+
+[[entry]]
+id = "go:syscall.LoadLibrary"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+fixture = "go/primitives/syscall-loadlibrary"
+
+[[entry]]
+id = "go:syscall.MustLoadDLL"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+fixture = "go/primitives/syscall-mustloaddll"
+
+[[entry]]
+id = "go:syscall.NewCallback"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reaches a symbol or callback in a loaded library; the call goes to native code the scan does not see"
+fixture = "go/primitives/syscall-newcallback"
+
+[[entry]]
+id = "go:syscall.NewCallbackCDecl"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reaches a symbol or callback in a loaded library; the call goes to native code the scan does not see"
+fixture = "go/primitives/syscall-newcallbackcdecl"
+
+[[entry]]
+id = "go:syscall.NewLazyDLL"
+kind = "egress"
+mechanism = "native"
+destination = { arg = 1, form = "library" }
+fixture = "go/primitives/syscall-newlazydll"
+
+[[entry]]
+id = "go:syscall.OpenCurrentProcessToken"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-opencurrentprocesstoken"
+
+[[entry]]
+id = "go:syscall.OpenProcess"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-openprocess"
+
+[[entry]]
+id = "go:syscall.OpenProcessToken"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-openprocesstoken"
+
+[[entry]]
+id = "go:syscall.Proc.Call"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "reaches a symbol or callback in a loaded library; the call goes to native code the scan does not see"
+fixture = "go/primitives/syscall-proc-call"
+
+[[entry]]
+id = "go:syscall.PtraceAttach"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-ptraceattach"
+
+[[entry]]
+id = "go:syscall.PtraceCont"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-ptracecont"
+
+[[entry]]
+id = "go:syscall.PtraceDetach"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-ptracedetach"
+
+[[entry]]
+id = "go:syscall.PtraceGetEventMsg"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-ptracegeteventmsg"
+
+[[entry]]
+id = "go:syscall.PtracePeekData"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-ptracepeekdata"
+
+[[entry]]
+id = "go:syscall.PtracePeekText"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-ptracepeektext"
+
+[[entry]]
+id = "go:syscall.PtracePokeData"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-ptracepokedata"
+
+[[entry]]
+id = "go:syscall.PtracePokeText"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-ptracepoketext"
+
+[[entry]]
+id = "go:syscall.PtraceSetOptions"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-ptracesetoptions"
+
+[[entry]]
+id = "go:syscall.PtraceSetRegs"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-ptracesetregs"
+
+[[entry]]
+id = "go:syscall.PtraceSingleStep"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-ptracesinglestep"
+
+[[entry]]
+id = "go:syscall.PtraceSyscall"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-ptracesyscall"
+
+[[entry]]
+id = "go:syscall.RawSyscall"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/syscall-raw-call"
+
+[[entry]]
+id = "go:syscall.RawSyscall6"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/syscall-rawsyscall6"
+
+[[entry]]
+id = "go:syscall.Recvfrom"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-recvfrom"
+
+[[entry]]
+id = "go:syscall.Recvmsg"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-recvmsg"
+
+[[entry]]
+id = "go:syscall.Sendfile"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-sendfile"
+
+[[entry]]
+id = "go:syscall.Sendmsg"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-sendmsg"
+
+[[entry]]
+id = "go:syscall.SendmsgN"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-sendmsgn"
+
+[[entry]]
+id = "go:syscall.Sendto"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-sendto"
+
+[[entry]]
+id = "go:syscall.Shutdown"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-shutdown"
+
+[[entry]]
+id = "go:syscall.Socket"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-socket"
+
+[[entry]]
+id = "go:syscall.Socketpair"
+kind = "egress"
+mechanism = "ipc"
+fixture = "go/primitives/syscall-socketpair"
+
+[[entry]]
+id = "go:syscall.Splice"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-splice"
+
+[[entry]]
+id = "go:syscall.StartProcess"
+kind = "egress"
+mechanism = "process"
+destination = { arg = 1, form = "program" }
+fixture = "go/primitives/syscall-startprocess"
+
+[[entry]]
+id = "go:syscall.Syscall"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/syscall-syscall"
+
+[[entry]]
+id = "go:syscall.Syscall12"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/syscall-syscall12"
+
+[[entry]]
+id = "go:syscall.Syscall15"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/syscall-syscall15"
+
+[[entry]]
+id = "go:syscall.Syscall18"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/syscall-syscall18"
+
+[[entry]]
+id = "go:syscall.Syscall6"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/syscall-syscall6"
+
+[[entry]]
+id = "go:syscall.Syscall9"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/syscall-syscall9"
+
+[[entry]]
+id = "go:syscall.SyscallN"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "dispatches an arbitrary kernel call by number"
+fixture = "go/primitives/syscall-syscalln"
+
+[[entry]]
+id = "go:syscall.Tee"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-tee"
+
+[[entry]]
+id = "go:syscall.Tgkill"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-tgkill"
+
+[[entry]]
+id = "go:syscall.WSARecv"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-wsarecv"
+
+[[entry]]
+id = "go:syscall.WSARecvFrom"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-wsarecvfrom"
+
+[[entry]]
+id = "go:syscall.WSASend"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-wsasend"
+
+[[entry]]
+id = "go:syscall.WSASendTo"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-wsasendto"
+
+[[entry]]
+id = "go:syscall.WSASendto"
+kind = "egress"
+mechanism = "network"
+fixture = "go/primitives/syscall-wsasendto"
+
+[[entry]]
+id = "go:syscall.Wait4"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-wait4"
+
+[[entry]]
+id = "go:syscall.WaitForSingleObject"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-waitforsingleobject"
+
+[[entry]]
+id = "go:syscall.WaitProcess"
+kind = "egress"
+mechanism = "process"
+fixture = "go/primitives/syscall-waitprocess"
+
+[[entry]]
+id = "go:syscall/js"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "wasm-only bridge to the host JavaScript environment; calls reach the host runtime, which the scan does not see"
+fixture = "go/primitives/syscall-js-"
 
 [[entry]]
 id = "go:unsafe"
 kind = "blind-spot"
-blind_spot = "resolution-limit"
-reason = "pending U9 curation"
-fixture = "go/primitives/unsafe"
+blind_spot = "native-code"
+reason = "unsafe.Pointer arithmetic, conversions, and raw slices escape the type system; every use is outside static analysis"
+fixture = "go/primitives/unsafe-"
+
+[[inert]]
+module = "crypto/tls"
+members = [
+    "Config.*",
+    "Conn.*",
+    "QUICConn.*",
+    "cthWrapper.*",
+    "permanentError.*",
+    "prefixNonceAEAD.*",
+    "timeoutError.*",
+    "xorNonceAEAD.*",
+    "AlertError.Error",
+    "CertificateRequestInfo.Context",
+    "CertificateRequestInfo.SupportsCertificate",
+    "CertificateVerificationError.Error",
+    "CertificateVerificationError.Unwrap",
+    "ClientAuthType.String",
+    "ClientHelloInfo.Context",
+    "ClientHelloInfo.SupportsCertificate",
+    "ClientSessionState.ResumptionState",
+    "ConnectionState.ExportKeyingMaterial",
+    "ECHRejectionError.Error",
+    "RecordHeaderError.Error",
+    "SessionState.Bytes",
+    "alert.Error",
+    "alert.String",
+    "atLeastReader.Read",
+    "echConfigErr.Error",
+    "finishedHash.Sum",
+    "finishedHash.Write",
+    "listener.Accept",
+    "lruSessionCache.Get",
+    "lruSessionCache.Put",
+    "marshalingFunction.Marshal",
+    "Certificat*",
+    "Client*",
+    "Con*",
+    "Curve*",
+    "EC*",
+    "PKCS1WithSHA*",
+    "PSSWithSHA*",
+    "QUIC*",
+    "Re*",
+    "Se*",
+    "TLS_*",
+    "Ver*",
+    "AlertError",
+    "CipherSuite",
+    "CipherSuiteName",
+    "Ed25519",
+    "EncryptedClientHelloKey",
+    "InsecureCipherSuites",
+    "LoadX509KeyPair",
+    "NewLRUClientSessionCache",
+    "NewResumptionState",
+    "NoClientCert",
+    "ParseSessionState",
+    "SignatureScheme",
+    "X25519",
+    "X25519MLKEM768",
+    "X509KeyPair",
+]
+justification = "Certificate, session, and protocol bookkeeping; the TLS handshake happens on connections opened by the dial and listen members classified above."
+fixture = "go/primitives/must-not-crypto-tls-inert"
+
+[[inert]]
+module = "database/sql"
+members = [
+    "ColumnType.*",
+    "Conn.*",
+    "DB.*",
+    "Rows.*",
+    "Stmt.*",
+    "Tx.*",
+    "connRequestSet.*",
+    "Null.Scan",
+    "Null.Value",
+    "NullBool.Scan",
+    "NullBool.Value",
+    "NullByte.Scan",
+    "NullByte.Value",
+    "NullFloat64.Scan",
+    "NullFloat64.Value",
+    "NullInt16.Scan",
+    "NullInt16.Value",
+    "NullInt32.Scan",
+    "NullInt32.Value",
+    "NullInt64.Scan",
+    "NullInt64.Value",
+    "NullString.Scan",
+    "NullString.Value",
+    "NullTime.Scan",
+    "NullTime.Value",
+    "Row.Err",
+    "Row.Scan",
+    "ccChecker.CheckNamedValue",
+    "driverConn.Close",
+    "driverResult.LastInsertId",
+    "driverResult.RowsAffected",
+    "driverStmt.Close",
+    "dsnConnector.Connect",
+    "dsnConnector.Driver",
+    "Err*",
+    "Level*",
+    "Nul*",
+    "ColumnType",
+    "DBStats",
+    "Drivers",
+    "IsolationLevel",
+    "Named",
+    "NamedArg",
+    "Out",
+    "RawBytes",
+    "Result",
+    "Row",
+    "Scanner",
+    "TxOptions",
+]
+justification = "Query and transaction methods ride the connection the constructor classified above opened; null-value wrappers carry no channel."
+fixture = "go/primitives/must-not-database-sql-inert"
+
+[[inert]]
+module = "database/sql/driver"
+members = [
+    "NotNull.ConvertValue",
+    "Null.ConvertValue",
+    "RowsAffected.LastInsertId",
+    "RowsAffected.RowsAffected",
+    "boolType.ConvertValue",
+    "boolType.String",
+    "defaultConverter.ConvertValue",
+    "int32Type.ConvertValue",
+    "noRows.LastInsertId",
+    "noRows.RowsAffected",
+    "stringType.ConvertValue",
+    "Co*",
+    "Err*",
+    "Is*",
+    "Row*",
+    "St*",
+    "Val*",
+    "Bool",
+    "DefaultParameterConverter",
+    "Execer",
+    "ExecerContext",
+    "Int32",
+    "NamedValue",
+    "NamedValueChecker",
+    "NotNull",
+    "Null",
+    "Pinger",
+    "Queryer",
+    "QueryerContext",
+    "Result",
+    "ResultNoRows",
+    "SessionResetter",
+    "Tx",
+    "TxOptions",
+]
+justification = "Value, type, and option contracts driver packages implement; the connection-opening interfaces carry blind spots."
+fixture = "go/primitives/must-not-database-sql-driver-inert"
+
+[[inert]]
+module = "expvar"
+members = [
+    "Float.*",
+    "Int.*",
+    "Map.*",
+    "String.*",
+    "Func.String",
+    "Func.Value",
+    "Do",
+    "Float",
+    "Func",
+    "Get",
+    "Int",
+    "KeyValue",
+    "Map",
+    "String",
+    "Var",
+]
+justification = "Metric values and the variables registry; registering them for /debug/vars is classified above."
+fixture = "go/primitives/must-not-expvar-inert"
+
+[[inert]]
+module = "go/build"
+members = [
+    "Context.MatchFile",
+    "Context.SrcDirs",
+    "MultiplePackageError.Error",
+    "NoGoError.Error",
+    "Package.IsCommand",
+    "AllowBinary",
+    "ArchChar",
+    "Context",
+    "Default",
+    "Directive",
+    "FindOnly",
+    "IgnoreVendor",
+    "ImportComment",
+    "ImportMode",
+    "IsLocalImport",
+    "MultiplePackageError",
+    "NoGoError",
+    "Package",
+    "ToolDir",
+]
+justification = "Package metadata, build-mode flags, and context fields; the subprocess-running members are classified above."
+fixture = "go/primitives/must-not-go-build-inert"
+
+[[inert]]
+module = "go/importer"
+members = [
+    "gccgoimports.Import",
+    "gccgoimports.ImportFrom",
+    "gcimports.Import",
+    "gcimports.ImportFrom",
+    "Lookup",
+]
+justification = "Lookup and importer interfaces the caller supplies; the shelling-out members are classified above."
+fixture = "go/primitives/must-not-go-importer-inert"
+
+[[inert]]
+module = "log/syslog"
+members = [
+    "Writer.*",
+    "LOG_*",
+    "Priority",
+    "Writer",
+]
+justification = "Severity levels, option masks, and the Writer value; methods on a Writer write to the connection Dial or New opened."
+fixture = "go/primitives/must-not-log-syslog-inert"
+
+[[inert]]
+module = "net"
+members = [
+    "Dialer.MultipathTCP",
+    "Dialer.SetMultipathTCP",
+    "ListenConfig.MultipathTCP",
+    "ListenConfig.SetMultipathTCP",
+]
+justification = "Option setters on a dialer or listen config; they configure a member that is classified before it opens."
+fixture = "go/primitives/must-not-net-dialer-options"
+
+[[inert]]
+module = "net"
+members = [
+    "Pipe",
+    "Buffers",
+]
+justification = "Pipe and Buffers move bytes between goroutines inside the process."
+fixture = "go/primitives/must-not-net-pipe"
+
+[[inert]]
+module = "net"
+members = [
+    "AddrError.*",
+    "DNSConfigError.*",
+    "DNSError.*",
+    "IP.*",
+    "IPAddr.*",
+    "IPConn.*",
+    "IPNet.*",
+    "InvalidAddrError.*",
+    "OpError.*",
+    "ParseError.*",
+    "TCPAddr.*",
+    "TCPConn.*",
+    "TCPListener.*",
+    "UDPAddr.*",
+    "UDPConn.*",
+    "UnixConn.*",
+    "UnixListener.*",
+    "UnknownNetworkError.*",
+    "addrinfoErrno.*",
+    "conn.*",
+    "fakeNetFD.*",
+    "netFD.*",
+    "pipe.*",
+    "rawConn.*",
+    "temporaryError.*",
+    "timeoutError.*",
+    "Flags.String",
+    "HardwareAddr.String",
+    "IPMask.Size",
+    "IPMask.String",
+    "Interface.Addrs",
+    "Interface.MulticastAddrs",
+    "Sockaddr.Addr",
+    "UnixAddr.Network",
+    "UnixAddr.String",
+    "addrPortUDPAddr.Network",
+    "canceledError.Error",
+    "canceledError.Is",
+    "deadlineTimer.Reset",
+    "fileAddr.Network",
+    "fileAddr.String",
+    "hostLookupOrder.String",
+    "noReadFrom.ReadFrom",
+    "noWriteTo.WriteTo",
+    "notFoundError.Error",
+    "onlyValuesCtx.Value",
+    "pipeAddr.Network",
+    "pipeAddr.String",
+    "policyTable.Classify",
+    "rawListener.Read",
+    "rawListener.Write",
+    "udpHeader.Bytes",
+    "unknownAddr.Network",
+    "unknownAddr.String",
+    "Err*",
+    "Flag*",
+    "IP*",
+    "In*",
+    "Pa*",
+    "Resolve*",
+    "TCP*",
+    "UDP*",
+    "Un*",
+    "Addr",
+    "AddrError",
+    "CIDRMask",
+    "Conn",
+    "DNSConfigError",
+    "DNSError",
+    "HardwareAddr",
+    "JoinHostPort",
+    "KeepAliveConfig",
+    "Listener",
+    "MX",
+    "NS",
+    "OpError",
+    "SRV",
+    "SplitHostPort",
+]
+justification = "Address values, interfaces, errors, and constants; socket-opening and resolving members are classified above."
+fixture = "go/primitives/must-not-net-inert"
+
+[[inert]]
+module = "net/http"
+members = [
+    "NewFileTransport",
+    "NewFileTransportFS",
+    "Dir",
+    "Dir.Open",
+    "FileServer",
+    "FileServerFS",
+    "ServeFile",
+    "ServeFileFS",
+    "ServeContent",
+    "FS",
+    "File",
+    "FileSystem",
+    "StripPrefix",
+]
+justification = "Serve and read local files through a caller-provided file system; no connection opens."
+fixture = "go/primitives/must-not-net-http-file-server"
+
+[[inert]]
+module = "net/http"
+members = [
+    "ReadRequest",
+    "ReadResponse",
+    "ParseHTTPVersion",
+    "ParseTime",
+    "ParseCookie",
+    "ParseSetCookie",
+    "DetectContentType",
+    "CanonicalHeaderKey",
+    "ProxyFromEnvironment",
+    "ProxyURL",
+    "Request.ParseMultipartForm",
+    "Request.FormValue",
+    "Request.PostFormValue",
+]
+justification = "Parse or format protocol data already in hand; the request travel happens on a Client or Server member classified above."
+fixture = "go/primitives/must-not-net-http-parse"
+
+[[inert]]
+module = "net/http"
+members = [
+    "ClientConn.*",
+    "CrossOriginProtection.*",
+    "Header.*",
+    "Protocols.*",
+    "Request.*",
+    "Response.*",
+    "ResponseController.*",
+    "ServeMux.*",
+    "Server.*",
+    "Transport.*",
+    "http1ClientConn.*",
+    "http2ClientConn.*",
+    "http2FrameWriteRequest.*",
+    "http2Framer.*",
+    "http2HeadersFrame.*",
+    "http2MetaHeadersFrame.*",
+    "http2SettingsFrame.*",
+    "http2Transport.*",
+    "http2bufferedWriter.*",
+    "http2closeWaiter.*",
+    "http2dataBuffer.*",
+    "http2httpError.*",
+    "http2netHTTPClientConn.*",
+    "http2pipe.*",
+    "http2priorityWriteSchedulerRFC7540.*",
+    "http2priorityWriteSchedulerRFC9218.*",
+    "http2randomWriteScheduler.*",
+    "http2responseWriter.*",
+    "http2roundRobinWriteScheduler.*",
+    "http2serverConn.*",
+    "http2sortPriorityNodeSiblingsRFC7540.*",
+    "http2sorter.*",
+    "ioFile.*",
+    "loggingConn.*",
+    "noBody.*",
+    "populateResponse.*",
+    "response.*",
+    "socksDialer.*",
+    "timeoutError.*",
+    "timeoutWriter.*",
+    "tlsHandshakeTimeoutError.*",
+    "Client.CloseIdleConnections",
+    "ConnState.String",
+    "Cookie.String",
+    "Cookie.Valid",
+    "MaxBytesError.Error",
+    "ProtocolError.Error",
+    "ProtocolError.Is",
+    "arrayReader.Close",
+    "arrayReader.Read",
+    "body.Close",
+    "body.Read",
+    "bodyEOFSignal.Close",
+    "bodyEOFSignal.Read",
+    "bodyLocked.Read",
+    "bufioFlushWriter.Write",
+    "byteReader.Read",
+    "cancelTimerBody.Close",
+    "cancelTimerBody.Read",
+    "checkConnErrorWriter.Write",
+    "connReader.Read",
+    "connectMethodKey.String",
+    "contextKey.String",
+    "countingWriter.Write",
+    "eofReader.Read",
+    "eofReader.ReadByte",
+    "errorReader.Read",
+    "expectContinueReader.Close",
+    "expectContinueReader.Read",
+    "fakeLocker.Lock",
+    "fakeLocker.Unlock",
+    "fileHandler.ServeHTTP",
+    "fileTransport.RoundTrip",
+    "finishAsyncByteRead.Read",
+    "globalOptionsHandler.ServeHTTP",
+    "gzipReader.Close",
+    "gzipReader.Read",
+    "http2ConnectionError.Error",
+    "http2ContinuationFrame.HeaderBlockFragment",
+    "http2ContinuationFrame.HeadersEnded",
+    "http2DataFrame.Data",
+    "http2DataFrame.StreamEnded",
+    "http2ErrCode.String",
+    "http2Flags.Has",
+    "http2FrameHeader.Header",
+    "http2FrameHeader.String",
+    "http2FrameType.String",
+    "http2GoAwayError.Error",
+    "http2GoAwayFrame.DebugData",
+    "http2PingFrame.IsAck",
+    "http2PriorityParam.IsZero",
+    "http2PushPromiseFrame.HeaderBlockFragment",
+    "http2PushPromiseFrame.HeadersEnded",
+    "http2Server.ServeConn",
+    "http2Setting.String",
+    "http2Setting.Valid",
+    "http2SettingID.String",
+    "http2StreamError.As",
+    "http2StreamError.Error",
+    "http2UnknownFrame.Payload",
+    "http2bufferedWriterTimeoutWriter.Write",
+    "http2chunkWriter.Write",
+    "http2clientConnPool.GetClientConn",
+    "http2clientConnPool.MarkDead",
+    "http2connError.Error",
+    "http2duplicatePseudoHeaderError.Error",
+    "http2eofReader.Read",
+    "http2eofReader.ReadByte",
+    "http2erringRoundTripper.RoundTrip",
+    "http2erringRoundTripper.RoundTripErr",
+    "http2errorReader.Read",
+    "http2goAwayFlowError.Error",
+    "http2gzipReader.Close",
+    "http2gzipReader.Read",
+    "http2headerFieldNameError.Error",
+    "http2headerFieldValueError.Error",
+    "http2missingBody.Close",
+    "http2missingBody.Read",
+    "http2noBodyReader.Close",
+    "http2noBodyReader.Read",
+    "http2noCachedConnError.Error",
+    "http2noCachedConnError.IsHTTP2NoCachedConnError",
+    "http2noDialClientConnPool.GetClientConn",
+    "http2noDialH2RoundTripper.NewClientConn",
+    "http2noDialH2RoundTripper.RoundTrip",
+    "http2pseudoHeaderError.Error",
+    "http2requestBody.Close",
+    "http2requestBody.Read",
+    "http2stickyErrWriter.Write",
+    "http2streamState.String",
+    "http2transportResponseBody.Close",
+    "http2transportResponseBody.Read",
+    "http2unencryptedTransport.RoundTrip",
+    "http2writeData.String",
+    "initALPNRequest.BaseContext",
+    "initALPNRequest.ServeHTTP",
+    "ioFS.Open",
+    "maxBytesReader.Close",
+    "maxBytesReader.Read",
+    "noopHandler.ServeHTTP",
+    "nothingWrittenError.Unwrap",
+    "onceCloseListener.Close",
+    "pattern.String",
+    "persistConn.Read",
+    "persistConnWriter.ReadFrom",
+    "persistConnWriter.Write",
+    "readTrackingBody.Close",
+    "readTrackingBody.Read",
+    "readWriteCloserBody.CloseWrite",
+    "readWriteCloserBody.Read",
+    "redirectHandler.ServeHTTP",
+    "serverHandler.ServeHTTP",
+    "socksAddr.Network",
+    "socksAddr.String",
+    "socksCommand.String",
+    "socksConn.BoundAddr",
+    "socksReply.String",
+    "socksUsernamePassword.Authenticate",
+    "statusError.Error",
+    "streamReader.Close",
+    "streamReader.Read",
+    "stringWriter.WriteString",
+    "timeoutHandler.ServeHTTP",
+    "transportReadFromServerError.Error",
+    "transportReadFromServerError.Unwrap",
+    "unencryptedHTTP2Request.BaseContext",
+    "unencryptedHTTP2Request.ServeHTTP",
+    "unencryptedNetConnInTLSConn.UnencryptedNetConn",
+    "unsupportedTEError.Error",
+    "Co*",
+    "Default*",
+    "Err*",
+    "Handl*",
+    "MaxBytes*",
+    "Method*",
+    "New*",
+    "No*",
+    "Re*",
+    "SameSit*",
+    "Se*",
+    "Stat*",
+    "AllowQuerySemicolons",
+    "ClientConn",
+    "CloseNotifier",
+    "CrossOriginProtection",
+    "Flusher",
+    "HTTP2Config",
+    "Header",
+    "Hijacker",
+    "LocalAddrContextKey",
+    "ProtocolError",
+    "Protocols",
+    "PushOptions",
+    "Pusher",
+    "RoundTripper",
+    "TimeFormat",
+    "TimeoutHandler",
+    "TrailerPrefix",
+]
+justification = "Request and response data, routing helpers, status codes, and handler types; the client, server, and transport members are classified above."
+fixture = "go/primitives/must-not-net-http-inert"
+
+[[inert]]
+module = "net/http/cgi"
+members = [
+    "response.*",
+    "neverEnding.Read",
+    "Request",
+    "RequestFromMap",
+]
+justification = "CGI request mapping; the Handler that spawns the child is classified above."
+fixture = "go/primitives/must-not-net-http-cgi-inert"
+
+[[inert]]
+module = "net/http/cookiejar"
+members = [
+    "Options",
+    "PublicSuffixList",
+]
+justification = "Options and suffix-list plumbing; the jar's per-origin cookie exchange is classified above."
+fixture = "go/primitives/must-not-net-http-cookiejar-inert"
+
+[[inert]]
+module = "net/http/fcgi"
+members = [
+    "response.*",
+    "bufWriter.Close",
+    "conn.Close",
+    "streamWriter.Close",
+    "streamWriter.Write",
+    "ErrConnClosed",
+    "ErrRequestAborted",
+    "ProcessEnv",
+]
+justification = "FastCGI request environment plumbing; Serve on a listener is classified above."
+fixture = "go/primitives/must-not-net-http-fcgi-inert"
+
+[[inert]]
+module = "net/http/httptest"
+members = [
+    "ResponseRecorder.*",
+    "Server.*",
+    "NewRe*",
+    "DefaultRemoteAddr",
+    "ResponseRecorder",
+]
+justification = "Request and recorder helpers; the Server type that opens a listener is classified above."
+fixture = "go/primitives/must-not-net-http-httptest-inert"
+
+[[inert]]
+module = "net/http/httptrace"
+members = [
+    "ContextClientTrace",
+    "DNSDoneInfo",
+    "DNSStartInfo",
+    "GotConnInfo",
+    "WithClientTrace",
+    "WroteRequestInfo",
+]
+justification = "Trace context plumbing and event structs; the hook-struct itself is a blind spot."
+fixture = "go/primitives/must-not-net-http-httptrace-inert"
+
+[[inert]]
+module = "net/http/httputil"
+members = [
+    "ClientConn.*",
+    "ServerConn.*",
+    "dumpConn.*",
+    "ProxyRequest.SetXForwarded",
+    "delegateReader.Read",
+    "failureToReadBody.Close",
+    "failureToReadBody.Read",
+    "maxLatencyWriter.Write",
+    "neverEnding.Read",
+    "noopCloseReader.Close",
+    "noopCloseReader.Read",
+    "DumpRe*",
+    "Err*",
+    "BufferPool",
+    "ClientConn",
+    "NewChunkedReader",
+    "NewChunkedWriter",
+    "ProxyRequest",
+    "ServerConn",
+]
+justification = "Dumping, buffering, and connection-wrapper helpers; proxy construction is classified above."
+fixture = "go/primitives/must-not-net-http-httputil-inert"
+
+[[inert]]
+module = "net/http/pprof"
+members = [
+    "handler.ServeHTTP",
+]
+justification = "Internal handler plumbing; the handler registration functions are classified above."
+fixture = "go/primitives/must-not-net-http-pprof-inert"
+
+[[inert]]
+module = "net/rpc"
+members = [
+    "gobClientCodec.*",
+    "gobServerCodec.*",
+    "methodArray.*",
+    "serviceArray.*",
+    "Client.Close",
+    "Server.Register",
+    "Server.RegisterName",
+    "ServerError.Error",
+    "debugHTTP.ServeHTTP",
+    "methodType.NumCalls",
+    "Re*",
+    "Call",
+    "ClientCodec",
+    "DefaultDebugPath",
+    "DefaultRPCPath",
+    "ErrShutdown",
+    "ServerCodec",
+    "ServerError",
+]
+justification = "Call metadata, codecs, and service registration; dialing and serving members are classified above."
+fixture = "go/primitives/must-not-net-rpc-inert"
+
+[[inert]]
+module = "net/rpc/jsonrpc"
+members = [
+    "clientCodec.*",
+    "serverCodec.*",
+]
+justification = "Codec implementations; dialing and serving members are classified above."
+fixture = "go/primitives/must-not-net-rpc-jsonrpc-inert"
+
+[[inert]]
+module = "net/smtp"
+members = [
+    "Client.Close",
+    "Client.TLSConnectionState",
+    "cramMD5Auth.Next",
+    "cramMD5Auth.Start",
+    "dataCloser.Close",
+    "plainAuth.Next",
+    "plainAuth.Start",
+    "Auth",
+    "CRAMMD5Auth",
+    "PlainAuth",
+    "ServerInfo",
+]
+justification = "Auth values and server metadata; the connection-opening and mail-sending members are classified above."
+fixture = "go/primitives/must-not-net-smtp-inert"
+
+[[inert]]
+module = "os"
+members = [
+    "Getenv",
+    "LookupEnv",
+    "Environ",
+    "ExpandEnv",
+    "Expand",
+    "Setenv",
+    "Unsetenv",
+    "Clearenv",
+]
+justification = "Environment reads and writes; a read becomes a symbolic env: destination of whatever call consumes it."
+fixture = "go/primitives/must-not-os-env"
+
+[[inert]]
+module = "os"
+members = [
+    "Pipe",
+    "Pipe2",
+]
+justification = "An in-process pipe; data reaches only the other end of the pair."
+fixture = "go/primitives/must-not-os-pipe"
+
+[[inert]]
+module = "os"
+members = [
+    "File.*",
+    "Process.*",
+    "ProcessState.*",
+    "Root.*",
+    "SyscallError.*",
+    "dirEntry.*",
+    "dirFS.*",
+    "fileStat.*",
+    "rawConn.*",
+    "rootFS.*",
+    "unixDirent.*",
+    "LinkError.Error",
+    "LinkError.Unwrap",
+    "errSymlink.Error",
+    "file.PollFD",
+    "noReadFrom.ReadFrom",
+    "noWriteTo.WriteTo",
+    "root.Close",
+    "root.Name",
+    "Ch*",
+    "Err*",
+    "Fil*",
+    "Get*",
+    "Is*",
+    "Mkdi*",
+    "Mode*",
+    "O_*",
+    "Ope*",
+    "Path*",
+    "Re*",
+    "SEEK_*",
+    "St*",
+    "User*",
+    "Args",
+    "CopyFS",
+    "Create",
+    "CreateTemp",
+    "DevNull",
+    "DirEntry",
+    "DirFS",
+    "Executable",
+    "Exit",
+    "Hostname",
+    "Interrupt",
+    "Kill",
+    "Lchown",
+    "Link",
+    "LinkError",
+    "Lstat",
+    "NewFile",
+    "NewSyscallError",
+    "ProcAttr",
+    "ProcessState",
+    "Root",
+    "SameFile",
+    "Signal",
+    "Symlink",
+    "SyscallError",
+    "TempDir",
+    "Truncate",
+    "WriteFile",
+]
+justification = "File, process-state, path, and environment members over handles and data in hand; process-starting members and raw-descriptor access are classified above."
+fixture = "go/primitives/must-not-os-inert"
+
+[[inert]]
+module = "os/exec"
+members = [
+    "Cmd.*",
+    "Error.Error",
+    "Error.Unwrap",
+    "ExitError.Error",
+    "prefixSuffixSaver.Bytes",
+    "prefixSuffixSaver.Write",
+    "wrappedError.Error",
+    "wrappedError.Unwrap",
+    "Err*",
+    "ExitError",
+    "LookPath",
+]
+justification = "Error values and command plumbing; the command constructors and run methods are classified above."
+fixture = "go/primitives/must-not-os-exec-inert"
+
+[[inert]]
+module = "os/user"
+members = [
+    "UnknownGroupError.Error",
+    "UnknownGroupIdError.Error",
+    "UnknownUserError.Error",
+    "UnknownUserIdError.Error",
+    "Unknown*",
+    "Group",
+    "User",
+]
+justification = "User and group data types; the lookup members that can reach NSS carry blind spots."
+fixture = "go/primitives/must-not-os-user-inert"
+
+[[inert]]
+module = "plugin"
+members = [
+    "Plugin",
+    "Symbol",
+]
+justification = "The plugin handle and symbol types; Open and Lookup carry blind spots."
+fixture = "go/primitives/must-not-plugin-inert"
+
+[[inert]]
+module = "reflect"
+members = [
+    "MethodByName",
+    "Value.MethodByName",
+    "Value.FieldByName",
+    "Value.Field",
+    "Value.Method",
+    "Value.FieldByIndex",
+    "Value.FieldByNameFunc",
+]
+justification = "Name lookups return a value or method handle without calling it; a literal name stays a member use and a computed one is the reflective lowering's job."
+fixture = "go/primitives/must-not-reflect-name-lookups"
+
+[[inert]]
+module = "reflect"
+members = [
+    "MapIter.*",
+    "Value.*",
+    "interfaceType.*",
+    "rtype.*",
+    "structType.*",
+    "ChanDir.String",
+    "Kind.String",
+    "Method.IsExported",
+    "StructField.IsExported",
+    "StructTag.Get",
+    "StructTag.Lookup",
+    "Type.Value",
+    "ValueError.Error",
+    "Ar*",
+    "Cha*",
+    "Co*",
+    "In*",
+    "Ma*",
+    "Se*",
+    "Slic*",
+    "Str*",
+    "Typ*",
+    "Uin*",
+    "Valu*",
+    "Append",
+    "AppendSlice",
+    "Bool",
+    "BothDir",
+    "DeepEqual",
+    "Float32",
+    "Float64",
+    "Func",
+    "FuncOf",
+    "Kind",
+    "Method",
+    "New",
+    "NewAt",
+    "Pointer",
+    "PointerTo",
+    "Ptr",
+    "PtrTo",
+    "RecvDir",
+    "Swapper",
+    "UnsafePointer",
+    "VisibleFields",
+    "Zero",
+]
+justification = "Type and value metadata, sizes, and layouts; the Value.Call dispatch entries are blind spots."
+fixture = "go/primitives/must-not-reflect-inert"
+
+[[inert]]
+module = "runtime"
+members = [
+    "Func.*",
+    "MemProfileRecord.*",
+    "atomicOffAddr.*",
+    "errorAddressString.*",
+    "goroutineProfileStateHolder.*",
+    "traceLocker.*",
+    "Cleanup.Stop",
+    "Frames.Next",
+    "PanicNilError.Error",
+    "PanicNilError.RuntimeError",
+    "Pinner.Pin",
+    "Pinner.Unpin",
+    "StackRecord.Stack",
+    "TypeAssertionError.Error",
+    "TypeAssertionError.RuntimeError",
+    "atomicMSpanPointer.Load",
+    "atomicMSpanPointer.StoreNoWB",
+    "atomicSpanSetSpinePointer.Load",
+    "atomicSpanSetSpinePointer.StoreNoWB",
+    "bintime.Add",
+    "bintime.AddX",
+    "boundsError.Error",
+    "boundsError.RuntimeError",
+    "errorString.Error",
+    "errorString.RuntimeError",
+    "godebugInc.IncNonDefault",
+    "kernelVersion.GE",
+    "lockRank.String",
+    "plainError.Error",
+    "plainError.RuntimeError",
+    "synctestDeadlockError.Error",
+    "waitReason.String",
+    "BUS_*",
+    "CLOCK_*",
+    "EV*",
+    "FP*",
+    "Fp*",
+    "GO*",
+    "Go*",
+    "ITIMER_*",
+    "Ke*",
+    "MA*",
+    "Mach*",
+    "Mcontex*",
+    "Mem*",
+    "Num*",
+    "O_*",
+    "PO*",
+    "PROT_*",
+    "Pt*",
+    "REG_*",
+    "Race*",
+    "Re*",
+    "SA_*",
+    "SI*",
+    "Se*",
+    "Sig*",
+    "St*",
+    "UMTX_OP_WA*",
+    "ASanRead",
+    "ASanWrite",
+    "AddCleanup",
+    "BlockProfile",
+    "BlockProfileRecord",
+    "Breakpoint",
+    "CPUProfile",
+    "CallersFrames",
+    "Cleanup",
+    "Compiler",
+    "EAGAIN",
+    "EBADF",
+    "EBUSY",
+    "EFAULT",
+    "EINPROGRESS",
+    "EINTR",
+    "ENOMEM",
+    "ENOSYS",
+    "ETIME",
+    "ETIMEDOUT",
+    "EWOULDBLOCK",
+    "EpollEvent",
+    "Error",
+    "ExceptionState32",
+    "ExceptionState64",
+    "FORK_NOSIGCHLD",
+    "FORK_WAITPID",
+    "F_GETFL",
+    "F_SETFL",
+    "FloatState32",
+    "FloatState64",
+    "Frame",
+    "Frames",
+    "Func",
+    "GC",
+    "Gregset",
+    "Itimerspec",
+    "Itimerval",
+    "LockOSThread",
+    "Lwpparams",
+    "MSanRead",
+    "MSanWrite",
+    "MutexProfile",
+    "NOTE_TRIGGER",
+    "PTHREAD_CREATE_DETACHED",
+    "PanicNilError",
+    "Pinner",
+    "PortEvent",
+    "Rtprio",
+    "SEGV_ACCERR",
+    "SEGV_MAPERR",
+    "TforkT",
+    "ThrParam",
+    "ThreadCreateProfile",
+    "Timespec",
+    "Timeval",
+    "TypeAssertionError",
+    "Ucontext",
+    "UcontextT",
+    "Umtx_time",
+    "UnlockOSThread",
+    "Usigaction",
+    "Usigset",
+    "VM_REGION_BASIC_INFO_64",
+    "VM_REGION_BASIC_INFO_COUNT_64",
+    "Version",
+    "Vreg",
+    "Xmmreg",
+    "Xmmreg1",
+]
+justification = "Scheduler, memory, and runtime bookkeeping plus constants; frame-reaching members are blind spots."
+fixture = "go/primitives/must-not-runtime-inert"
+
+[[inert]]
+module = "runtime/debug"
+members = [
+    "BuildInfo.String",
+    "Set*",
+    "BuildInfo",
+    "BuildSetting",
+    "CrashOptions",
+    "FreeOSMemory",
+    "GCStats",
+    "Module",
+    "ParseBuildInfo",
+    "ReadBuildInfo",
+    "ReadGCStats",
+]
+justification = "GC, build-info, and panic plumbing; stack and crash-output members are classified above."
+fixture = "go/primitives/must-not-runtime-debug-inert"
+
+[[inert]]
+module = "syscall"
+members = [
+    "Errno.*",
+    "ErrorString.*",
+    "PtraceRegs.*",
+    "SID.*",
+    "Timeval.*",
+    "Token.*",
+    "WaitStatus.*",
+    "Waitmsg.*",
+    "Cmsghdr.SetLen",
+    "DLL.Release",
+    "DLLError.Error",
+    "DLLError.Unwrap",
+    "Dir.Marshal",
+    "Dir.Null",
+    "Filetime.Nanoseconds",
+    "Iovec.SetLen",
+    "LazyDLL.Handle",
+    "LazyProc.Addr",
+    "Msghdr.SetControllen",
+    "Note.Signal",
+    "Note.String",
+    "Proc.Addr",
+    "RawSockaddrAny.Sockaddr",
+    "Signal.Signal",
+    "Signal.String",
+    "StTimespec_t.Nano",
+    "Timespec.Nano",
+    "Timespec.Unix",
+    "mmapper.Mmap",
+    "mmapper.Munmap",
+    "AF_*",
+    "AI_*",
+    "ARPHRD_*",
+    "Ad*",
+    "B1*",
+    "B2*",
+    "B3*",
+    "B4*",
+    "B5*",
+    "B7*",
+    "BIOC*",
+    "BPF_*",
+    "Bpf*",
+    "By*",
+    "CERT_*",
+    "CLO*",
+    "CR*",
+    "CS*",
+    "CT*",
+    "Cert*",
+    "Ch*",
+    "Cl*",
+    "Cmsg*",
+    "Co*",
+    "Cr*",
+    "DL*",
+    "DM*",
+    "DNS*",
+    "DT_*",
+    "De*",
+    "Di*",
+    "Dns*",
+    "Du*",
+    "EA*",
+    "EB*",
+    "EC*",
+    "ED*",
+    "EF*",
+    "EH*",
+    "EI*",
+    "EKEY*",
+    "EL*",
+    "EM*",
+    "EN*",
+    "EO*",
+    "EP*",
+    "ER*",
+    "ES*",
+    "ET*",
+    "EU*",
+    "EV*",
+    "EW*",
+    "EX*",
+    "Epoll*",
+    "Err*",
+    "Ex*",
+    "FD*",
+    "FILE*",
+    "FLUSH*",
+    "FORMAT_MESSAGE_*",
+    "F_*",
+    "Fc*",
+    "Fd*",
+    "Fi*",
+    "Fl*",
+    "Free*",
+    "Fs*",
+    "Fu*",
+    "GENERIC_*",
+    "Get*",
+    "HKEY_*",
+    "IC*",
+    "IF*",
+    "IGN*",
+    "IN*",
+    "IO*",
+    "IP*",
+    "IX*",
+    "If*",
+    "In*",
+    "Io*",
+    "Ip*",
+    "KEY_*",
+    "LINUX_REBOOT_*",
+    "LO*",
+    "Li*",
+    "Lo*",
+    "Ls*",
+    "MA*",
+    "MC*",
+    "MNT_*",
+    "MS*",
+    "Ma*",
+    "Mk*",
+    "Mun*",
+    "NET*",
+    "NL*",
+    "NO*",
+    "Na*",
+    "Ne*",
+    "Nl*",
+    "NsecTo*",
+    "OF*",
+    "OID_*",
+    "ON*",
+    "OP*",
+    "O_*",
+    "PA*",
+    "PF*",
+    "PR*",
+    "PT*",
+    "Pa*",
+    "Pi*",
+    "Pr*",
+    "Ptrace*",
+    "QT*",
+    "REG_*",
+    "RF*",
+    "RIGHT_*",
+    "RLIM*",
+    "RT*",
+    "RUSAGE_*",
+    "Ra*",
+    "Re*",
+    "Rout*",
+    "Rt*",
+    "SCM_*",
+    "SHUT_*",
+    "SI*",
+    "SO*",
+    "ST*",
+    "SW_*",
+    "SY*",
+    "S_*",
+    "Se*",
+    "Si*",
+    "Sock*",
+    "St*",
+    "Sy*",
+    "TC*",
+    "TF_*",
+    "TH32CS_*",
+    "TI*",
+    "TO*",
+    "TUN*",
+    "Tim*",
+    "Toke*",
+    "Tr*",
+    "UTF16*",
+    "Un*",
+    "Us*",
+    "Ut*",
+    "VC*",
+    "VD*",
+    "VE*",
+    "VS*",
+    "VT*",
+    "WA*",
+    "WC*",
+    "WHENCE_*",
+    "WNO*",
+    "WO*",
+    "WPAR*",
+    "WS*",
+    "Writ*",
+    "XP1_*",
+    "APPLICATION_ERROR",
+    "AUTHTYPE_CLIENT",
+    "AUTHTYPE_SERVER",
+    "Access",
+    "Acct",
+    "AllThreadsSyscall",
+    "AllThreadsSyscall6",
+    "AttachLsf",
+    "Await",
+    "B0",
+    "B600",
+    "B921600",
+    "B9600",
+    "BASE_PROTOCOL",
+    "BRKINT",
+    "BindToDevice",
+    "CFLUSH",
+    "CancelIo",
+    "CancelIoEx",
+    "DIOCBSFLUSH",
+    "DIOCOSFPFLUSH",
+    "DUPLICATE_CLOSE_SOURCE",
+    "DUPLICATE_SAME_ACCESS",
+    "E2BIG",
+    "EEXIST",
+    "EQFULL",
+    "EQUALITY_CHECK",
+    "EYEC_RTENTRYA",
+    "EYEC_RTENTRYF",
+    "E_ACC",
+    "Environ",
+    "EscapeArg",
+    "FSCTL_GET_REPARSE_POINT",
+    "Faccessat",
+    "Fallocate",
+    "Fbootstraptransfer_t",
+    "ForkLock",
+    "FormatMessage",
+    "Fpathconf",
+    "Ftruncate",
+    "Fwstat",
+    "GUID",
+    "HANDLE_FLAG_INHERIT",
+    "HUPCL",
+    "Handle",
+    "Hostent",
+    "IEXTEN",
+    "IMAXBEL",
+    "ISIG",
+    "ISTRIP",
+    "IUCLC",
+    "IUTF8",
+    "I_FLUSH",
+    "ImplementsGetwd",
+    "Issetugid",
+    "Kevent",
+    "Kevent_t",
+    "Klogctl",
+    "Kqueue",
+    "LANG_ENGLISH",
+    "LAYERED_PROTOCOL",
+    "LCNT_OVERLOAD_FLUSH",
+    "LNOFLSH",
+    "LazyDLL",
+    "LazyProc",
+    "Lchown",
+    "MBEFORE",
+    "MMASK",
+    "MORDER",
+    "MREPL",
+    "M_FLUSH",
+    "Mclpool",
+    "MibIfRow",
+    "Mlock",
+    "Mlockall",
+    "Mmap",
+    "Mount",
+    "MoveFile",
+    "Mprotect",
+    "Msghdr",
+    "NAME_MAX",
+    "Note",
+    "Ntohs",
+    "OCRNL",
+    "OLCUC",
+    "Open",
+    "Openat",
+    "Overlapped",
+    "PENDIN",
+    "PKCS_7_ASN_ENCODING",
+    "Pointer",
+    "PostQueuedCompletionStatus",
+    "Pwrite",
+    "Qid",
+    "Rlimit",
+    "Rmdir",
+    "Rusage",
+    "SSLExtraCertChainPolicyPara",
+    "SUBLANG_ENGLISH_US",
+    "SlicePtrFromStrings",
+    "TRUNCATE_EXISTING",
+    "TerminateProcess",
+    "Termios",
+    "Tms",
+    "UNIX_PATH_MAX",
+    "USAGE_MATCH_TYPE_AND",
+    "USAGE_MATCH_TYPE_OR",
+    "Ucred",
+    "Umask",
+    "VINTR",
+    "VKILL",
+    "VLNEXT",
+    "VMIN",
+    "VQUIT",
+    "VREPRINT",
+    "VWERASE",
+    "VWERSE",
+    "VirtualLock",
+    "VirtualUnlock",
+    "WEXITED",
+    "WLINUXCLONE",
+    "WRAP",
+    "WTRAPPED",
+    "WUNTRACED",
+    "WaitStatus",
+    "Waitmsg",
+    "Win32FileAttributeData",
+    "Win32finddata",
+    "Wstat",
+    "X509_ASN_ENCODING",
+    "XCASE",
+]
+justification = "Syscall wrappers, constants, and types over descriptors and addresses already in hand; socket, process, library-load, and raw-syscall members are classified above."
+fixture = "go/primitives/must-not-syscall-inert"
+

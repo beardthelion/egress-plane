@@ -1,0 +1,26 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net/http.Transport"
+destination = "expr:http.Transport"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net/http.Transport"
+destination = "expr:http.Transport"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net/http.Transport.RoundTrip"
+destination = "expr:t.RoundTrip(nil)"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net/http.Transport.RoundTrip"
+destination = "expr:t2.RoundTrip(nil)"

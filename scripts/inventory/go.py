@@ -260,8 +260,15 @@ def file_members(text):
                     ty = receiver_type(inner)
                     if ty:
                         out.add(f"{ty}.{toks[p][1]}")
-                prev = toks[i] if p <= i else toks[p - 1]
-                i = p + 1
+                    prev = toks[p]
+                    i = p + 1
+                else:
+                    # `func ( ... )` in type position (a var or type
+                    # signature, or a parameter): nothing to collect, but
+                    # the token after `)` may open the next declaration,
+                    # so re-examine it rather than skipping past it.
+                    prev = toks[p - 1]
+                    i = p
             elif j < n and toks[j][0] == "id" and toks[j][2] == toks[i][2]:
                 if toks[j][1][:1].isupper():
                     out.add(toks[j][1])

@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.Listen"
+destination = "0.0.0.0:9090"

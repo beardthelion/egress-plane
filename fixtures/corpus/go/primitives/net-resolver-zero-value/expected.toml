@@ -1,0 +1,26 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.Resolver"
+destination = "expr:net.Resolver"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.Resolver"
+destination = "expr:net.Resolver"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.Resolver.LookupHost"
+destination = "example.com"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.Resolver.LookupHost"
+destination = "example.org"

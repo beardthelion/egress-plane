@@ -1,0 +1,26 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:os/exec.Cmd"
+destination = "expr:exec.Cmd"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:os/exec.Cmd"
+destination = "expr:exec.Cmd"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:os/exec.Cmd.Run"
+destination = "expr:c.Run()"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:os/exec.Cmd.Run"
+destination = "expr:c2.Run()"

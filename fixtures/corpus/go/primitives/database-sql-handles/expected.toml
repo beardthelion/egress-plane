@@ -1,0 +1,62 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:database/sql.Conn"
+destination = "expr:cn"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:database/sql.Conn"
+destination = "expr:sql.Conn"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:database/sql.DB"
+destination = "expr:db"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:database/sql.DB"
+destination = "expr:sql.DB"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:database/sql.Rows"
+destination = "expr:rs"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:database/sql.Rows"
+destination = "expr:sql.Rows"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:database/sql.Stmt"
+destination = "expr:sql.Stmt"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:database/sql.Stmt"
+destination = "expr:st"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:database/sql.Tx"
+destination = "expr:sql.Tx"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:database/sql.Tx"
+destination = "expr:tx"

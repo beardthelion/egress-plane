@@ -1,0 +1,26 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net/http.Server"
+destination = "expr:http.Server"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net/http.Server"
+destination = "expr:http.Server"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net/http.Server.ListenAndServe"
+destination = "expr:s.ListenAndServe()"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net/http.Server.ListenAndServe"
+destination = "expr:s2.ListenAndServe()"

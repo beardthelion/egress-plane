@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:github.com/rabbitmq/amqp091-go.Dial"
+destination = "amqp://<redacted>@mq.example.com:5672/"
+
+[[unscanned_dependencies]]
+language = "go"
+package = "github.com/rabbitmq/amqp091-go"

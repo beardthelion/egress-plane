@@ -1,0 +1,26 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.ListenConfig"
+destination = "expr:net.ListenConfig"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.ListenConfig"
+destination = "expr:net.ListenConfig"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.ListenConfig.Listen"
+destination = "0.0.0.0:9090"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net.ListenConfig.Listen"
+destination = "0.0.0.0:9091"

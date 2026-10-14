@@ -1,0 +1,20 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net/http.DefaultClient"
+destination = "expr:http.DefaultClient"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net/http.DefaultClient.Get"
+destination = "https://api.example.com/v1/health"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:net/http.DefaultClient.Get"
+destination = "https://api.example.com/v1/ping"
