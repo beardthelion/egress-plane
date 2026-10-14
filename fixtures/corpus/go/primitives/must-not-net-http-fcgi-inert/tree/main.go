@@ -9,4 +9,9 @@ func main() {
 	var _ = fcgi.ErrRequestAborted
 	var e fcgi.ProcessEnv
 	_ = e
+	_ = fcgi.response.Write
+	_ = fcgi.bufWriter.Close
+	_ = fcgi.conn.Close
+	_ = fcgi.streamWriter.Close
+	_ = fcgi.streamWriter.Write
 }

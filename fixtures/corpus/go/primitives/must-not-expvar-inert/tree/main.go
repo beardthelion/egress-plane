@@ -13,4 +13,10 @@ func main() {
 	var v expvar.Var
 	_, _, _, _, _, _ = f, i, m, s, fn, v
 	_ = fn.Value
+	// The type member sets stay inert; the selector forms name them.
+	_ = expvar.Float.Add
+	_ = expvar.Int.Add
+	_ = expvar.Map.Init
+	_ = expvar.String.Set
+	_ = expvar.Func.String
 }

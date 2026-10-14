@@ -25,7 +25,7 @@ use egress_core::discover::dependency_roots;
 use egress_core::discover::dependency_roots::NamedRoot;
 use egress_core::discover::{Config, Discovery, discover};
 use egress_core::identity::{EncodedPath, finalize};
-use egress_core::ir::FileIr;
+use egress_core::ir::{FileIr, Root};
 use egress_core::model::{
     BudgetReason, Completeness, Label, Language, Report, SCHEMA_VERSION, Tool, ToolError,
 };
@@ -202,6 +202,123 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
         files,
         discovery,
     })
+}
+
+/// The IR facts one lowered directory carries, for the corpus harness's
+/// guards (KTD3). Test support only; [`scan`] is unchanged.
+#[derive(Debug, Clone, Default)]
+pub struct TreeIr {
+    /// `(specifier, member path)` for each import binding in the tree.
+    pub imports: Vec<(String, Vec<String>)>,
+    /// Every reference whose root names an import, an ambient global, or
+    /// a local binding; `Param`, `SelfValue`, `Expression`, and
+    /// star-import-only roots are dropped.
+    pub references: Vec<TreeReference>,
+}
+
+/// One lowered reference with its root resolved to a name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TreeReference {
+    pub root: TreeRoot,
+    /// The member chain after the root, prefixed by the import's own
+    /// member path for [`TreeRoot::Import`].
+    pub members: Vec<String>,
+}
+
+/// A reference root as the corpus guards consume it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TreeRoot {
+    /// `Root::Import` resolved through the file's own import table: the
+    /// module specifier the binding names.
+    Import(String),
+    /// `Root::Ambient`: the global's name.
+    Ambient(String),
+    /// `Root::Local`: the local binding's name.
+    Local(String),
+}
+
+/// The language a file's extension names, if a builtin frontend covers
+/// it.
+fn extension_language(name: &str) -> Option<Language> {
+    Language::ALL
+        .into_iter()
+        .find(|l| l.spec().extensions.iter().any(|e| name.ends_with(e)))
+}
+
+/// Lowers every supported source file under `dir` and returns the
+/// (module specifier, member chain) pairs its IR references resolve to,
+/// each `Root::Import` resolved through the file's own import table, so
+/// the corpus guards can tell code references from comment or string
+/// text (KTD3). Corpus-test support only; [`scan`] is unchanged.
+pub fn lower_tree(dir: &Path) -> Result<TreeIr, String> {
+    let registry = Registry::builtin();
+    let mut files: Vec<PathBuf> = Vec::new();
+    let mut stack = vec![dir.to_path_buf()];
+    while let Some(d) = stack.pop() {
+        let rd = std::fs::read_dir(&d).map_err(|e| format!("{}: cannot list: {e}", d.display()))?;
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                stack.push(p);
+            } else if p.is_file() {
+                files.push(p);
+            }
+        }
+    }
+    files.sort();
+    let mut out = TreeIr::default();
+    for path in files {
+        let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+            continue;
+        };
+        let Some(language) = extension_language(name) else {
+            continue;
+        };
+        let Some(fe) = registry.get(language) else {
+            continue;
+        };
+        let text = std::fs::read_to_string(&path)
+            .map_err(|e| format!("{}: cannot read: {e}", path.display()))?;
+        let text = text.strip_prefix('\u{feff}').unwrap_or(&text);
+        let rel = path.strip_prefix(dir).unwrap_or(&path);
+        let display = rel.to_string_lossy().into_owned();
+        let ir = fe
+            .lower(&SourceInput {
+                path: rel.as_os_str().as_encoded_bytes(),
+                file: &display,
+                language,
+                text,
+            })
+            .map_err(|e| format!("{}: cannot lower: {e:?}", path.display()))?;
+        for i in &ir.imports {
+            out.imports.push((i.specifier.clone(), i.members.clone()));
+        }
+        for r in &ir.references {
+            let (root, members) = match &r.root {
+                Root::Import(name) => {
+                    match ir
+                        .imports
+                        .iter()
+                        .find(|i| i.local.as_deref() == Some(name.as_str()))
+                    {
+                        Some(imp) => {
+                            let mut members = imp.members.clone();
+                            members.extend(r.members.iter().cloned());
+                            (TreeRoot::Import(imp.specifier.clone()), members)
+                        }
+                        // A name only a star import can bind names no
+                        // module here.
+                        None => continue,
+                    }
+                }
+                Root::Ambient(n) => (TreeRoot::Ambient(n.clone()), r.members.clone()),
+                Root::Local(n) => (TreeRoot::Local(n.clone()), r.members.clone()),
+                Root::Param(_) | Root::SelfValue | Root::Expression => continue,
+            };
+            out.references.push(TreeReference { root, members });
+        }
+    }
+    Ok(out)
 }
 
 /// The `go` directive versions of every parsed `go.mod` and `go.work`,

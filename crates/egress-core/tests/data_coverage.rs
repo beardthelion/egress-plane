@@ -274,6 +274,49 @@ fn deleting_a_fixture_turns_the_fixture_guard_red() {
     }
 }
 
+#[test]
+fn an_inert_fixture_without_the_must_not_prefix_turns_the_guard_red() {
+    let d = data();
+    let def = deferred();
+    let mut rt = d.runtime(Language::Python).clone();
+    let e = rt
+        .entries
+        .iter_mut()
+        .find(|e| matches!(e.kind, EntryKind::Inert { .. }) && !def.cases.contains(&e.fixture))
+        .expect("no authored inert fixture");
+    let id = e.id.clone();
+    // An existing case that is not a `must-not-` case.
+    e.fixture = "python/completeness/no-egress-complete".into();
+    let v = guards::fixtures(&rt, &corpus(), &def);
+    assert!(
+        v.iter().any(|s| s.contains(&id) && s.contains("must-not")),
+        "{v:?}"
+    );
+}
+
+#[test]
+fn the_fixture_guard_no_longer_reads_inert_tree_text() {
+    let d = data();
+    let def = deferred();
+    let mut rt = d.runtime(Language::Python).clone();
+    let e = rt
+        .entries
+        .iter_mut()
+        .find(|e| {
+            matches!(e.kind, EntryKind::Inert { .. }) && e.id == "python:asyncio.base_futures"
+        })
+        .expect("no python:asyncio.base_futures entry");
+    // An existing must-not case whose source never names the member:
+    // the member-in-code check moved to the corpus harness's IR guard
+    // (KTD3), so the data guard accepts the prefix alone.
+    e.fixture = "python/primitives/must-not-introspection-name".into();
+    let v = guards::fixtures(&rt, &corpus(), &def);
+    assert!(
+        !v.iter().any(|s| s.contains("python:asyncio.base_futures")),
+        "{v:?}"
+    );
+}
+
 /// A module used as a value is a site whose mechanism names the module
 /// itself (the escape rule): accepted when the data classifies that module
 /// as egress or lists an egress entry under it, as the escape rule requires.

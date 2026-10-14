@@ -7,4 +7,6 @@ func main() {
 	_ = r
 	_ = httptest.NewRecorder
 	_ = httptest.DefaultRemoteAddr
+	_ = httptest.ResponseRecorder.Code
+	_ = httptest.Server.Addr
 }

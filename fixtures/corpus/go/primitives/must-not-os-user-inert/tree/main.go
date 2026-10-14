@@ -8,4 +8,8 @@ func main() {
 	var e *user.UnknownUserError
 	var gi *user.UnknownGroupIdError
 	_, _, _, _ = u, g, e, gi
+	_ = user.UnknownGroupError.Error
+	_ = user.UnknownGroupIdError.Error
+	_ = user.UnknownUserError.Error
+	_ = user.UnknownUserIdError.Error
 }

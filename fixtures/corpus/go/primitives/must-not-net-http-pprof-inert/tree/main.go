@@ -6,4 +6,5 @@ import "net/http/pprof"
 // handlers are classified.
 func main() {
 	var _ = pprof.Lookup
+	_ = pprof.handler.ServeHTTP
 }

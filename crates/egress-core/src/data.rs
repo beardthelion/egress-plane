@@ -1322,30 +1322,15 @@ pub mod guards {
     enum Want<'a> {
         Site(&'a str),
         BlindSpot(&'a str),
-        /// A `must-not-` case whose source mentions this text.
-        Mention(String),
+        /// A `must-not-` case; whether its tree names the inert member in
+        /// code is the corpus harness's IR check, not this crate's (KTD1,
+        /// KTD3).
+        MustNot,
     }
 
     fn case_exists(corpus_root: &Path, case: &str) -> bool {
         let d = corpus_root.join(case);
         d.join("tree").is_dir() && d.join("expected.toml").is_file()
-    }
-
-    fn tree_mentions(dir: &Path, needle: &str) -> bool {
-        let Ok(rd) = std::fs::read_dir(dir) else {
-            return false;
-        };
-        let mut paths: Vec<_> = rd.flatten().map(|e| e.path()).collect();
-        paths.sort();
-        paths.iter().any(|p| {
-            if p.is_dir() {
-                tree_mentions(p, needle)
-            } else {
-                std::fs::read(p)
-                    .map(|b| String::from_utf8_lossy(&b).contains(needle))
-                    .unwrap_or(false)
-            }
-        })
     }
 
     fn labels(corpus_root: &Path, case: &str, want: &Want<'_>) -> Result<bool, String> {
@@ -1363,12 +1348,10 @@ pub mod guards {
         Ok(match want {
             Want::Site(id) => any("sites", "mechanism", id),
             Want::BlindSpot(kind) => any("blind_spots", "kind", kind),
-            Want::Mention(needle) => {
-                case.rsplit('/')
-                    .next()
-                    .is_some_and(|n| n.starts_with("must-not-"))
-                    && tree_mentions(&dir.join("tree"), needle)
-            }
+            Want::MustNot => case
+                .rsplit('/')
+                .next()
+                .is_some_and(|n| n.starts_with("must-not-")),
         })
     }
 
@@ -1398,9 +1381,9 @@ pub mod guards {
                 Want::BlindSpot(k) => {
                     format!("{what}: fixture {fixture} labels no blind spot of kind {k}")
                 }
-                Want::Mention(n) => format!(
-                    "{what}: fixture {fixture} is not a must-not case whose source names {n}"
-                ),
+                Want::MustNot => {
+                    format!("{what}: fixture {fixture} is not a must-not case")
+                }
             }),
             Err(e) => out.push(format!("{what}: {e}")),
         }
@@ -1410,21 +1393,15 @@ pub mod guards {
     /// exists and labels it, or a case listed in the deferred ledger. An
     /// egress entry's case labels a site with the entry ID as mechanism; a
     /// blind-spot entry's case labels a blind spot of its kind; an inert
-    /// entry's case is a `must-not-` case whose source names the member.
+    /// entry's case is a `must-not-` case. Whether the case's tree names
+    /// the member in code is the corpus harness's IR check (KTD1, KTD3).
     pub fn fixtures(rt: &RuntimeData, corpus_root: &Path, deferred: &Deferred) -> Vec<String> {
         let mut out = Vec::new();
         for e in &rt.entries {
             let want = match &e.kind {
                 EntryKind::Egress(_) => Want::Site(&e.id),
                 EntryKind::BlindSpot { kind, .. } => Want::BlindSpot(kind.as_str()),
-                EntryKind::Inert { .. } => {
-                    let last = e
-                        .members
-                        .last()
-                        .map(String::as_str)
-                        .unwrap_or_else(|| e.module.rsplit(rt.sep()).next().unwrap_or(""));
-                    Want::Mention(last.replace('*', ""))
-                }
+                EntryKind::Inert { .. } => Want::MustNot,
             };
             check(&mut out, corpus_root, deferred, &e.id, &e.fixture, want);
         }
@@ -1440,10 +1417,24 @@ pub mod guards {
                 deferred,
                 &what,
                 &n.fixture,
-                Want::Mention(n.name.clone()),
+                Want::MustNot,
             );
         }
         out
+    }
+
+    /// The inert entries grouped by the fixture they name, for the
+    /// corpus harness's IR check (KTD3): one `[[inert]]` group expands
+    /// into one entry per member, all sharing the group's fixture, so
+    /// grouping by fixture recovers the member list a case must name.
+    pub fn inert_groups(rt: &RuntimeData) -> BTreeMap<&str, Vec<&Entry>> {
+        let mut groups: BTreeMap<&str, Vec<&Entry>> = BTreeMap::new();
+        for e in &rt.entries {
+            if matches!(e.kind, EntryKind::Inert { .. }) {
+                groups.entry(e.fixture.as_str()).or_default().push(e);
+            }
+        }
+        groups
     }
 
     /// Every `data/python-distributions.toml` entry's `fixture` names an

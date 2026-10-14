@@ -54,8 +54,10 @@
 //! - Rust symbols include inline `mod` blocks only (`tests::staging_up`); a
 //!   file module, including one mapped by `#[path]`, starts a fresh path.
 //! - Case directory names starting with `must-not-` hold constructs that must
-//!   produce no finding beyond their labels; any extra finding there shows up
-//!   as a false positive in `target/corpus-report.json`.
+//!   produce no finding beyond their labels: an unlabeled site or blind spot
+//!   fails the case (R6, KTD2). Unscanned dependencies and excluded entries
+//!   stay non-gating, and every category's extras still count as false
+//!   positives in `target/corpus-report.json`.
 //! - Every labeled finding is required in every category. Missed
 //!   blind spots fail only `evasive` and `closure` cases; this harness also
 //!   requires the blind spots a `completeness` or other case labels, since an

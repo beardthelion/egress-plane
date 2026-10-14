@@ -451,15 +451,26 @@ fn fixture_guard_fails_when_case_does_not_label_the_entry() {
     );
     let v = guards::fixtures(&ok(), &c.0, &deferred(&["python/evasive/eval"]));
     assert!(v.iter().any(|s| s.contains("python:os.system")), "{v:?}");
-    // An inert entry's case must be a must-not case naming the member.
+    // An inert entry's case must be a `must-not-` case; the member-in-code
+    // check is the corpus harness's IR guard (KTD1, KTD3).
     c.case(
-        "python/primitives/must-not-socket-constants",
+        "python/primitives/socket-constants",
         "state = \"complete\"\nexit_code = 0\n",
         "a.py",
         "import socket\n",
     );
-    let v = guards::fixtures(&ok(), &c.0, &deferred(&["python/evasive/eval"]));
-    assert!(v.iter().any(|s| s.contains("python:socket.htons")), "{v:?}");
+    let mut r = ok();
+    for e in &mut r.entries {
+        if e.fixture == "python/primitives/must-not-socket-constants" {
+            e.fixture = "python/primitives/socket-constants".into();
+        }
+    }
+    let v = guards::fixtures(&r, &c.0, &deferred(&["python/evasive/eval"]));
+    assert!(
+        v.iter()
+            .any(|s| s.contains("python:socket.htons") && s.contains("must-not")),
+        "{v:?}"
+    );
 }
 
 #[test]

@@ -4,7 +4,7 @@ import "os/exec"
 
 // The package's unexported error helpers prefixSuffixSaver.Bytes,
 // prefixSuffixSaver.Write, wrappedError.Error, and wrappedError.Unwrap
-// are inert internals this tree cannot name in code.
+// stay inert.
 func main() {
 	p, err := exec.LookPath("sh")
 	_ = err
@@ -14,4 +14,12 @@ func main() {
 	_ = exit
 	_ = e
 	_ = exec.ErrNotFound
+	_ = exec.Cmd.String
+	_ = exec.Error.Error
+	_ = exec.Error.Unwrap
+	_ = exec.ExitError.Error
+	_ = exec.prefixSuffixSaver.Bytes
+	_ = exec.prefixSuffixSaver.Write
+	_ = exec.wrappedError.Error
+	_ = exec.wrappedError.Unwrap
 }

@@ -6,4 +6,6 @@ import "net/http/cgi"
 func main() {
 	var _ = cgi.Request
 	var _ = cgi.RequestFromMap
+	_ = cgi.response.Write
+	_ = cgi.neverEnding.Read
 }

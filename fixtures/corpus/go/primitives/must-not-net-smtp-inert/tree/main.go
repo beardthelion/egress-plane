@@ -13,4 +13,9 @@ func main() {
 	_ = smtp.PlainAuth
 	_ = c.Close
 	_ = c.TLSConnectionState
+	_ = smtp.cramMD5Auth.Next
+	_ = smtp.cramMD5Auth.Start
+	_ = smtp.dataCloser.Close
+	_ = smtp.plainAuth.Next
+	_ = smtp.plainAuth.Start
 }

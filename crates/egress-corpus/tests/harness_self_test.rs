@@ -562,6 +562,128 @@ fn extra_site_passes_and_counts_false_positive() {
     assert_eq!(outcome.false_positives.len(), 2);
 }
 
+// Must-not gating (R6, KTD2): a site or blind spot no label claims fails
+// a `must-not-` case in every category. Unscanned dependencies and
+// excluded entries stay non-gating, and other categories keep counting
+// false positives without failing.
+
+fn unlabeled_site() -> Site {
+    Site {
+        id: "f".repeat(16),
+        language: Language::Python,
+        file: "extra.py".into(),
+        file_bytes: None,
+        symbol: "<module>".into(),
+        bucket: Bucket::Primitive,
+        mechanism: "python:os.system".into(),
+        destination: Destination {
+            kind: DestinationKind::Expr,
+            value: "x".into(),
+            default: None,
+            display: "expr:x".into(),
+        },
+        ordinal: 0,
+        labels: vec![],
+        location: None,
+    }
+}
+
+fn unlabeled_blind_spot() -> BlindSpot {
+    BlindSpot {
+        id: "e".repeat(16),
+        language: Some(Language::Python),
+        file: "extra.py".into(),
+        file_bytes: None,
+        symbol: "<module>".into(),
+        kind: egress_core::model::BlindSpotKind::DynamicImport,
+        whole_file: false,
+        coverage_gap: false,
+        construct: "import(n)".into(),
+        ordinal: 0,
+        labels: vec![],
+        location: None,
+    }
+}
+
+fn unlabeled_unscanned() -> UnscannedDependency {
+    UnscannedDependency {
+        id: "d".repeat(16),
+        language: Language::Python,
+        package: "extralib".into(),
+        files: vec![],
+        reason: None,
+        distribution: vec![],
+        distribution_source: None,
+        mark: None,
+    }
+}
+
+fn unlabeled_excluded() -> Excluded {
+    Excluded {
+        path: "vendor".into(),
+        path_bytes: None,
+        reason: egress_core::model::ExcludedReason::InstallOutput,
+    }
+}
+
+#[test]
+fn must_not_case_fails_on_an_unlabeled_site() {
+    let e = parse_expected(COMPLETE_EMPTY, "python/tricky/must-not-x").unwrap();
+    let mut r = report_from(&e);
+    r.sites.push(unlabeled_site());
+    let outcome = compare_case(&e, &ok(r), Path::new("/t/python/tricky/must-not-x"));
+    assert!(!outcome.passed());
+    let msg = outcome.failures.join("\n");
+    assert!(msg.contains("must-not-x"), "{msg}");
+    assert!(msg.contains("python:os.system"), "{msg}");
+    assert_eq!(
+        outcome.false_positives.len(),
+        1,
+        "the extra is still counted"
+    );
+}
+
+#[test]
+fn must_not_case_fails_on_an_unlabeled_blind_spot() {
+    let e = parse_expected(COMPLETE_EMPTY, "python/tricky/must-not-x").unwrap();
+    let mut r = report_from(&e);
+    r.blind_spots.push(unlabeled_blind_spot());
+    let outcome = compare_case(&e, &ok(r), Path::new("/t/python/tricky/must-not-x"));
+    assert!(!outcome.passed());
+    let msg = outcome.failures.join("\n");
+    assert!(msg.contains("must-not-x"), "{msg}");
+    assert!(msg.contains("dynamic-import"), "{msg}");
+}
+
+#[test]
+fn must_not_case_tolerates_an_unlabeled_unscanned_dependency() {
+    let e = parse_expected(COMPLETE_EMPTY, "python/tricky/must-not-x").unwrap();
+    let mut r = report_from(&e);
+    r.unscanned_dependencies.push(unlabeled_unscanned());
+    let outcome = compare_case(&e, &ok(r), Path::new("/t/python/tricky/must-not-x"));
+    assert!(outcome.passed(), "{:?}", outcome.failures);
+    assert_eq!(outcome.false_positives.len(), 1);
+}
+
+#[test]
+fn must_not_case_tolerates_an_unlabeled_excluded_entry() {
+    let e = parse_expected(COMPLETE_EMPTY, "python/tricky/must-not-x").unwrap();
+    let mut r = report_from(&e);
+    r.excluded.push(unlabeled_excluded());
+    let outcome = compare_case(&e, &ok(r), Path::new("/t/python/tricky/must-not-x"));
+    assert!(outcome.passed(), "{:?}", outcome.failures);
+}
+
+#[test]
+fn other_categories_count_an_unlabeled_site_without_failing() {
+    let e = parse_expected(COMPLETE_EMPTY, "python/tricky/x").unwrap();
+    let mut r = report_from(&e);
+    r.sites.push(unlabeled_site());
+    let outcome = compare_case(&e, &ok(r), Path::new("/t/python/tricky/x"));
+    assert!(outcome.passed(), "{:?}", outcome.failures);
+    assert_eq!(outcome.false_positives.len(), 1);
+}
+
 #[test]
 fn duplicate_labels_need_duplicate_sites() {
     let e = parse_expected(
@@ -773,6 +895,26 @@ fn false_positives_are_summed_across_cases() {
     });
     assert!(s.passed(), "{:?}", s.errors);
     assert_eq!(s.false_positive_count(), 2);
+}
+
+#[test]
+fn run_fails_a_must_not_case_on_an_extra_and_still_counts_it() {
+    let root = temp_corpus(&[
+        ("python/tricky/must-not-extra", COMPLETE_EMPTY),
+        ("python/tricky/extra", COMPLETE_EMPTY),
+    ]);
+    let s = run_corpus_with(&root, &pending(&[]), |tree, _, _| {
+        let mut r = perfect_scan(tree)?;
+        r.sites.push(unlabeled_site());
+        Ok(r)
+    });
+    assert!(!s.passed());
+    let msg = s.errors.join("\n");
+    assert!(msg.contains("python/tricky/must-not-extra"), "{msg}");
+    assert!(msg.contains("python:os.system"), "{msg}");
+    assert!(!msg.contains("python/tricky/extra:"), "{msg}");
+    assert_eq!(s.false_positive_count(), 2);
+    assert!(s.to_json().contains("\"false_positive_count\": 2"));
 }
 
 #[test]

@@ -15,3 +15,13 @@ locator = "foo"
 version = "1.0.0"
 strength = "unlocked"
 state = "complete"
+
+# The package's own http.client call resolves to the standard library
+# (the sibling foo/http.py does not shadow it) and reports this site.
+[[dependency_sites]]
+package = "foo"
+locator = "foo"
+file = "client.py"
+symbol = "connect"
+mechanism = "python:http.client.HTTPConnection"
+destination = "egress.example"

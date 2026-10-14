@@ -3,7 +3,9 @@
 //! Matching uses identity components and never `location`. Every labeled
 //! site, blind spot, unscanned dependency, and excluded entry is required, and
 //! labels are matched as a multiset, so two identical labels need two findings.
-//! A finding no label claims is a false positive: counted, never a failure.
+//! A finding no label claims is a false positive: counted everywhere, and a
+//! failure when the case directory's name starts with `must-not-` (R6, KTD2).
+//! Unscanned dependencies and excluded entries never gate.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -32,14 +34,31 @@ impl CaseOutcome {
 
 /// Compares a scan result with the case's labels and applies the global
 /// rules: a case with no `[[dependency_root]]` must produce no dependency
-/// section and no unscanned reason, and the case directory's absolute path
-/// must not appear in the JSON output.
+/// section and no unscanned reason, the case directory's absolute path
+/// must not appear in the JSON output, and a `must-not-` case fails on
+/// every unlabeled site or blind spot (R6, KTD2).
 pub fn compare_case(
     expected: &Expected,
     result: &Result<Report, ToolError>,
     case_dir: &Path,
 ) -> CaseOutcome {
     let mut out = compare(expected, result);
+    // R6, KTD2: in a `must-not-` case an unlabeled site or blind spot is
+    // a failure, not only a false positive. The false-positive list keeps
+    // counting them (the run summary reports all categories), and the
+    // "site "/"blind spot " prefixes are the finding strings `compare`
+    // builds, so unscanned dependencies and excluded entries stay
+    // non-gating.
+    if let Some(name) = case_dir.file_name()
+        && name.to_string_lossy().starts_with("must-not-")
+    {
+        for fp in &out.false_positives {
+            if fp.starts_with("site ") || fp.starts_with("blind spot ") {
+                out.failures
+                    .push(format!("{}: unlabeled {fp}", name.to_string_lossy()));
+            }
+        }
+    }
     if let Ok(report) = result {
         let mut needles: Vec<String> = Vec::new();
         if let Ok(abs) = std::fs::canonicalize(case_dir) {
