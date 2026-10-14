@@ -5,6 +5,7 @@
 //! [`FileIr::package`], and the [`lower`] module walks the AST into
 //! imports, references, constants, locals, and symbol paths.
 
+mod directives;
 pub mod link;
 mod lower;
 mod positions;
@@ -30,10 +31,15 @@ const DEPTH_REASON: &str = "too many depth";
 
 /// Lowers the Go file at repo-relative `path` with source `text`.
 pub fn lower(_path: &[u8], text: &str) -> Result<FileIr, LowerError> {
+    // `go generate` reads raw lines, so the scan runs before tokenization:
+    // a column-0 directive inside a raw string or block comment still
+    // counts (KTD7, KTD12).
+    let generate = directives::generate(text);
     let tokens = gosyn::tokenize_source(text).map_err(|_| LowerError::Parse)?;
     if prescan::over_any_bound(&tokens, text) {
         return Err(LowerError::TooDeeplyNested);
     }
+    let linkname = directives::linkname(&tokens);
     drop(tokens);
     // The AST holds `Rc`, so parse and lower stay on the calling thread.
     let file = match egress_core::discover::guard(|| gosyn::parse_source(text)) {
@@ -49,6 +55,7 @@ pub fn lower(_path: &[u8], text: &str) -> Result<FileIr, LowerError> {
         None => return Err(LowerError::Parse),
     };
     let mut l = lower::Lowerer::new(text);
+    l.directives(&linkname, &generate);
     l.file(&file);
     if l.too_deep {
         return Err(LowerError::TooDeeplyNested);

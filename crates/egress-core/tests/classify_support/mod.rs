@@ -707,6 +707,10 @@ pub fn rs() -> Ir {
     Ir(FileIr::new(Language::Rust))
 }
 
+pub fn go() -> Ir {
+    Ir(FileIr::new(Language::Go))
+}
+
 impl Ir {
     pub fn import(mut self, i: Import) -> Ir {
         self.0.imports.push(i);

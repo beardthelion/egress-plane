@@ -189,6 +189,21 @@ fn kind_by_name(name: &[u8]) -> Option<FileKind> {
         .then_some(FileKind::Unsupported)
 }
 
+/// The construct name a Go package's native file lists as, or `None`:
+/// assembly, a `.syso` object, or C, C++, or Objective-C source (KTD12).
+/// The match is by name only; the file is never opened.
+fn native_file_construct(name: &[u8]) -> Option<&'static str> {
+    let ext = extension(name)?;
+    Some(match ext {
+        b".s" | b".S" | b".sx" => "assembly",
+        b".syso" => "syso object",
+        b".c" => "C source",
+        b".cc" | b".cpp" | b".cxx" => "C++ source",
+        b".m" => "Objective-C source",
+        _ => return None,
+    })
+}
+
 /// The language a `#!` line names, if any.
 fn shebang_language(head: &[u8]) -> Option<Language> {
     let line = head.strip_prefix(b"#!")?;
@@ -900,6 +915,32 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
             false,
             h.name,
         ));
+    }
+
+    // Native files beside Go sources (KTD12): an indexed `.s`, `.syso`,
+    // or C, C++, or Objective-C file in a directory holding a Go source
+    // is a file-level native-code blind spot. The index alone decides:
+    // the files are never opened, read, or charged.
+    let go_dirs: BTreeSet<Vec<u8>> = index
+        .iter()
+        .filter(|(_, kind)| **kind == FileKind::Source(Language::Go))
+        .map(|(path, _)| dir_of(path).to_vec())
+        .collect();
+    if !go_dirs.is_empty() {
+        for path in index.keys() {
+            let Some(construct) = native_file_construct(file_name(path)) else {
+                continue;
+            };
+            if go_dirs.contains(dir_of(path)) {
+                w.blind_spots.push(spot(
+                    path,
+                    BlindSpotKind::NativeCode,
+                    Some(Language::Go),
+                    false,
+                    construct,
+                ));
+            }
+        }
     }
 
     // Budgets, charged in byte-wise path order (the walk output is sorted).

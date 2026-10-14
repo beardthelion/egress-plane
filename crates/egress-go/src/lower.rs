@@ -26,7 +26,7 @@ use gosyn::token::{LitKind, Operator};
 
 use egress_core::ir::{
     ConstructKind, DynamicConstruct, Expr, FileIr, Import, LineIndex, LocalBinding, ModuleConstant,
-    Reference, Root, Span, SymbolKind, SymbolSpan, UseKind,
+    Provenance, Reference, Root, Span, SymbolKind, SymbolSpan, UseKind,
 };
 use egress_core::model::{Language, Location};
 
@@ -307,6 +307,20 @@ enum Head {
     Typed(String, Vec<String>),
 }
 
+/// What a `reflect.ValueOf`/`TypeOf` chain's innermost `v` reduces to:
+/// its root, members, and the provenance the shared classifier reads.
+type ReflectTarget = (Root, Vec<String>, Provenance);
+
+/// What an expression shaped like a `reflect.Value` reduces to (KTD12).
+enum ReflectChain {
+    /// A live reflect value rooted at the innermost `v`'s target.
+    Live(Root, Vec<String>, Provenance),
+    /// The chain resolved to a named member: a literal name lookup.
+    Resolved,
+    /// Not a reflect chain.
+    No,
+}
+
 /// One scope's bindings: block scopes and the file scope at index 0.
 #[derive(Default)]
 struct Scope {
@@ -316,6 +330,8 @@ struct Scope {
     /// Names bound to a package-qualified type chain (typed vars,
     /// typed params, named results, `type A = pkg.T` aliases).
     tracked: HashMap<String, (String, Vec<String>)>,
+    /// Names bound to a `reflect.ValueOf`/`TypeOf` result.
+    reflect: HashMap<String, ReflectTarget>,
     /// Names usable as a type (declared types, aliases, type parameters).
     types: HashSet<String>,
 }
@@ -407,6 +423,8 @@ pub struct Lowerer<'a> {
     symbols: Vec<String>,
     fns: Vec<FnFrame>,
     import_locals: HashSet<String>,
+    /// Import locals that name the `reflect` package.
+    reflect_locals: HashSet<String>,
     star: bool,
     blank_imports: u32,
     inits: u32,
@@ -441,6 +459,7 @@ impl<'a> Lowerer<'a> {
             symbols: Vec::new(),
             fns: Vec::new(),
             import_locals: HashSet::new(),
+            reflect_locals: HashSet::new(),
             star: false,
             blank_imports: 0,
             inits: 0,
@@ -701,6 +720,19 @@ impl<'a> Lowerer<'a> {
 
     // ---- file ---------------------------------------------------------
 
+    /// Emits one construct per `//go:linkname` and `//go:generate`
+    /// directive [`crate::directives`] collected: every directive is a
+    /// module-level construct, so this runs before [`file`](Self::file)
+    /// while the symbol is `<module>`.
+    pub fn directives(&mut self, linkname: &[(usize, usize)], generate: &[(usize, usize)]) {
+        for &(start, end) in linkname {
+            self.construct(ConstructKind::NativeCode, start, end);
+        }
+        for &(start, end) in generate {
+            self.construct(ConstructKind::BuildHook, start, end);
+        }
+    }
+
     pub fn file(&mut self, f: &ast::File) {
         for imp in &f.imports {
             self.import(imp);
@@ -732,10 +764,41 @@ impl<'a> Lowerer<'a> {
             Some(n) => (Some(n.name.clone()), false, false),
             None => (Some(guessed_local(&specifier)), false, false),
         };
+        if specifier == "C" {
+            // The cgo pseudo-package (KTD12): one native-code construct
+            // at the import. The record stays so `C.` selectors resolve
+            // import-rooted; `type_only` marks a binding the resolver
+            // does not follow, so the import is neither standard
+            // library, unresolved, nor a dependency, and no `C.name` is
+            // a site. The preamble comment above it is never code.
+            if !star
+                && !blank
+                && let Some(l) = &local
+            {
+                self.import_locals.insert(l.clone());
+            }
+            self.ir.imports.push(Import {
+                local,
+                specifier,
+                members: Vec::new(),
+                type_only: true,
+                star,
+                re_export: false,
+                default: false,
+                symbol: "<module>".to_string(),
+                span: self.span(start, end),
+                location: self.location(start),
+            });
+            self.construct(ConstructKind::NativeCode, start, end);
+            return;
+        }
         if star {
             self.star = true;
         } else if !blank && let Some(l) = &local {
             self.import_locals.insert(l.clone());
+            if specifier == "reflect" {
+                self.reflect_locals.insert(l.clone());
+            }
         }
         self.ir.imports.push(Import {
             local: local.clone(),
@@ -922,18 +985,39 @@ impl<'a> Lowerer<'a> {
                         .map(|v| self.lower_expr(v, 0))
                         .unwrap_or_else(|| Expr::Opaque(id.name.clone()))
                 };
+                // A binding to a `reflect.ValueOf`/`TypeOf` result, as in
+                // `bind`.
+                let reflect = value
+                    .and_then(|v| self.reflect_arg(v))
+                    .map(|v| self.reflect_target(v));
                 let span = self.ident_span(id);
                 if top {
                     self.candidates.push((id.name.clone(), lowered, span));
+                    let (scope, _) = &mut self.scopes[0];
                     if let Some(ch) = tracked {
-                        let (scope, _) = &mut self.scopes[0];
                         scope.tracked.insert(id.name.clone(), ch);
+                    }
+                    match reflect {
+                        Some(t) => {
+                            scope.reflect.insert(id.name.clone(), t);
+                        }
+                        None => {
+                            scope.reflect.remove(&id.name);
+                        }
                     }
                 } else {
                     self.note_binding(&id.name);
                     {
                         let (scope, _) = self.scopes.last_mut().unwrap();
                         scope.locals.insert(id.name.clone());
+                        match reflect {
+                            Some(t) => {
+                                scope.reflect.insert(id.name.clone(), t);
+                            }
+                            None => {
+                                scope.reflect.remove(&id.name);
+                            }
+                        }
                     }
                     if let Some(ch) = tracked {
                         let (scope, _) = self.scopes.last_mut().unwrap();
@@ -1494,9 +1578,22 @@ impl<'a> Lowerer<'a> {
         let span = self.ident_span(id);
         self.lets
             .push((self.symbol(), id.name.clone(), lowered, span));
+        // A local bound to a `reflect.ValueOf`/`TypeOf` result: later
+        // name lookups and dispatches on it are computed members (KTD12).
+        let reflect = value
+            .and_then(|v| self.reflect_arg(v))
+            .map(|v| self.reflect_target(v));
         {
             let (scope, _) = self.scopes.last_mut().unwrap();
             scope.locals.insert(id.name.clone());
+            match reflect {
+                Some(t) => {
+                    scope.reflect.insert(id.name.clone(), t);
+                }
+                None => {
+                    scope.reflect.remove(&id.name);
+                }
+            }
         }
         if let Some(ch) = value.and_then(|v| self.infer_chain(v)) {
             let (scope, _) = self.scopes.last_mut().unwrap();
@@ -1555,14 +1652,20 @@ impl<'a> Lowerer<'a> {
     }
 
     fn mark_assigned(&mut self, name: &str, e: &Expression) {
+        let mut reassigned = None;
         for (i, (s, sym)) in self.scopes.iter().enumerate().rev() {
             if s.locals.contains(name) {
-                if i == 0 {
-                    break;
+                if i != 0 {
+                    reassigned = Some((i, sym.clone()));
                 }
-                self.reassigned.insert((sym.clone(), name.to_string()));
-                return;
+                break;
             }
+        }
+        if let Some((i, sym)) = reassigned {
+            self.reassigned.insert((sym, name.to_string()));
+            // A reassigned name no longer holds a reflect binding.
+            self.scopes[i].0.reflect.remove(name);
+            return;
         }
         // The name binds only at file scope or nowhere here: the write
         // targets a package-level name, possibly declared in a sibling
@@ -1802,21 +1905,31 @@ impl<'a> Lowerer<'a> {
                     self.emit(r);
                 }
             }
-            Expression::Selector(_) => match chain(func) {
+            Expression::Selector(s) => match chain(func) {
                 Ok((id, members)) => {
-                    let (root, members) = self.resolve(&id.name, members);
-                    let (start, end) = (expr_pos(func), c.pos.1 + 1);
-                    let r = self.reference(
-                        root,
-                        members,
-                        UseKind::Call,
-                        c.args.iter().map(|a| self.lower_expr(a, 0)).collect(),
-                        start,
-                        end,
-                    );
-                    self.emit(r);
+                    // A single-member call on a local bound to a
+                    // `reflect.ValueOf`/`TypeOf` result is a lookup or
+                    // dispatch on that value (KTD12).
+                    if members.len() != 1 || !self.reflect_local_call(&id.name, &members[0], c) {
+                        let (root, members) = self.resolve(&id.name, members);
+                        let (start, end) = (expr_pos(func), c.pos.1 + 1);
+                        let r = self.reference(
+                            root,
+                            members,
+                            UseKind::Call,
+                            c.args.iter().map(|a| self.lower_expr(a, 0)).collect(),
+                            start,
+                            end,
+                        );
+                        self.emit(r);
+                    }
                 }
-                Err(base) => self.expr(base),
+                Err(base) => {
+                    // A method call on a non-ident receiver may be a
+                    // `reflect` lookup or dispatch.
+                    self.reflect_chain_call(c, s);
+                    self.expr(base)
+                }
             },
             other => self.expr(other),
         }
@@ -1826,6 +1939,188 @@ impl<'a> Lowerer<'a> {
             }
             self.expr(a);
         }
+    }
+
+    // ---- reflect chains (KTD12) ------------------------------------------
+
+    /// The reflect binding `name` resolves to, or `None`: a scope that
+    /// binds the name any other way shadows an outer reflect binding,
+    /// as `head` decides, and a name no scope binds is a parameter,
+    /// import local, or unbound name, none of them reflect-bound.
+    fn reflect_bound(&self, name: &str) -> Option<&ReflectTarget> {
+        for (scope, _) in self.scopes.iter().rev() {
+            if scope.locals.contains(name) {
+                return scope.reflect.get(name);
+            }
+            if scope.tracked.contains_key(name) {
+                return None;
+            }
+        }
+        None
+    }
+
+    /// The `v` in a `reflect.ValueOf(v)` or `reflect.TypeOf(v)` call.
+    fn reflect_arg<'e>(&self, e: &'e Expression) -> Option<&'e Expression> {
+        let Expression::Call(c) = e else {
+            return None;
+        };
+        let Ok((id, members)) = chain(&c.func) else {
+            return None;
+        };
+        if !self.reflect_locals.contains(&id.name)
+            || !matches!(self.head(&id.name), Head::Import(_))
+            || !matches!(members.as_slice(), [m] if m == "ValueOf" || m == "TypeOf")
+        {
+            return None;
+        }
+        c.args.first()
+    }
+
+    /// The root, members, and provenance a reflect chain's innermost
+    /// value reduces to: `ModuleBinding` for a package-level variable
+    /// or an imported member, `TrackedConstructor` for a local bound
+    /// to a constructor site, `Parameter` for a parameter, `Unknown`
+    /// otherwise.
+    fn reflect_target(&self, e: &Expression) -> ReflectTarget {
+        match chain(e) {
+            Ok((id, members)) if !self.builtin(&id.name) => {
+                let prov = match self.head(&id.name) {
+                    Head::Import(_) => Provenance::ModuleBinding,
+                    Head::Ambient(_) => Provenance::AmbientModule,
+                    Head::Typed(..) => Provenance::TrackedConstructor,
+                    Head::Param(i) => Provenance::Parameter(i),
+                    Head::Local(_) if self.package_target(&id.name) => Provenance::ModuleBinding,
+                    Head::Local(_) => Provenance::Unknown,
+                };
+                let (root, members) = self.resolve(&id.name, members);
+                (root, members, prov)
+            }
+            _ => (Root::Expression, Vec::new(), Provenance::Unknown),
+        }
+    }
+
+    /// Whether `e` evaluates to a `reflect.Value` whose target we know:
+    /// a `reflect.ValueOf`/`TypeOf` call, a local bound to one, or a
+    /// lookup chain on either.
+    fn reflect_chain(&self, e: &Expression) -> ReflectChain {
+        match e {
+            Expression::Paren(p) => self.reflect_chain(&p.expr),
+            Expression::Ident(id) => match self.reflect_bound(&id.name) {
+                Some((r, m, p)) => ReflectChain::Live(r.clone(), m.clone(), p.clone()),
+                None => ReflectChain::No,
+            },
+            Expression::Call(c) => {
+                if let Some(v) = self.reflect_arg(e) {
+                    let (r, m, p) = self.reflect_target(v);
+                    return ReflectChain::Live(r, m, p);
+                }
+                let Expression::Selector(s) = &*c.func else {
+                    return ReflectChain::No;
+                };
+                let inner = self.reflect_chain(&s.x);
+                let ReflectChain::Live(..) = inner else {
+                    return inner;
+                };
+                match s.sel.name.as_str() {
+                    // A literal name resolves the chain to a member;
+                    // anything else keeps a reflect value.
+                    "MethodByName" | "FieldByName"
+                        if matches!(
+                            c.args.first(),
+                            Some(Expression::BasicLit(b)) if b.kind == LitKind::String
+                        ) =>
+                    {
+                        ReflectChain::Resolved
+                    }
+                    _ => inner,
+                }
+            }
+            _ => ReflectChain::No,
+        }
+    }
+
+    /// A single-member call on a reflect-bound local: a name or index
+    /// lookup, or a `Call`/`CallSlice` dispatch on that value.
+    fn reflect_local_call(&mut self, name: &str, member: &str, c: &ast::Call) -> bool {
+        let Some((root, members, prov)) = self.reflect_bound(name).cloned() else {
+            return false;
+        };
+        match member {
+            "MethodByName" | "FieldByName" => self.reflect_lookup(c, root, members, prov, false),
+            "Method" | "MethodByIndex" => self.reflect_lookup(c, root, members, prov, true),
+            "Call" | "CallSlice" => self.reflect_computed(c, root, members, prov),
+            _ => return false,
+        }
+        true
+    }
+
+    /// A method call on a non-ident receiver: when the receiver is a
+    /// reflect chain, `MethodByName`, `FieldByName`, `Method`, and
+    /// `MethodByIndex` are lookups and `Call`/`CallSlice` a dispatch.
+    fn reflect_chain_call(&mut self, c: &ast::Call, s: &ast::Selector) {
+        let by_index = matches!(s.sel.name.as_str(), "Method" | "MethodByIndex");
+        match s.sel.name.as_str() {
+            "MethodByName" | "FieldByName" | "Method" | "MethodByIndex" => {
+                let ReflectChain::Live(root, members, prov) = self.reflect_chain(&s.x) else {
+                    return;
+                };
+                self.reflect_lookup(c, root, members, prov, by_index);
+            }
+            "Call" | "CallSlice" => {
+                let ReflectChain::Live(root, members, prov) = self.reflect_chain(&s.x) else {
+                    return;
+                };
+                self.reflect_computed(c, root, members, prov);
+            }
+            _ => {}
+        }
+    }
+
+    /// A lookup member call on a reflect chain rooted at
+    /// `(root, members)`: a literal name is an ordinary member use, a
+    /// non-literal one a computed member. A literal index names no
+    /// member we can write, so it emits nothing.
+    fn reflect_lookup(
+        &mut self,
+        c: &ast::Call,
+        root: Root,
+        mut members: Vec<String>,
+        prov: Provenance,
+        by_index: bool,
+    ) {
+        let (start, end) = (expr_pos(&c.func), c.pos.1 + 1);
+        match c.args.first() {
+            Some(Expression::BasicLit(b)) if !by_index && b.kind == LitKind::String => {
+                members.push(unquote(&b.value));
+                let r = self.reference(root, members, UseKind::ValueEscape, Vec::new(), start, end);
+                self.emit(r);
+            }
+            Some(Expression::BasicLit(b))
+                if by_index && matches!(b.kind, LitKind::Integer | LitKind::Char) => {}
+            _ => self.reflect_computed(c, root, members, prov),
+        }
+    }
+
+    /// A computed member on a reflect chain's target: a lookup by a
+    /// non-literal name or index, or a `Call`/`CallSlice` dispatch.
+    fn reflect_computed(
+        &mut self,
+        c: &ast::Call,
+        root: Root,
+        members: Vec<String>,
+        prov: Provenance,
+    ) {
+        let (start, end) = (expr_pos(&c.func), c.pos.1 + 1);
+        let mut r = self.reference(
+            root,
+            members,
+            UseKind::ComputedMember,
+            c.args.iter().map(|a| self.lower_expr(a, 0)).collect(),
+            start,
+            end,
+        );
+        r.receiver = Some(prov);
+        self.emit(r);
     }
 
     fn composite_lit(&mut self, l: &ast::CompositeLit) {

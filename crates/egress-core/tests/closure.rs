@@ -663,10 +663,15 @@ fn structural_constructs_map_to_their_blind_spot_kinds() {
                     "include!(concat!(env!(\"OUT_DIR\"), \"/x.rs\"))",
                 )),
         )
+        .file(
+            "x.go",
+            go().construct(construct(ConstructKind::BuildHook, "//go:generate x")),
+        )
         .run();
     assert_eq!(
         kinds(&c),
         vec![
+            s("build-hook"),
             s("dynamic-import"),
             s("dynamic-import"),
             s("import-system-mutation"),

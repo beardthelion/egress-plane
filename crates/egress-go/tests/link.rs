@@ -50,6 +50,58 @@ name = "io"
 class = "inert"
 justification = "readers and writers"
 
+[[module]]
+name = "reflect"
+class = "egress"
+
+[[module]]
+name = "plugin"
+class = "egress"
+
+[[module]]
+name = "syscall"
+class = "egress"
+
+[[entry]]
+id = "go:reflect.ValueOf"
+kind = "inert"
+justification = "wraps a value"
+fixture = "f"
+
+[[entry]]
+id = "go:reflect.TypeOf"
+kind = "inert"
+justification = "wraps a type"
+fixture = "f"
+
+[[entry]]
+id = "go:plugin.Open"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "loads a shared object"
+fixture = "f"
+
+[[entry]]
+id = "go:syscall.Syscall"
+kind = "blind-spot"
+blind_spot = "native-code"
+reason = "a raw trap"
+fixture = "f"
+
+[[entry]]
+id = "go:net/http.Client"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "f"
+
+[[entry]]
+id = "go:net/http.Client.Get"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "url" }
+fixture = "f"
+
 [[entry]]
 id = "go:net/http.Get"
 kind = "egress"
@@ -97,6 +149,13 @@ mechanism = "network"
 destination = { arg = 1, form = "url" }
 fixture = "f"
 
+[[entry]]
+id = "go:github.com/acme/httpclient.NewClient"
+kind = "egress"
+mechanism = "network"
+constructor = true
+fixture = "f"
+
 [[package]]
 name = "github.com/acme/rpcclient"
 package_name = "rpcx"
@@ -112,6 +171,9 @@ stdlib_modules = [
     "net/http",
     "net/url",
     "os",
+    "plugin",
+    "reflect",
+    "syscall",
 ]
 "#;
 
@@ -491,7 +553,10 @@ fn a_no_dot_import_is_an_unresolved_module_gap() {
 }
 
 #[test]
-fn the_c_pseudo_package_is_an_unresolved_module() {
+fn the_c_pseudo_package_is_native_code_not_a_gap() {
+    // The import path `C` is the cgo pseudo-package (KTD12): a
+    // native-code construct at the import, never an unresolved-module
+    // gap or an unscanned dependency.
     let m = base_manifests();
     let (c, _) = run(
         &[(
@@ -502,11 +567,8 @@ fn the_c_pseudo_package_is_an_unresolved_module() {
         &[],
         u64::MAX,
     );
-    assert!(
-        kinds(&c).contains(&BlindSpotKind::UnresolvedModule),
-        "{:?}",
-        c.blind_spots
-    );
+    assert_eq!(kinds(&c), vec![BlindSpotKind::NativeCode]);
+    assert!(!c.blind_spots[0].coverage_gap);
 }
 
 #[test]
@@ -857,4 +919,184 @@ fn link_charges_resolver_steps() {
     );
     assert!(l.steps > 0);
     assert!(!l.budget_exhausted);
+}
+
+// ---- native code, directives, and reflect (KTD12) ------------------------------
+
+#[test]
+fn the_cgo_import_is_a_native_code_spot_and_nothing_else() {
+    let m = base_manifests();
+    let (c, _) = run(
+        &[(
+            "main.go",
+            "package main\n\nimport \"C\"\n\nfunc main() {\n\tC.puts(nil)\n}\n",
+        )],
+        &m,
+        &[],
+        u64::MAX,
+    );
+    assert_eq!(kinds(&c), vec![BlindSpotKind::NativeCode]);
+    assert!(c.sites.is_empty());
+    assert!(c.unscanned_dependencies.is_empty());
+    let b = &c.blind_spots[0];
+    assert_eq!(b.symbol, "<module>");
+    assert_eq!(b.location.map(|l| l.line), Some(3));
+    assert!(!b.coverage_gap);
+}
+
+#[test]
+fn an_alias_of_the_pseudo_import_still_resolves_normally() {
+    // `import C "net/http"` names `C` a local of `net/http`: the
+    // pseudo-package is recognized by the import path, never a local.
+    let m = base_manifests();
+    let (c, _) = run(
+        &[(
+            "main.go",
+            "package main\n\nimport C \"net/http\"\n\nfunc main() {\n\tC.Get(\"https://api.example.com\")\n}\n",
+        )],
+        &m,
+        &[],
+        u64::MAX,
+    );
+    assert_eq!(kinds(&c), Vec::<BlindSpotKind>::new());
+    assert_eq!(
+        site_destinations(&c),
+        vec![(
+            "go:net/http.Get".to_string(),
+            "https://api.example.com".to_string()
+        )]
+    );
+}
+
+#[test]
+fn linkname_and_generate_are_module_constructs() {
+    let m = base_manifests();
+    let (c, _) = run(
+        &[(
+            "main.go",
+            "package main\n\n//go:linkname n runtime.nanotime\nfunc n() int64 { return 0 }\n\n//go:generate stringer -type=Pill\n\nfunc main() {}\n",
+        )],
+        &m,
+        &[],
+        u64::MAX,
+    );
+    let mut kinds = kinds(&c);
+    kinds.sort();
+    assert_eq!(
+        kinds,
+        vec![BlindSpotKind::NativeCode, BlindSpotKind::BuildHook]
+    );
+    assert!(c.blind_spots.iter().all(|b| !b.coverage_gap));
+}
+
+#[test]
+fn plugin_and_raw_syscall_are_native_code_sites() {
+    let m = base_manifests();
+    let (c, _) = run(
+        &[(
+            "main.go",
+            "package main\n\nimport (\n\t\"plugin\"\n\t\"syscall\"\n)\n\nfunc main() {\n\tplugin.Open(\"x.so\")\n\tsyscall.Syscall(0, 0, 0, 0)\n}\n",
+        )],
+        &m,
+        &[],
+        u64::MAX,
+    );
+    assert_eq!(
+        kinds(&c),
+        vec![BlindSpotKind::NativeCode, BlindSpotKind::NativeCode]
+    );
+}
+
+#[test]
+fn reflect_lookups_classify_by_provenance() {
+    let m = base_manifests();
+    let (c, _) = run(
+        &[(
+            "main.go",
+            "package main\n\nimport (\n\t\"net/http\"\n\t\"reflect\"\n)\n\nvar client http.Client\n\nfunc access(name string) {\n\treflect.ValueOf(client).MethodByName(name)\n}\n\nfunc unknown(c any, name string) {\n\treflect.ValueOf(c).MethodByName(name)\n}\n\nfunc main() {}\n",
+        )],
+        &m,
+        &[],
+        u64::MAX,
+    );
+    let access = c
+        .blind_spots
+        .iter()
+        .find(|b| b.kind == BlindSpotKind::ReflectiveAccess)
+        .expect("a reflective-access spot");
+    assert_eq!(access.symbol, "access");
+    let unknown = c
+        .blind_spots
+        .iter()
+        .find(|b| b.kind == BlindSpotKind::ReflectiveUnknown)
+        .expect("a reflective-unknown spot");
+    assert_eq!(unknown.symbol, "unknown");
+}
+
+#[test]
+fn a_reflect_lookup_on_a_constructor_tracked_local_is_access() {
+    // `c := httpclient.NewClient()` is constructor-tracked, so the Go
+    // arm reports reflective-access, not reflective-unknown.
+    let m = base_manifests();
+    let (c, _) = run(
+        &[(
+            "main.go",
+            "package main\n\nimport (\n\t\"reflect\"\n\t\"github.com/acme/httpclient\"\n)\n\nfunc f(name string) {\n\tc := httpclient.NewClient()\n\treflect.ValueOf(c).MethodByName(name)\n}\n",
+        )],
+        &m,
+        &[],
+        u64::MAX,
+    );
+    let kinds = kinds(&c);
+    assert!(kinds.contains(&BlindSpotKind::ReflectiveAccess));
+    assert!(!kinds.contains(&BlindSpotKind::ReflectiveUnknown));
+}
+
+#[test]
+fn a_literal_reflect_name_is_an_ordinary_member() {
+    let m = base_manifests();
+    let (c, _) = run(
+        &[(
+            "main.go",
+            "package main\n\nimport (\n\t\"net/http\"\n\t\"reflect\"\n)\n\nvar client http.Client\n\nfunc f() {\n\treflect.ValueOf(client).MethodByName(\"Get\").Call(nil)\n}\n",
+        )],
+        &m,
+        &[],
+        u64::MAX,
+    );
+    let kinds = kinds(&c);
+    assert!(
+        !kinds.iter().any(|k| matches!(
+            k,
+            BlindSpotKind::ReflectiveAccess | BlindSpotKind::ReflectiveUnknown
+        )),
+        "{kinds:?}"
+    );
+    assert!(
+        site_destinations(&c)
+            .iter()
+            .any(|(m, _)| m == "go:net/http.Client.Get"),
+        "{:?}",
+        site_destinations(&c)
+    );
+}
+
+#[test]
+fn a_generate_directive_text_is_redacted_and_never_run() {
+    // The directive line is a construct string only: userinfo is
+    // redacted like every construct, and nothing in it executes.
+    let m = base_manifests();
+    let (c, _) = run(
+        &[(
+            "main.go",
+            "package main\n\n//go:generate curl https://user:secret@example.com/x\n\nfunc main() {}\n",
+        )],
+        &m,
+        &[],
+        u64::MAX,
+    );
+    assert_eq!(kinds(&c), vec![BlindSpotKind::BuildHook]);
+    let b = &c.blind_spots[0];
+    assert!(!b.construct.contains("secret"), "{}", b.construct);
+    assert!(b.construct.contains("<redacted>"), "{}", b.construct);
 }

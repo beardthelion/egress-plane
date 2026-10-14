@@ -115,7 +115,7 @@ fn stdlib_files_survive_the_full_lower_path() {
 
 // ---- the walker ---------------------------------------------------------------
 
-use egress_core::ir::{Expr, FileIr, Reference, Root, UseKind};
+use egress_core::ir::{ConstructKind, Expr, FileIr, Provenance, Reference, Root, UseKind};
 
 fn ir(src: &str) -> FileIr {
     let src = format!("package p\n\n{src}");
@@ -468,4 +468,186 @@ fn the_call_argument_exprs_drive_destinations() {
         "{:?}",
         nested.args
     );
+}
+
+// ---- directives and native code (KTD7, KTD12) --------------------------------
+
+fn constructs(ir: &FileIr, kind: ConstructKind) -> Vec<&egress_core::ir::DynamicConstruct> {
+    ir.constructs.iter().filter(|c| c.kind == kind).collect()
+}
+
+#[test]
+fn cgo_import_is_native_code_and_an_unfollowed_binding() {
+    let ir = ir("import \"C\"\n\nfunc f() { C.puts(nil) }\n");
+    let imp = &ir.imports[0];
+    assert_eq!(imp.specifier, "C");
+    assert_eq!(imp.local.as_deref(), Some("C"));
+    // The record stays so `C.` chains are import-rooted; `type_only`
+    // keeps the resolver from following it anywhere.
+    assert!(imp.type_only);
+    let native = constructs(&ir, ConstructKind::NativeCode);
+    assert_eq!(native.len(), 1);
+    assert_eq!(native[0].symbol, "<module>");
+    assert_eq!(native[0].location.line, 3);
+    // `C.puts` stays a reference; it resolves through the inert import.
+    assert!(
+        ir.references
+            .iter()
+            .any(|r| matches!(&r.root, Root::Import(l) if l == "C"))
+    );
+}
+
+#[test]
+fn linkname_directives_are_native_code() {
+    let ir = ir("//go:linkname local runtime.nanotime\n\nfunc local() int64 { return 0 }\n");
+    let native = constructs(&ir, ConstructKind::NativeCode);
+    assert_eq!(native.len(), 1);
+    let c = native[0];
+    assert_eq!(c.symbol, "<module>");
+    assert_eq!(c.location.line, 3);
+    assert_eq!(c.location.column, 1);
+    assert!(c.text.contains("//go:linkname local runtime.nanotime"));
+}
+
+#[test]
+fn a_spaced_linkname_comment_is_not_a_directive() {
+    let ir = ir("// go:linkname local runtime.nanotime\n\nfunc main() {}\n");
+    assert!(ir.constructs.is_empty());
+}
+
+#[test]
+fn generate_directives_are_build_hooks() {
+    let ir =
+        ir("//go:generate stringer -type=Pill\n\nfunc main() {}\n\n//go:generate\tgo run gen.go\n");
+    let hooks = constructs(&ir, ConstructKind::BuildHook);
+    assert_eq!(hooks.len(), 2);
+    assert_eq!(hooks[0].symbol, "<module>");
+    assert!(hooks[0].text.contains("stringer -type=Pill"));
+    assert_eq!(hooks[0].location.line, 3);
+    assert_eq!(hooks[1].location.line, 7);
+    assert_eq!(hooks[1].location.column, 1);
+}
+
+#[test]
+fn generate_inside_raw_strings_and_block_comments_counts() {
+    let ir = ir(
+        "var s = `\n//go:generate inside raw\n`\n\n/*\n//go:generate inside block\n*/\n\nfunc main() {}\n",
+    );
+    let hooks = constructs(&ir, ConstructKind::BuildHook);
+    assert_eq!(hooks.len(), 2);
+    assert!(hooks.iter().all(|h| h.location.column == 1));
+    assert!(hooks.iter().all(|h| h.symbol == "<module>"));
+}
+
+#[test]
+fn indented_and_spaced_generate_lines_are_not_directives() {
+    let ir = ir("\t//go:generate indented\n// go:generate spaced\n\nfunc main() {}\n");
+    assert!(ir.constructs.is_empty());
+}
+
+// ---- reflect chains (KTD12) ---------------------------------------------------
+
+fn computed(ir: &FileIr) -> Vec<&Reference> {
+    refs(ir, UseKind::ComputedMember)
+}
+
+#[test]
+fn a_reflect_lookup_on_a_parameter_is_a_computed_member() {
+    let ir = ir(
+        "import \"reflect\"\n\nfunc f(v any, name string) {\n\treflect.ValueOf(v).MethodByName(name)\n}\n",
+    );
+    let c = computed(&ir);
+    assert_eq!(c.len(), 1);
+    assert_eq!(c[0].root, Root::Param(1));
+    assert!(c[0].members.is_empty());
+    assert_eq!(c[0].receiver, Some(Provenance::Parameter(1)));
+    assert_eq!(c[0].symbol, "f");
+}
+
+#[test]
+fn a_reflect_lookup_on_a_typed_var_is_import_rooted() {
+    let ir = ir(
+        "import (\n\t\"net/http\"\n\t\"reflect\"\n)\n\nvar client http.Client\n\nfunc f(name string) {\n\treflect.ValueOf(client).MethodByName(name)\n}\n",
+    );
+    let c = computed(&ir);
+    assert_eq!(c.len(), 1);
+    assert!(
+        matches!(&c[0].root, Root::Import(l) if l == "http"),
+        "{:?}",
+        c[0].root
+    );
+    assert_eq!(c[0].members, ["Client"]);
+    assert_eq!(c[0].receiver, Some(Provenance::TrackedConstructor));
+}
+
+#[test]
+fn a_reflect_bound_local_carries_the_chain_target() {
+    let ir = ir(
+        "import \"reflect\"\n\nfunc f(v any, name string) {\n\trv := reflect.ValueOf(v)\n\trv.MethodByName(name)\n\trv.FieldByName(name)\n}\n",
+    );
+    let c = computed(&ir);
+    assert_eq!(c.len(), 2);
+    assert!(c.iter().all(|r| r.root == Root::Param(1)));
+    assert!(
+        c.iter()
+            .all(|r| r.receiver == Some(Provenance::Parameter(1)))
+    );
+}
+
+#[test]
+fn typeof_supports_the_same_lookups() {
+    let ir = ir(
+        "import \"reflect\"\n\nfunc f(v any, name string) {\n\treflect.TypeOf(v).FieldByName(name)\n\treflect.ValueOf(v).MethodByIndex(name)\n}\n",
+    );
+    let c = computed(&ir);
+    assert_eq!(c.len(), 2);
+    assert!(c.iter().all(|r| r.root == Root::Param(1)));
+}
+
+#[test]
+fn a_literal_reflect_name_is_an_ordinary_member() {
+    let ir = ir(
+        "import \"reflect\"\n\nfunc f(v any) {\n\treflect.ValueOf(v).MethodByName(\"Get\")\n}\n",
+    );
+    assert!(computed(&ir).is_empty());
+    let member = ir
+        .references
+        .iter()
+        .find(|r| r.members == ["Get"])
+        .expect("a member reference for the literal name");
+    assert_eq!(member.root, Root::Param(1));
+    assert_eq!(member.use_kind, UseKind::ValueEscape);
+}
+
+#[test]
+fn a_literal_lookup_then_call_is_not_reflective() {
+    let ir = ir(
+        "import \"reflect\"\n\nfunc f(v any) {\n\treflect.ValueOf(v).MethodByName(\"Get\").Call(nil)\n}\n",
+    );
+    assert!(computed(&ir).is_empty());
+}
+
+#[test]
+fn call_and_call_slice_dispatch_reflectively() {
+    let ir = ir(
+        "import \"reflect\"\n\nfunc f(v any, name string) {\n\treflect.ValueOf(v).MethodByName(name).Call(nil)\n\treflect.ValueOf(v).CallSlice(nil)\n}\n",
+    );
+    // The lookup and both dispatches: three computed members on `v`.
+    let c = computed(&ir);
+    assert_eq!(c.len(), 3);
+    assert!(c.iter().all(|r| r.root == Root::Param(1)));
+}
+
+#[test]
+fn a_literal_index_lookup_emits_nothing() {
+    let ir = ir("import \"reflect\"\n\nfunc f(v any) {\n\treflect.ValueOf(v).Method(0)\n}\n");
+    assert!(computed(&ir).is_empty());
+}
+
+#[test]
+fn a_reassigned_local_loses_its_reflect_binding() {
+    let ir = ir(
+        "import \"reflect\"\n\nfunc f(v any, name string) {\n\trv := reflect.ValueOf(v)\n\trv = plain()\n\trv.MethodByName(name)\n}\n\nfunc plain() any { return nil }\n",
+    );
+    assert!(computed(&ir).is_empty());
 }

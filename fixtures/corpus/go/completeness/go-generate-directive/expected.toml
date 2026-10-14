@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[blind_spots]]
+file = "main.go"
+symbol = "<module>"
+kind = "build-hook"
+
+[[blind_spots]]
+file = "main.go"
+symbol = "<module>"
+kind = "build-hook"

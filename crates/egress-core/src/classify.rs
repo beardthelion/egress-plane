@@ -566,6 +566,7 @@ impl<'p, 'a> State<'p, 'a> {
                 ConstructKind::MacroCode => BlindSpotKind::MacroCode,
                 ConstructKind::ConstructorChain => BlindSpotKind::Introspection,
                 ConstructKind::ResolutionLimit => BlindSpotKind::ResolutionLimit,
+                ConstructKind::BuildHook => BlindSpotKind::BuildHook,
             };
             self.blind_at(cx, &c.symbol, c.location, kind, &c.text, false);
         }
@@ -976,6 +977,12 @@ impl<'p, 'a> State<'p, 'a> {
                     BlindSpotKind::ReflectiveAccess
                 };
                 self.blind(cx, rf, kind)
+            }
+            Head::Tracked { .. } if cx.lang() == Language::Go => {
+                // Go-only: the `reflect` lowering emits a computed member on
+                // the value a lookup or dispatch applies to, and a tracked
+                // value (a constructor's instance) is a reflective access.
+                self.blind(cx, rf, BlindSpotKind::ReflectiveAccess)
             }
             Head::Tracked { .. } | Head::Nothing => {}
             Head::FirstParty | Head::Untracked => {

@@ -259,6 +259,9 @@ enum Resolution {
     Ambiguous,
     /// A `use` or `replace` target outside the root: a gap.
     Outside,
+    /// The cgo pseudo-package `C`: neither the standard library, a
+    /// first-party package, nor an external module.
+    Cgo,
     /// A no-dot path in neither set: an unresolved-module gap.
     Unresolved,
     /// Everything else: an external module.
@@ -318,6 +321,13 @@ impl GoRules {
         }
         if !go_import_path(specifier) {
             return Resolution::Invalid;
+        }
+        // `C` is the cgo pseudo-package, recognized by the import path
+        // alone (KTD12). The import record is `type_only`, so the
+        // resolver never asks; the rewrite reads this arm for
+        // bookkeeping and `classify` below fails closed.
+        if specifier == "C" {
+            return Resolution::Cgo;
         }
         // The standard library wins whenever the import path is in the
         // set: a first-party `module net` must not shadow `net/http`.
@@ -419,9 +429,10 @@ impl SpecifierRules for GoRules {
                 module: specifier.to_string(),
             },
             Resolution::Outside => SpecifierKind::OutsideRoot,
-            Resolution::Invalid | Resolution::Unresolved | Resolution::Ambiguous => {
-                SpecifierKind::Path { probes: Vec::new() }
-            }
+            Resolution::Invalid
+            | Resolution::Unresolved
+            | Resolution::Ambiguous
+            | Resolution::Cgo => SpecifierKind::Path { probes: Vec::new() },
         }
     }
 
@@ -1261,7 +1272,9 @@ fn rewrite_file(w: &mut Work2<'_>, path: &[u8], ir: &mut FileIr, _rt: &RuntimeDa
             Resolution::Stdlib
             | Resolution::Unresolved
             | Resolution::File(_)
-            | Resolution::Outside => {}
+            | Resolution::Outside
+            // The cgo pseudo-package needs no rewrite.
+            | Resolution::Cgo => {}
             Resolution::Invalid => fw.invalid.push(i),
             Resolution::Ambiguous => {
                 if let Some((a, b)) = ambiguous_manifests(rules, path, &spec) {

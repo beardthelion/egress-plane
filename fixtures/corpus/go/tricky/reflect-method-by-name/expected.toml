@@ -1,0 +1,24 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "<module>"
+mechanism = "go:net/http.Client"
+destination = "expr:http.Client"
+
+[[sites]]
+file = "main.go"
+symbol = "access"
+mechanism = "go:net/http.Client"
+destination = "expr:client"
+
+[[blind_spots]]
+file = "main.go"
+symbol = "access"
+kind = "reflective-access"
+
+[[blind_spots]]
+file = "main.go"
+symbol = "unknown"
+kind = "reflective-unknown"

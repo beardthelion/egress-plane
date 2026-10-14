@@ -4,4 +4,4 @@ exit_code = 0
 [[blind_spots]]
 file = "main.go"
 symbol = "<module>"
-kind = "unresolved-module"
+kind = "native-code"

@@ -231,6 +231,9 @@ pub enum ConstructKind {
     /// A name the frontend stopped following at its own bound, such as a Rust
     /// `use` alias chain longer than the hop cap.
     ResolutionLimit,
+    /// A `//go:generate` directive: a build hook by presence, never a command
+    /// the scanner runs or resolves.
+    BuildHook,
 }
 
 /// The kind of an enclosing symbol.

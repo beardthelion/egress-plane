@@ -807,3 +807,110 @@ fn the_scoped_file_rule_drops_and_gaps_sources() {
     // Both files stay indexed so resolution still sees them.
     assert!(names(&d).contains(&"pkg/a.py".to_string()));
 }
+
+// ---- Go native files (KTD12) ------------------------------------------------
+
+/// A `.s`, `.syso`, or C-family file beside a Go source is a file-level
+/// native-code blind spot; other names in the same directory are not.
+#[test]
+fn native_files_list_beside_go_sources() {
+    let t = Tree::new("go-native");
+    t.file("pkg/main.go", "package main\n")
+        .file("pkg/asm_amd64.s", "")
+        .file("pkg/up.S", "")
+        .file("pkg/arch.sx", "")
+        .file("pkg/blob.syso", "")
+        .file("pkg/hello.c", "")
+        .file("pkg/wrap.cc", "")
+        .file("pkg/impl.cpp", "")
+        .file("pkg/more.cxx", "")
+        .file("pkg/bridge.m", "")
+        .file("pkg/notes.h", "")
+        .file("pkg/README.s.txt", "");
+    let d = run(&t);
+    let mut b: Vec<(String, String)> = d
+        .blind_spots
+        .iter()
+        .map(|b| (b.file.clone(), b.construct.clone()))
+        .collect();
+    b.sort();
+    assert_eq!(
+        b,
+        vec![
+            ("pkg/arch.sx".to_string(), "assembly".to_string()),
+            ("pkg/asm_amd64.s".to_string(), "assembly".to_string()),
+            ("pkg/blob.syso".to_string(), "syso object".to_string()),
+            ("pkg/bridge.m".to_string(), "Objective-C source".to_string()),
+            ("pkg/hello.c".to_string(), "C source".to_string()),
+            ("pkg/impl.cpp".to_string(), "C++ source".to_string()),
+            ("pkg/more.cxx".to_string(), "C++ source".to_string()),
+            ("pkg/up.S".to_string(), "assembly".to_string()),
+            ("pkg/wrap.cc".to_string(), "C++ source".to_string()),
+        ]
+    );
+    for s in &d.blind_spots {
+        assert_eq!(s.kind, BlindSpotKind::NativeCode);
+        assert_eq!(s.symbol, "<module>");
+        assert_eq!(s.language, Some(Language::Go));
+        assert!(!s.coverage_gap);
+        assert!(s.location.is_none());
+    }
+}
+
+/// The listing is keyed to the directory that holds a Go source, so a
+/// `.c` file in a Go-free directory is not listed.
+#[test]
+fn a_native_file_in_a_go_free_dir_is_not_listed() {
+    let t = Tree::new("go-native-no-dir");
+    t.file("pkg/main.go", "package main\n")
+        .file("util/helper.c", "")
+        .file("util/helper.py", "x = 1\n");
+    let d = run(&t);
+    assert!(d.blind_spots.is_empty(), "{:?}", spots(&d));
+}
+
+/// A Python-only tree never produces the listing.
+#[test]
+fn a_python_only_tree_lists_no_native_files() {
+    let t = Tree::new("go-native-python");
+    t.file("app.py", "x = 1\n").file("helper.c", "");
+    let d = run(&t);
+    assert!(d.blind_spots.is_empty(), "{:?}", spots(&d));
+}
+
+/// The listing reads the index only: an unreadable native file is still
+/// listed once and never becomes an unreadable gap.
+#[test]
+fn a_native_listing_never_opens_the_file() {
+    if privileged() {
+        return;
+    }
+    let t = Tree::new("go-native-unreadable");
+    t.file("pkg/main.go", "package main\n")
+        .file("pkg/secret.s", "")
+        .chmod("pkg/secret.s", 0o000);
+    let d = run(&t);
+    assert_eq!(
+        spots(&d),
+        vec![("pkg/secret.s".to_string(), BlindSpotKind::NativeCode)]
+    );
+    assert!(!d.blind_spots[0].coverage_gap);
+}
+
+/// Files under excluded directories are not indexed, so they are not
+/// listed even beside an indexed Go source.
+#[test]
+fn native_listing_respects_exclusions() {
+    let t = Tree::new("go-native-excluded");
+    t.file("pkg/main.go", "package main\n")
+        .file(".git/x/main.go", "package main\n")
+        .file(".git/x/asm.s", "");
+    let d = run(&t);
+    assert!(
+        d.blind_spots
+            .iter()
+            .all(|b| b.kind != BlindSpotKind::NativeCode),
+        "{:?}",
+        spots(&d)
+    );
+}

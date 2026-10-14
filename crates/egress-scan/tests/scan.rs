@@ -597,3 +597,44 @@ fn a_newer_go_directive_carries_a_caveat_and_keeps_the_state() {
         assert!(scan(&t.root).unwrap().caveats.is_empty(), "{v}");
     }
 }
+
+/// AE7 (R19, R20): `import "C"` beside an assembly file lists a
+/// native-code blind spot at the import and one for the `.s`, and
+/// neither moves the state off complete.
+#[test]
+fn cgo_and_assembly_are_listed_native_code() {
+    let t = Tree::new("cgo-asm");
+    t.file("go.mod", "module example.com/m\n\ngo 1.22\n")
+        .file(
+            "main.go",
+            "package main\n\nimport \"C\"\n\nfunc main() {\n\tC.puts(nil)\n}\n",
+        )
+        .file("asm_amd64.s", "TEXT ·noop(SB), $0-0\n\tRET\n");
+    let r = scan(&t.root).unwrap();
+    assert_eq!(r.completeness.state, CompletenessState::Complete);
+    let mut spots: Vec<(String, String, Option<u32>)> = r
+        .blind_spots
+        .iter()
+        .map(|b| {
+            (
+                b.file.clone(),
+                b.construct.clone(),
+                b.location.map(|l| l.line),
+            )
+        })
+        .collect();
+    spots.sort();
+    assert_eq!(
+        spots,
+        vec![
+            ("asm_amd64.s".to_string(), "assembly".to_string(), None),
+            ("main.go".to_string(), "\"C\"".to_string(), Some(3)),
+        ]
+    );
+    for b in &r.blind_spots {
+        assert_eq!(b.kind, BlindSpotKind::NativeCode);
+        assert_eq!(b.symbol, "<module>");
+        assert!(!b.coverage_gap);
+    }
+    assert!(r.sites.is_empty() && r.unscanned_dependencies.is_empty());
+}
