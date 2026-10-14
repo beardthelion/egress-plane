@@ -1,0 +1,9 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "client_test.go"
+symbol = "TestDial"
+mechanism = "go:net.Dial"
+destination = "api.example.com:443"
+labels = ["test"]

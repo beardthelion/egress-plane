@@ -1,0 +1,18 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:golang.org/x/net/http2.Transport"
+destination = "expr:http2.Transport"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:golang.org/x/net/http2.Transport"
+destination = "expr:t"
+
+[[unscanned_dependencies]]
+language = "go"
+package = "golang.org/x/net"

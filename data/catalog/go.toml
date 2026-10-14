@@ -421,7 +421,7 @@ fixture = "go/primitives/mysql-new-connector"
 id = "go:github.com/jackc/pgx/v5.Connect"
 kind = "egress"
 mechanism = "network"
-destination = { arg = 1, form = "url" }
+destination = { arg = 2, form = "url" }
 constructor = true
 fixture = "go/primitives/pgx-connect"
 

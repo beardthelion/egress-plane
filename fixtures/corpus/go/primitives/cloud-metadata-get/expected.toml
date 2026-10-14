@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:cloud.google.com/go/compute/metadata.Get"
+destination = 'expr:metadata.Get("instance/zone")'
+
+[[unscanned_dependencies]]
+language = "go"
+package = "cloud.google.com/go/compute/metadata"

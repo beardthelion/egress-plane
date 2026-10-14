@@ -1,0 +1,4 @@
+state = "complete"
+exit_code = 0
+
+caveats = ["go-version-newer-than-supported"]

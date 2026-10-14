@@ -927,7 +927,7 @@ fixture = "go/primitives/crypto-tls-dial"
 id = "go:crypto/tls.DialWithDialer"
 kind = "egress"
 mechanism = "network"
-destination = { arg = 4, form = "host-port" }
+destination = { arg = 3, form = "host-port" }
 constructor = true
 fixture = "go/primitives/crypto-tls-dialwithdialer"
 
@@ -942,7 +942,7 @@ fixture = "go/primitives/tls-dialer-zero-value"
 id = "go:crypto/tls.Dialer.Dial"
 kind = "egress"
 mechanism = "network"
-destination = { arg = 3, form = "host-port" }
+destination = { arg = 2, form = "host-port" }
 fixture = "go/primitives/crypto-tls-dialer-dial"
 
 [[entry]]

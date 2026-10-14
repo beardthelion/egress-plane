@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:crypto/tls.Dialer"
+destination = "expr:tls.Dialer"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:crypto/tls.Dialer.Dial"
+destination = "tls.example.com:443"

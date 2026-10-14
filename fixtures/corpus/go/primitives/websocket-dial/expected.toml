@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:golang.org/x/net/websocket.Dial"
+destination = "wss://ws.example.com/socket"
+
+[[unscanned_dependencies]]
+language = "go"
+package = "golang.org/x/net"

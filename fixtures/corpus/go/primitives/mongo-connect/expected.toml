@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:go.mongodb.org/mongo-driver/mongo.Connect"
+destination = "expr:mongo.Connect(context.Background())"
+
+[[unscanned_dependencies]]
+language = "go"
+package = "go.mongodb.org/mongo-driver"

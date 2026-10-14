@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use egress_core::model::Language;
-use support::{Temp, case, corpus, run, run_with, scan, scan_default};
+use support::{Temp, case, copy_tree, corpus, run, run_with, scan, scan_default};
 
 fn json(stdout: &str) -> serde_json::Value {
     serde_json::from_str(stdout).expect("stdout is one JSON document")
@@ -81,6 +81,34 @@ fn haskell_only_is_empty_and_no_egress_python_is_complete() {
         &case("python/completeness/no-egress-complete"),
         0,
         "complete",
+    );
+}
+
+/// AE8 (R25): the Go-only corpus tree exits 0 and reports one scanned
+/// Go file; the Haskell-only tree still exits 3. A `go` directive newer
+/// than the supported range adds the caveat and changes nothing else.
+#[test]
+fn go_only_tree_is_complete_and_a_newer_directive_only_caveats() {
+    let (text, _) = both(&case("go/completeness/go-only-no-egress"), 0, "complete");
+    assert!(
+        text.lines().any(|l| l == "Coverage: python 0 scanned, 0 skipped; javascript 0 scanned, 0 skipped; rust 0 scanned, 0 skipped; go 1 scanned, 0 skipped; unsupported 0 scanned, 0 skipped"),
+        "{text}"
+    );
+    both(&case("mixed/completeness/haskell-only-empty"), 3, "empty");
+
+    let t = Temp::new("go-newer-directive");
+    copy_tree(&case("go/completeness/go-only-no-egress"), &t.base);
+    let gomod = t.path("go.mod");
+    let declared = std::fs::read_to_string(&gomod).unwrap();
+    std::fs::write(&gomod, declared.replace("go 1.22", "go 1.27")).unwrap();
+    let (text, j) = both(&t.base, 0, "complete");
+    assert!(
+        text.contains("newer than the supported"),
+        "newer-Go caveat missing:\n{text}"
+    );
+    assert_eq!(
+        json(&j)["caveats"][0]["id"],
+        "go-version-newer-than-supported"
     );
 }
 

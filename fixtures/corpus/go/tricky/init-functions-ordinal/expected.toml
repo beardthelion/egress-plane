@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "init"
+mechanism = "go:net.Dial"
+destination = "first.example.com:443"
+
+[[sites]]
+file = "main.go"
+symbol = "init#2"
+mechanism = "go:net.Dial"
+destination = "second.example.com:443"

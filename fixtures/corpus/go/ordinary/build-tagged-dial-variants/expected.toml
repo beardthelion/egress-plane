@@ -1,0 +1,25 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "dial_linux.go"
+symbol = "dial"
+mechanism = "go:net.Dial"
+destination = "linux.example.com:443"
+
+[[sites]]
+file = "dial_windows.go"
+symbol = "dial"
+mechanism = "go:net.Dial"
+destination = "windows.example.com:443"
+
+[[sites]]
+file = "ignored.go"
+symbol = "ignored"
+mechanism = "go:net.Dial"
+destination = "ignored.example.com:443"
+
+[[blind_spots]]
+file = "main.go"
+symbol = "main"
+kind = "resolution-limit"

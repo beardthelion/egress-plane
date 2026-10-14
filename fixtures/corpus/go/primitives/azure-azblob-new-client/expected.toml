@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:github.com/Azure/azure-sdk-for-go/sdk/storage/azblob.NewClient"
+destination = "https://acct.blob.core.windows.net/"
+
+[[unscanned_dependencies]]
+language = "go"
+package = "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"

@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:github.com/segmentio/kafka-go.Dial"
+destination = "broker.example.com:9092"
+
+[[unscanned_dependencies]]
+language = "go"
+package = "github.com/segmentio/kafka-go"

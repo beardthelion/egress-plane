@@ -598,6 +598,22 @@ fn a_newer_go_directive_carries_a_caveat_and_keeps_the_state() {
     }
 }
 
+/// AE8 (R25): the Go-only corpus tree with no egress scans `complete`
+/// and exits 0, with one scanned Go file, no site, and no blind spot.
+#[test]
+fn go_only_tree_without_egress_is_complete() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../fixtures/corpus/go/completeness/go-only-no-egress/tree");
+    let r = scan(&root).unwrap();
+    assert_eq!(r.completeness.state, CompletenessState::Complete);
+    assert_eq!(r.exit_code(), 0);
+    assert_eq!(r.completeness.coverage.languages[Language::Go].scanned, 1);
+    assert_eq!(r.completeness.coverage.languages[Language::Go].skipped, 0);
+    assert!(r.sites.is_empty());
+    assert!(r.blind_spots.is_empty());
+    assert!(r.caveats.is_empty());
+}
+
 /// AE7 (R19, R20): `import "C"` beside an assembly file lists a
 /// native-code blind spot at the import and one for the `.s`, and
 /// neither moves the state off complete.

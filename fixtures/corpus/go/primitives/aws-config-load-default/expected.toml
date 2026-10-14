@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:github.com/aws/aws-sdk-go-v2/config.LoadDefaultConfig"
+destination = "expr:config.LoadDefaultConfig(context.Background())"
+
+[[unscanned_dependencies]]
+language = "go"
+package = "github.com/aws/aws-sdk-go-v2/config"

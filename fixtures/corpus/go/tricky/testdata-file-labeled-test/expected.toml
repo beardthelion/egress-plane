@@ -1,0 +1,9 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "testdata/fixture.go"
+symbol = "Connect"
+mechanism = "go:net.Dial"
+destination = "testdata.example.com:443"
+labels = ["test"]

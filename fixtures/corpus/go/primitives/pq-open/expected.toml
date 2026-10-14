@@ -1,0 +1,12 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:github.com/lib/pq.Open"
+destination = "postgres://db.example.com:5432/app"
+
+[[unscanned_dependencies]]
+language = "go"
+package = "github.com/lib/pq"
