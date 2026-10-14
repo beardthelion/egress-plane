@@ -445,3 +445,220 @@ fn runtime_range_is_checked_under_its_key_not_the_language_name() {
         "{v:?}"
     );
 }
+
+// ---- the recipe document (U12, R26, R28) -----------------------------------
+
+/// A `### Step N:` section runs from its heading to the next heading of
+/// any level. Returns (heading line, section text) pairs in order.
+fn recipe_steps(text: &str) -> Vec<(String, &str)> {
+    let mut bounds = Vec::new();
+    let mut offset = 0;
+    for line in text.split_inclusive('\n') {
+        if line.starts_with('#') {
+            bounds.push(offset);
+        }
+        offset += line.len();
+    }
+    bounds.push(text.len());
+    let mut steps = Vec::new();
+    for w in bounds.windows(2) {
+        let section = &text[w[0]..w[1]];
+        let heading = section.lines().next().unwrap_or_default().to_string();
+        if heading.starts_with("### Step ") {
+            steps.push((heading, section));
+        }
+    }
+    steps
+}
+
+/// The tokens between backticks on one line.
+fn backticked(line: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = line;
+    while let Some(i) = rest.find('`') {
+        rest = &rest[i + 1..];
+        let Some(j) = rest.find('`') else {
+            break;
+        };
+        out.push(rest[..j].to_string());
+        rest = &rest[j + 1..];
+    }
+    out
+}
+
+/// Every test function name in the crates' tests trees: besides the
+/// finding names, these are the only citations a `Fails when skipped:`
+/// line may use, so the recipe cannot cite a guard that does not exist.
+/// Only an attribute at a line's start counts, which keeps test
+/// attributes inside fixture string literals out of the list.
+fn test_names() -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    let mut stack = vec![repo().join("crates")];
+    while let Some(dir) = stack.pop() {
+        for e in std::fs::read_dir(&dir)
+            .unwrap_or_else(|err| panic!("{}: {err}", dir.display()))
+            .flatten()
+        {
+            let p = e.path();
+            if p.is_dir() {
+                stack.push(p);
+                continue;
+            }
+            let in_tests = p.components().any(|c| c.as_os_str() == "tests");
+            if !(in_tests && p.extension().is_some_and(|x| x == "rs")) {
+                continue;
+            }
+            let text =
+                std::fs::read_to_string(&p).unwrap_or_else(|err| panic!("{}: {err}", p.display()));
+            let mut test_attr = false;
+            for line in text.lines() {
+                let t = line.trim_start();
+                if t.starts_with("#[test]") {
+                    test_attr = true;
+                } else if test_attr && t.starts_with("fn ") {
+                    let name: String = t[3..]
+                        .chars()
+                        .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                        .collect();
+                    names.insert(name);
+                    test_attr = false;
+                } else if !(t.is_empty() || t.starts_with('#') || t.starts_with("//")) {
+                    // Attributes and doc comments may sit between the
+                    // attribute and the function; anything else ends it.
+                    test_attr = false;
+                }
+            }
+        }
+    }
+    names
+}
+
+/// Every way the recipe fails its side of the contract: a finding named
+/// in no step, a mechanical step without a guard line, a guard line
+/// citing a name that is neither a finding nor a real test, a missing
+/// next-language record, and the characters the writing rules forbid.
+fn recipe_violations(text: &str, tests: &BTreeSet<String>) -> Vec<String> {
+    let mut v = Vec::new();
+    for (ch, what) in [
+        ('\u{2014}', "em dash"),
+        ('\u{2013}', "en dash"),
+        ('\u{2018}', "curly single quote"),
+        ('\u{2019}', "curly single quote"),
+        ('\u{201C}', "curly double quote"),
+        ('\u{201D}', "curly double quote"),
+        ('\u{2026}', "ellipsis character"),
+    ] {
+        if text.contains(ch) {
+            v.push(format!("the document holds a {what} (U+{:04X})", ch as u32));
+        }
+    }
+    let steps = recipe_steps(text);
+    if steps.is_empty() {
+        v.push("the document has no `### Step` sections".to_string());
+    }
+    for name in FINDING_NAMES {
+        if !steps.iter().any(|(_, s)| s.contains(name)) {
+            v.push(format!("finding `{name}` is named in no step"));
+        }
+    }
+    for (heading, section) in &steps {
+        // The guard is a paragraph: it starts at `Fails when skipped:` and
+        // runs to the next blank line or heading, so a citation wrapped
+        // onto a continuation line is still checked.
+        let mut has_fails = false;
+        let mut in_fails = false;
+        for line in section.lines() {
+            let t = line.trim_start();
+            if t.starts_with("Fails when skipped:") {
+                has_fails = true;
+                in_fails = true;
+            } else if in_fails && (t.is_empty() || t.starts_with('#')) {
+                in_fails = false;
+            }
+            if in_fails {
+                for tok in backticked(t) {
+                    if !FINDING_NAMES.contains(&tok.as_str()) && !tests.contains(&tok) {
+                        v.push(format!(
+                            "{heading:?}: `{tok}` is no finding name and no test function"
+                        ));
+                    }
+                }
+            }
+        }
+        if !has_fails && !heading.contains("(judgment)") {
+            v.push(format!(
+                "mechanical step {heading:?} carries no `Fails when skipped:` line"
+            ));
+        }
+    }
+    if !text
+        .lines()
+        .any(|l| l.starts_with('#') && l.contains("Java") && l.to_lowercase().contains("next"))
+    {
+        v.push("no section names Java as the next language".to_string());
+    }
+    if !text.contains("Kotlin") {
+        v.push("Kotlin is never mentioned".to_string());
+    }
+    if !text.contains("parser") {
+        v.push("the parser question is not recorded".to_string());
+    }
+    v
+}
+
+fn recipe_text() -> String {
+    let path = repo().join("docs/adding-a-language.md");
+    std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{}: {e}", path.display()))
+}
+
+/// R26: the committed recipe names every finding inside a step section
+/// and cites only tests that exist. R28: it records Java as next.
+#[test]
+fn recipe_names_every_conformance_finding() {
+    let v = recipe_violations(&recipe_text(), &test_names());
+    assert!(v.is_empty(), "recipe violations:\n  {}", v.join("\n  "));
+}
+
+/// Removing one finding's coverage is reported by name.
+#[test]
+fn a_recipe_dropping_a_finding_name_fails_naming_it() {
+    let text = recipe_text().replace("label-entry-missing", "frontend-missing");
+    let v = recipe_violations(&text, &test_names());
+    assert!(v.iter().any(|s| s.contains("label-entry-missing")), "{v:?}");
+}
+
+/// A citation that is neither a finding name nor a real test is
+/// reported: the document cannot point at a guard that does not exist.
+#[test]
+fn a_recipe_citing_a_test_that_does_not_exist_fails_naming_it() {
+    let text = recipe_text().replacen(
+        "no_deny_list_module_is_wholly_inert",
+        "no_such_guard_exists",
+        1,
+    );
+    let v = recipe_violations(&text, &test_names());
+    assert!(
+        v.iter().any(|s| s.contains("no_such_guard_exists")),
+        "{v:?}"
+    );
+}
+
+/// Finding names in the introduction do not count: each must appear
+/// inside a step section.
+#[test]
+fn finding_names_outside_any_step_do_not_count() {
+    let text = recipe_text();
+    let first_step = text.find("### Step ").unwrap_or_else(|| panic!("no steps"));
+    let (head, tail) = text.split_at(first_step);
+    let mut tail = tail.to_string();
+    for name in FINDING_NAMES {
+        tail = tail.replace(name, "the omitted finding");
+    }
+    let text = format!("{head}\n{}\n{tail}", FINDING_NAMES.join(", "));
+    let v = recipe_violations(&text, &test_names());
+    let unreported: Vec<&&str> = FINDING_NAMES
+        .iter()
+        .filter(|n| !v.iter().any(|s| s.contains(**n)))
+        .collect();
+    assert!(unreported.is_empty(), "not reported: {unreported:?}\n{v:?}");
+}

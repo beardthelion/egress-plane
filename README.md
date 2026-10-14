@@ -177,3 +177,5 @@ cargo build --release --locked -p egress-cli     # binary: target/release/egress
 cargo test --workspace --locked
 cargo test -p egress-corpus --locked             # corpus gate; prints the false-positive count
 ```
+
+`docs/adding-a-language.md` is the recipe for adding a language; each mechanical step names the test or conformance finding that enforces it.
