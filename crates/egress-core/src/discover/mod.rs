@@ -6,6 +6,7 @@
 pub mod budgets;
 pub mod completeness;
 pub mod dependency_roots;
+pub mod encoding;
 pub mod hooks;
 pub mod labels;
 pub mod manifests;
@@ -1027,8 +1028,10 @@ impl Discovery {
         self.root.read_file(rel, limit)
     }
 
-    /// Reads one source file through the safe open path, strips a UTF-8 BOM,
-    /// and decodes it. UTF-8 is the only accepted encoding.
+    /// Reads one source file through the safe open path and decodes it.
+    /// Python files follow PEP 263 (a cookie on an allowlisted line picks
+    /// the codec; off-allowlist cookies are a whole-file gap); every
+    /// other language decodes UTF-8 with a BOM strip.
     pub fn read_source(&self, file: &SourceFile) -> Result<String, BlindSpotKind> {
         if self.unsafe_open {
             return Err(BlindSpotKind::UnsafeOpenUnavailable);
@@ -1041,6 +1044,9 @@ impl Discovery {
                 ReadError::TooLarge => BlindSpotKind::TooLarge,
                 ReadError::Unreadable => BlindSpotKind::Unreadable,
             })?;
+        if file.language == Language::Python {
+            return encoding::decode(&bytes);
+        }
         // A leading BOM is valid UTF-8, so decoding the whole buffer accepts
         // exactly what decoding the body after it would.
         let mut text = String::from_utf8(bytes).map_err(|_| BlindSpotKind::Undecodable)?;

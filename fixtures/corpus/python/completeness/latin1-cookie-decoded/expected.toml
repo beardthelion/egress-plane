@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "fetch"
+mechanism = "python:urllib.request.urlopen"
+destination = "https://api.example.com/café"

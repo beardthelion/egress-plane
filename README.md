@@ -64,6 +64,8 @@ The output is deterministic. Scanning the same tree twice gives byte-identical J
 
 ## Supported runtimes and hosts
 
+Python source files follow PEP 263: a `coding:` cookie on the first line, or on the second line when the first is blank or a comment, picks the decoder. Accepted codecs are UTF-8 (including `utf-8-*` names), Latin-1 (including `iso-8859-1` variants), and ASCII. A UTF-8 BOM is fine alongside a UTF-8 cookie. A cookie naming anything else, an unknown name, or a non-UTF-8 cookie combined with a BOM is a whole-file `unsupported-encoding` coverage gap: the bytes are never parsed as UTF-8. Every other language decodes UTF-8 only.
+
 The primitive lists and catalog describe CPython 3.8 to 3.13, Node 18 to 22, the Rust toolchain pinned in `rust-toolchain.toml` (1.97.1), and Go 1.18 to 1.26. The range is recorded in every report as `tool.runtime_range`. The scanner does not detect which runtime a repository targets, so code written for a runtime outside this range is scanned against these lists and the completeness state does not reflect the mismatch.
 
 Supported host operating systems are Linux and macOS. Windows is not supported yet.

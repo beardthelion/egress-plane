@@ -580,6 +580,7 @@
             "unreadable",
             "non-utf8-path",
             "too-deeply-nested",
+            "unsupported-encoding",
             "frontend-failure",
             "manifest-parse-error",
             "reference-outside-root",

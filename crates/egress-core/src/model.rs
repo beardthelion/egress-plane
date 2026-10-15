@@ -450,6 +450,9 @@ pub enum BlindSpotKind {
     Unreadable,
     NonUtf8Path,
     TooDeeplyNested,
+    /// A PEP 263 cookie names a codec off the allowlist, an unknown
+    /// codec, or conflicts with a UTF-8 BOM (KTD12).
+    UnsupportedEncoding,
     FrontendFailure,
     ManifestParseError,
     // Coverage gaps that are not whole-file.
@@ -493,7 +496,7 @@ pub enum BlindSpotKind {
 }
 
 impl BlindSpotKind {
-    pub const ALL: [BlindSpotKind; 31] = [
+    pub const ALL: [BlindSpotKind; 32] = [
         Self::ParseError,
         Self::UnsupportedFileType,
         Self::LoadedAsCode,
@@ -505,6 +508,7 @@ impl BlindSpotKind {
         Self::Unreadable,
         Self::NonUtf8Path,
         Self::TooDeeplyNested,
+        Self::UnsupportedEncoding,
         Self::FrontendFailure,
         Self::ManifestParseError,
         Self::ReferenceOutsideRoot,
@@ -540,6 +544,7 @@ impl BlindSpotKind {
             Self::Unreadable => "unreadable",
             Self::NonUtf8Path => "non-utf8-path",
             Self::TooDeeplyNested => "too-deeply-nested",
+            Self::UnsupportedEncoding => "unsupported-encoding",
             Self::FrontendFailure => "frontend-failure",
             Self::ManifestParseError => "manifest-parse-error",
             Self::ReferenceOutsideRoot => "reference-outside-root",
@@ -582,6 +587,7 @@ impl BlindSpotKind {
                 | Self::Unreadable
                 | Self::NonUtf8Path
                 | Self::TooDeeplyNested
+                | Self::UnsupportedEncoding
                 | Self::FrontendFailure
                 | Self::ManifestParseError
         )
