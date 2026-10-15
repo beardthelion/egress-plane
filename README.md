@@ -119,6 +119,8 @@ Two caveats attach to Go scans. When a parsed `go.mod` or `go.work` `go` directi
 
 Destinations and construct text are redacted before they are printed or hashed. The recognized classes are URL userinfo, values of listed query and fragment keys, runs that start with a known token prefix, provider-specific path secrets, keyword DSN values, and secrets split across a template's literal parts and holes. Each match is replaced by `<redacted>`.
 
+A positional entropy pass runs last: an alphanumeric run of 20 or more characters that mixes at least two of lowercase, uppercase, and digits and reaches 3.5 Shannon bits per character is redacted in query and fragment values under unlisted keys, URL path segments, keyword-DSN values under unlisted keys, string-literal bodies inside construct and `expr:` text, and env defaults. Hosts, schemes, all-hex runs such as commit hashes, UUIDs, and kebab or snake_case pieces stay. The thresholds live in `data/redaction.toml` under `[entropy]`; changing them re-keys every site identity whose destination text they touch.
+
 A secret that matches none of these classes is not recognized and can appear in the output. Treat reports from repositories that may hold credentials as sensitive.
 
 ## Limitations

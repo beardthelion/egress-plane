@@ -124,3 +124,13 @@ pattern = '''(?:^|[^A-Za-z0-9_])(?i:bearer|basic)\s+(?P<secret>[A-Za-z0-9._~+/=-
 [[path_secrets]]
 name = "authorization-header"
 pattern = '''(?i:authorization)["'`]?[ \t]*[:=][ \t]*["'`]?[A-Za-z][A-Za-z0-9_-]*[ \t]+(?P<secret>[^\s"'`{}<>]+)'''
+
+# Entropy pass thresholds (KTD13). A run of [A-Za-z0-9] at least min_run
+# long, mixing min_classes of lowercase/uppercase/digits, and reaching
+# min_bits_per_char Shannon bits per byte is redacted in the R17 positions.
+# Changing a value re-keys every site identity whose destination text it
+# touches; the corpus pins each boundary.
+[entropy]
+min_run = 20
+min_classes = 2
+min_bits_per_char = 3.5

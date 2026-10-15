@@ -756,3 +756,140 @@ fn quoted_key_pairs_redact_in_linear_time() {
     );
     assert!(large.as_secs() < 20, "large {large:?}");
 }
+
+// ---- entropy pass (KTD13, R17, AE9) ----------------------------------------
+
+#[test]
+fn entropy_redaction_positions() {
+    // AE9: an unlisted query key holding a 32-char mixed run is redacted.
+    assert_eq!(
+        redact("https://api.example.com/x?u=aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d"),
+        "https://api.example.com/x?u=<redacted>"
+    );
+    // A listed query key is already redacted by the param pass.
+    assert_eq!(
+        redact("https://api.example.com/x?token=aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d"),
+        "https://api.example.com/x?token=<redacted>"
+    );
+    // URL path segments.
+    assert_eq!(
+        redact("https://api.example.com/aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d/v2"),
+        "https://api.example.com/<redacted>/v2"
+    );
+    // A keyword DSN value under an unlisted key.
+    assert_eq!(
+        redact("host=db.example.com other=aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d"),
+        "host=db.example.com other=<redacted>"
+    );
+    // Construct and expr text: a string-literal body.
+    assert_eq!(
+        redact("eval(\"x aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d\")"),
+        "eval(\"x <redacted>\")"
+    );
+    // An env default.
+    assert_eq!(redact("aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d"), "<redacted>");
+}
+
+#[test]
+fn entropy_never_touches_host_scheme_or_ordinary_values() {
+    // AE9: a 40-char hex commit hash in a path segment is kept.
+    assert_eq!(
+        redact("https://api.example.com/a1b2c3d4e5f6a7b8c9d0a1b2c3d4e5f6a7b8/v2"),
+        "https://api.example.com/a1b2c3d4e5f6a7b8c9d0a1b2c3d4e5f6a7b8/v2"
+    );
+    // A hostname made of a long high-entropy label is kept.
+    assert_eq!(
+        redact("https://aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d.example.com/x"),
+        "https://aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d.example.com/x"
+    );
+    // A 19-char run is kept; a 20-char run is redacted.
+    assert_eq!(redact("aB3xK9mZ2vN8pQ4wE7r"), "aB3xK9mZ2vN8pQ4wE7r");
+    assert_eq!(redact("aB3xK9mZ2vN8pQ4wE7rT"), "<redacted>");
+    // A lowercase-only 32-char run is kept (one class).
+    assert_eq!(
+        redact("abcdefghijklmnopqrstuvwxyzabcdef"),
+        "abcdefghijklmnopqrstuvwxyzabcdef"
+    );
+    // A digit-only run is kept.
+    assert_eq!(
+        redact("12345678901234567890123456"),
+        "12345678901234567890123456"
+    );
+    // A UUID and a fixed sample of v4 UUIDs are kept (each piece is short).
+    assert_eq!(
+        redact("e58ed763-928e-4139-9444-e5f8f90b7d6a"),
+        "e58ed763-928e-4139-9444-e5f8f90b7d6a"
+    );
+    let mut x = 0x9e3779b97f4a7c15u64;
+    for _ in 0..1000 {
+        // A seeded v4-shaped UUID; every piece stays under 20.
+        let mut b = [0u8; 16];
+        for v in &mut b {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            *v = x as u8;
+        }
+        b[6] = b[6] & 0x0f | 0x40;
+        b[8] = b[8] & 0x3f | 0x80;
+        let u = format!(
+            "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+            b[0],
+            b[1],
+            b[2],
+            b[3],
+            b[4],
+            b[5],
+            b[6],
+            b[7],
+            b[8],
+            b[9],
+            b[10],
+            b[11],
+            b[12],
+            b[13],
+            b[14],
+            b[15]
+        );
+        assert_eq!(redact(&u), u, "{u}");
+    }
+    // Kebab and snake_case path segments with version digits are kept.
+    assert_eq!(
+        redact("https://api.example.com/service-v2-prod/report-2025-q4"),
+        "https://api.example.com/service-v2-prod/report-2025-q4"
+    );
+    // A CDN asset path with a short mixed-case hash is kept.
+    assert_eq!(
+        redact("https://cdn.example.com/a1B2x.png"),
+        "https://cdn.example.com/a1B2x.png"
+    );
+}
+
+#[test]
+fn entropy_run_boundaries_split_on_punctuation() {
+    // A base64url secret with one `-`: each piece at least min_run that
+    // clears the thresholds is redacted.
+    let out = redact("aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d-cD4eF6gH8iJ9kL0mN1oP2qR3sT4uV");
+    assert_eq!(out, "<redacted>-<redacted>");
+    // A JWT-shaped value in a query: each dot-separated segment judged.
+    // The eyJ prefix already claims the whole token when present.
+    let out = redact(
+        "https://api.example.com/x?u=hEaDeR.aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d.cD4eF6gH8iJ9kL0mN1oP2qR3sT4uV5",
+    );
+    assert_eq!(
+        out,
+        "https://api.example.com/x?u=hEaDeR.<redacted>.<redacted>"
+    );
+}
+
+#[test]
+fn entropy_idempotent_and_linear() {
+    let text = "u=aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d&p=ok https://h.io/aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d";
+    let once = redact(text);
+    assert_eq!(once, redact(&once));
+    // 1 MiB of adversarial runs completes in linear time.
+    let big = "aB3xK9mZ2vN8pQ4wE7rT6yU5zA1c2d-".repeat(40_000);
+    let start = std::time::Instant::now();
+    let _ = redact(&big);
+    assert!(start.elapsed().as_secs() < 20, "{:?}", start.elapsed());
+}
