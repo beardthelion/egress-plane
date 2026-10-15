@@ -21,6 +21,17 @@ use egress_core::resolve::{Program, ProgramFile, SpecifierRules};
 use crate::registry::FrontendError;
 use crate::{LoweredFile, ScanOptions};
 
+/// Per-stage microseconds for the test-only timing seam (KTD17).
+#[derive(Debug, Default, Clone, Copy)]
+pub struct StageMicros {
+    /// Per-file read + lower across workers.
+    pub workers: u64,
+    /// Frontend link hooks.
+    pub link: u64,
+    /// Member-level classification and reference resolution.
+    pub classify: u64,
+}
+
 /// What one tree pass produced: the lowered files, coverage and blind
 /// spots, budget list, and the classification result the report or the
 /// dependency section consumes.
@@ -30,6 +41,8 @@ pub struct TreePass {
     pub blind_spots: Vec<BlindSpot>,
     pub budget_exceeded: Vec<BudgetReason>,
     pub classified: Classified,
+    /// Per-stage microseconds for the test-only timing seam (KTD17).
+    pub stage_micros: StageMicros,
 }
 
 /// Specifier-rule overrides for a non-first-party pass: a language's
@@ -51,7 +64,10 @@ pub fn run(
     options: &ScanOptions,
     tree: &TreeOptions<'_>,
 ) -> Result<TreePass, ToolError> {
+    let tw0 = std::time::Instant::now();
     let outcomes = run_workers(d, options)?;
+    let workers_micros = tw0.elapsed().as_micros() as u64;
+    let tl0 = std::time::Instant::now();
 
     let mut coverage = d.coverage.clone();
     let mut blind_spots = d.blind_spots.clone();
@@ -104,6 +120,8 @@ pub fn run(
             }
         }
     }
+    let link_micros = tl0.elapsed().as_micros() as u64;
+    let tc0 = std::time::Instant::now();
     let mut program = Program::new(&d.index, &d.excluded_dirs);
     for lang in Language::ALL {
         if let Some((_, rules)) = tree.overrides.iter().find(|(l, _)| *l == lang) {
@@ -127,6 +145,7 @@ pub fn run(
     }
     let mut classified = classify(data, &program, tree.resolver_budget);
     drop(program);
+    let classify_micros = tc0.elapsed().as_micros() as u64;
     // Steps the link hooks charged count against the same budget.
     classified.resolver_steps = classified.resolver_steps.saturating_add(link_steps);
     blind_spots.extend(classified.blind_spots.iter().cloned());
@@ -144,6 +163,11 @@ pub fn run(
         blind_spots,
         budget_exceeded,
         classified,
+        stage_micros: StageMicros {
+            workers: workers_micros,
+            link: link_micros,
+            classify: classify_micros,
+        },
     })
 }
 

@@ -50,6 +50,25 @@ pub struct ScanOptions {
     pub dependency_roots: Vec<PathBuf>,
     /// Dependency pass budgets; the corpus overrides them per case.
     pub dependency_budgets: DependencyBudgets,
+    /// Test-only stage timing seam (KTD17): when set, `scan_with`
+    /// records per-stage wall times. The CLI never sets it.
+    pub timings: Option<std::sync::Arc<std::sync::Mutex<StageTimes>>>,
+}
+
+/// Per-stage wall times recorded under `ScanOptions::timings`.
+/// Fields sum to the `scan_with` total in microseconds.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct StageTimes {
+    /// Discovery: the walk plus manifest parsing.
+    pub discover: u64,
+    /// Per-file source read and lowering across workers.
+    pub workers: u64,
+    /// Frontend link hooks (module graphs, tsconfigs, go.mod).
+    pub link: u64,
+    /// Member-level classification and reference resolution.
+    pub classify: u64,
+    /// Dependency pass and report assembly.
+    pub assemble: u64,
 }
 
 impl Default for ScanOptions {
@@ -63,6 +82,7 @@ impl Default for ScanOptions {
             in_flight_bytes: DEFAULT_IN_FLIGHT_BYTES,
             dependency_roots: Vec::new(),
             dependency_budgets: DependencyBudgets::default(),
+            timings: None,
         }
     }
 }
@@ -101,7 +121,9 @@ fn data() -> Result<&'static Data, ToolError> {
 /// Scans `root` with explicit options.
 pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolError> {
     let data = data()?;
+    let t0 = std::time::Instant::now();
     let discovery = discover(root, &options.config)?;
+    let t1 = std::time::Instant::now();
     let pass = tree::run(
         data,
         &discovery,
@@ -111,6 +133,14 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
             resolver_budget: options.config.budgets.resolver_steps,
         },
     )?;
+    let t2 = std::time::Instant::now();
+    if let Some(tm) = &options.timings {
+        let mut tm = tm.lock().unwrap_or_else(|e| e.into_inner());
+        tm.discover = (t1 - t0).as_micros() as u64;
+        tm.workers = pass.stage_micros.workers;
+        tm.link = pass.stage_micros.link;
+        tm.classify = pass.stage_micros.classify;
+    }
     let coverage = pass.coverage;
     let blind_spots = pass.blind_spots;
     let files = pass.files;
@@ -197,6 +227,10 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
     // never changes state or exit code (R18, R19).
     apply_marks(data, &mut report);
     finalize(&mut report);
+    if let Some(tm) = &options.timings {
+        let mut tm = tm.lock().unwrap_or_else(|e| e.into_inner());
+        tm.assemble = t2.elapsed().as_micros() as u64;
+    }
     Ok(ScanOutput {
         report,
         files,

@@ -40,9 +40,10 @@ fn the_mix_is_recorded() {
 fn generated_paths_stay_in_tree() {
     for f in synth::tree("javascript", 500) {
         assert!(!f.path.starts_with('/'));
-        assert!(!Path::new(&f.path).components().any(|c| matches!(
-            c,
-            std::path::Component::ParentDir
-        )));
+        assert!(
+            !Path::new(&f.path)
+                .components()
+                .any(|c| matches!(c, std::path::Component::ParentDir))
+        );
     }
 }

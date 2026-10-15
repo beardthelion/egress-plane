@@ -62,11 +62,11 @@ fn file_path(language: &str, i: usize) -> String {
 /// Which of the five content classes file `i` belongs to.
 fn class_of(i: usize) -> usize {
     match i % 100 {
-        0..=9 => 0,  // direct egress site
+        0..=9 => 0,   // direct egress site
         10..=19 => 1, // wrapper definition
         20..=39 => 2, // wrapper caller
         40..=69 => 3, // importing module (chain depth <= 4)
-        _ => 4,      // inert
+        _ => 4,       // inert
     }
 }
 
@@ -100,7 +100,11 @@ fn py(i: usize, class: usize, rng: &mut Rng) -> String {
             let depth = 1 + rng.next() % 4;
             let mut s = String::new();
             for d in 0..depth {
-                s.push_str(&format!("import pkg{:03}.mod{}\n", (i + d as usize) / 40, i + d as usize));
+                s.push_str(&format!(
+                    "import pkg{:03}.mod{}\n",
+                    (i + d as usize) / 40,
+                    i + d as usize
+                ));
             }
             s
         }
@@ -173,12 +177,7 @@ fn go(i: usize, class: usize, rng: &mut Rng) -> String {
         ),
         3 => {
             let depth = 1 + rng.next() % 4;
-            format!(
-                "package pkg{:03}\n\nconst Depth{} = {}\n",
-                i / 40,
-                i,
-                depth
-            )
+            format!("package pkg{:03}\n\nconst Depth{} = {}\n", i / 40, i, depth)
         }
         _ => format!(
             "package pkg{:03}\n\nfunc F{i}(x int) int {{\n\treturn x + {}\n}}\n",
