@@ -432,6 +432,60 @@ pub struct Site {
     pub ordinal: u32,
     pub labels: Vec<Label>,
     pub location: Option<Location>,
+    /// Set only on a derived site: the inner `param:` site and wrapper
+    /// chain it was derived from (KTD10). `None` marks a direct site.
+    pub via: Option<Via>,
+}
+
+/// Why a wrapper-chain walk stopped early (KTD8); absent on a derived
+/// site whose walk reached the caller's own destination.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DerivedCut {
+    /// The chain reached `hop_limit` from `data/wrappers.toml`.
+    HopLimit,
+    /// A (file, function, parameter index) already in the chain.
+    Recursion,
+}
+
+impl DerivedCut {
+    pub const ALL: [DerivedCut; 2] = [Self::HopLimit, Self::Recursion];
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::HopLimit => "hop-limit",
+            Self::Recursion => "recursion",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|v| v.as_str() == s)
+    }
+}
+
+/// One hop in a derived site's wrapper chain: a wrapper function the
+/// caller's argument passed through.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ViaHop {
+    /// Repo-relative `/`-separated file of the wrapper at this hop.
+    pub file: String,
+    /// Symbol path of the wrapper at this hop.
+    pub symbol: String,
+}
+
+/// Provenance of a derived site (R10, KTD10): the inner `param:` site it
+/// refines, the caller's argument index, and the wrapper chain.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Via {
+    /// Id of the inner `param:` site, assigned by phase 1 of
+    /// [`crate::identity::finalize`] (KTD9).
+    pub inner_site: String,
+    /// 1-based index of the caller argument that reached the inner site.
+    pub argument: u32,
+    /// Wrapper hops, the caller's callee first and the innermost wrapper
+    /// last.
+    pub chain: Vec<ViaHop>,
+    /// Why the walk stopped early; `None` when it reached the caller.
+    pub cut: Option<DerivedCut>,
 }
 
 /// Fixed blind-spot reasons (parser messages and I/O error text never

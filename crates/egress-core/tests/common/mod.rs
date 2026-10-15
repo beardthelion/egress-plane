@@ -38,6 +38,7 @@ pub fn site(
         ordinal: 0,
         labels: vec![],
         location: Some(Location { line, column: 5 }),
+        via: None,
     }
 }
 
@@ -305,6 +306,32 @@ pub fn dependency_section() -> DependencySection {
             },
         ],
         packages: vec![linked, dependency_package()],
+    }
+}
+
+/// A derived-site provenance (KTD10): `inner_site` is the inner `param:`
+/// site's phase-1 id, `argument` the caller's 1-based index, and `chain`
+/// the wrapper hops from the caller's callee to the innermost wrapper.
+pub fn via(inner_site: &str, argument: u32, chain: &[(&str, &str)]) -> Via {
+    Via {
+        inner_site: inner_site.into(),
+        argument,
+        chain: chain
+            .iter()
+            .map(|(file, symbol)| ViaHop {
+                file: (*file).into(),
+                symbol: (*symbol).into(),
+            })
+            .collect(),
+        cut: None,
+    }
+}
+
+/// `site` with a `via` attached, making it a derived site.
+pub fn derived(site: Site, via: Via) -> Site {
+    Site {
+        via: Some(via),
+        ..site
     }
 }
 

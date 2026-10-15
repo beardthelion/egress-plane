@@ -468,6 +468,56 @@
         }
       }
     },
+    "via": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inner_site",
+        "argument",
+        "chain"
+      ],
+      "properties": {
+        "inner_site": {
+          "$ref": "#/$defs/id",
+          "description": "Id of the inner param: site this derived site refines."
+        },
+        "argument": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "1-based index of the caller argument that reached the inner site."
+        },
+        "chain": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Wrapper hops from the caller's callee to the innermost wrapper.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "file",
+              "symbol"
+            ],
+            "properties": {
+              "file": {
+                "type": "string",
+                "minLength": 1
+              },
+              "symbol": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "cut": {
+          "enum": [
+            "hop-limit",
+            "recursion"
+          ],
+          "description": "Why the wrapper walk stopped early; absent when it reached the caller."
+        }
+      }
+    },
     "site": {
       "type": "object",
       "additionalProperties": false,
@@ -523,6 +573,9 @@
         },
         "location": {
           "$ref": "#/$defs/location"
+        },
+        "via": {
+          "$ref": "#/$defs/via"
         }
       }
     },

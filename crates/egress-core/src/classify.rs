@@ -463,6 +463,7 @@ impl<'p, 'a> State<'p, 'a> {
             ordinal: 0,
             labels: labels_at(cx, &rf.symbol),
             location: Some(rf.location),
+            via: None,
         });
     }
 

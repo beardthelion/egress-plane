@@ -132,6 +132,25 @@ struct JSite<'a> {
     ordinal: u32,
     labels: Vec<&'static str>,
     location: Option<JLocation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    via: Option<JVia<'a>>,
+}
+
+/// A derived site's provenance (KTD10): the inner site's phase-1 id, the
+/// caller's 1-based argument index, and the wrapper chain.
+#[derive(Serialize)]
+struct JVia<'a> {
+    inner_site: &'a str,
+    argument: u32,
+    chain: Vec<JViaHop<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cut: Option<&'static str>,
+}
+
+#[derive(Serialize)]
+struct JViaHop<'a> {
+    file: String,
+    symbol: &'a str,
 }
 
 #[derive(Serialize)]
@@ -276,6 +295,22 @@ fn labels(l: &[model::Label]) -> Vec<&'static str> {
     l.iter().map(|l| l.as_str()).collect()
 }
 
+fn jvia(v: &model::Via) -> JVia<'_> {
+    JVia {
+        inner_site: &v.inner_site,
+        argument: v.argument,
+        chain: v
+            .chain
+            .iter()
+            .map(|h| JViaHop {
+                file: escape(&h.file),
+                symbol: &h.symbol,
+            })
+            .collect(),
+        cut: v.cut.map(|c| c.as_str()),
+    }
+}
+
 fn jsite(s: &model::Site) -> JSite<'_> {
     JSite {
         id: &s.id,
@@ -294,6 +329,7 @@ fn jsite(s: &model::Site) -> JSite<'_> {
         ordinal: s.ordinal,
         labels: labels(&s.labels),
         location: location(s.location),
+        via: s.via.as_ref().map(jvia),
     }
 }
 

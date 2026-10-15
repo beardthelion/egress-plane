@@ -547,6 +547,10 @@ fn schema_enums_match_the_model() {
             Bucket::Catalogued.as_str()
         ])
     );
+    assert_eq!(
+        list(&defs["via"]["properties"]["cut"]["enum"]),
+        strs(DerivedCut::ALL.iter().map(|k| k.as_str()).collect())
+    );
     let deps = &props["dependencies"]["properties"];
     let pkg = &defs["dependency_package"]["properties"];
     assert_eq!(
@@ -595,6 +599,209 @@ fn schema_enums_match_the_model() {
         list(&pkg["state"]["enum"]),
         strs(CompletenessState::ALL.iter().map(|k| k.as_str()).collect())
     );
+}
+
+// ---- U5: derived sites -----------------------------------------------------
+
+/// A report shaped like the corpus case `python/tricky/wrapper-param`: one
+/// direct site whose destination is `param:1:post_json`, nothing else.
+fn wrapper_param_report() -> egress_core::model::Report {
+    let mut r = common::report(
+        vec![common::site(
+            "api.py",
+            "post_json",
+            "python:requests.post",
+            egress_core::destination::param(1, "post_json"),
+            5,
+        )],
+        vec![],
+    );
+    r.completeness.state = egress_core::model::CompletenessState::Complete;
+    r
+}
+
+/// The serialized bytes of `wrapper_param_report` before derived sites
+/// existed. Adding `via` to the model changed no existing output, so a
+/// report with only direct sites stays byte-identical (KTD9, KTD10).
+const NO_DERIVED_SNAPSHOT: &str = r#"{
+  "schema_version": 1,
+  "tool": {
+    "name": "egress-plane",
+    "version": "0.1.0",
+    "data_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "runtime_range": {
+      "python": "3.8 to 3.13",
+      "node": "18 to 22",
+      "rust": "1.97.1"
+    }
+  },
+  "completeness": {
+    "state": "complete",
+    "budget_exceeded": [],
+    "coverage": {
+      "python": {
+        "scanned": 3,
+        "skipped": 1
+      },
+      "javascript": {
+        "scanned": 0,
+        "skipped": 0
+      },
+      "rust": {
+        "scanned": 0,
+        "skipped": 0
+      },
+      "go": {
+        "scanned": 0,
+        "skipped": 0
+      },
+      "unsupported": {
+        "scanned": 0,
+        "skipped": 0
+      }
+    }
+  },
+  "caveats": [],
+  "sites": [
+    {
+      "id": "63cc1e3e8f814980",
+      "language": "python",
+      "file": "api.py",
+      "symbol": "post_json",
+      "bucket": "catalogued",
+      "mechanism": "python:requests.post",
+      "destination": {
+        "kind": "param",
+        "value": "1:post_json",
+        "display": "param:1:post_json"
+      },
+      "ordinal": 0,
+      "labels": [],
+      "location": {
+        "line": 5,
+        "column": 5
+      }
+    }
+  ],
+  "blind_spots": [],
+  "unscanned_dependencies": [],
+  "excluded": []
+}
+"#;
+
+#[test]
+fn a_report_without_derived_sites_matches_the_snapshot() {
+    let json = to_json(&wrapper_param_report());
+    assert!(!json.contains("\"via\""), "{json}");
+    assert_eq!(json, NO_DERIVED_SNAPSHOT);
+}
+
+/// A report whose one site is a derived site of the `wrapper-param` inner
+/// site: `via` carries the inner phase-1 id, the caller's argument index,
+/// the chain, and the cut.
+fn derived_report(cut: Option<egress_core::model::DerivedCut>) -> egress_core::model::Report {
+    use egress_core::destination as d;
+    use egress_core::model::Via;
+    let mut r = wrapper_param_report();
+    egress_core::identity::finalize(&mut r);
+    let inner_id = r.sites[0].id.clone();
+    let mut via: Via = common::via(&inner_id, 1, &[("api.py", "post_json")]);
+    via.cut = cut;
+    r.sites.push(common::derived(
+        common::site(
+            "cli.py",
+            "main",
+            "python:requests.post",
+            d::literal("https://hook.invalid"),
+            9,
+        ),
+        via,
+    ));
+    r
+}
+
+#[test]
+fn a_derived_site_serializes_via_after_the_existing_fields() {
+    let r = derived_report(Some(egress_core::model::DerivedCut::HopLimit));
+    let inner_id = r.sites[0].id.clone();
+    let json = to_json(&r);
+    common::validate(&json).unwrap_or_else(|e| panic!("{e}\n{json}"));
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let site = v["sites"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s.get("via").is_some())
+        .unwrap();
+    assert_eq!(site["via"]["inner_site"].as_str().unwrap(), inner_id);
+    assert_eq!(site["via"]["argument"], 1);
+    assert_eq!(
+        site["via"]["chain"],
+        serde_json::json!([{"file": "api.py", "symbol": "post_json"}])
+    );
+    assert_eq!(site["via"]["cut"], "hop-limit");
+    // `via` is additive and comes after the existing site fields.
+    let pos = |k: &str| json.find(k).unwrap();
+    assert!(pos("\"location\"") < pos("\"via\""));
+}
+
+#[test]
+fn via_without_a_cut_serializes_and_validates() {
+    let json = to_json(&derived_report(None));
+    common::validate(&json).unwrap_or_else(|e| panic!("{e}\n{json}"));
+    let v: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let site = v["sites"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s.get("via").is_some())
+        .unwrap();
+    assert!(site["via"].get("cut").is_none());
+}
+
+#[test]
+fn via_schema_rejects_an_unknown_cut_and_bad_shape() {
+    let base: serde_json::Value = serde_json::from_str(&to_json(&derived_report(None))).unwrap();
+    let i = base["sites"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|s| s.get("via").is_some())
+        .unwrap();
+    let mut bad = Vec::new();
+    let mut v = base.clone();
+    v["sites"][i]["via"]["cut"] = "other".into();
+    bad.push(v);
+    let mut v = base.clone();
+    v["sites"][i]["via"]["argument"] = 0.into();
+    bad.push(v);
+    let mut v = base.clone();
+    v["sites"][i]["via"]["inner_site"] = "not-an-id".into();
+    bad.push(v);
+    let idx = i.to_string();
+    let mut v = base.clone();
+    remove(&mut v, &["sites", idx.as_str(), "via", "inner_site"]);
+    bad.push(v);
+    let mut v = base.clone();
+    v["sites"][i]["via"]["chain"] = serde_json::json!([]);
+    bad.push(v);
+    let mut v = base.clone();
+    v["sites"][i]["via"]["surprise"] = 1.into();
+    bad.push(v);
+    let mut v = base.clone();
+    v["sites"][i]["via"]["chain"][0]["surprise"] = 1.into();
+    bad.push(v);
+    for v in bad {
+        assert!(common::validate_value(&v).is_err(), "{v}");
+    }
+    // A site without `via` still validates.
+    let mut v = base.clone();
+    v["sites"][i].as_object_mut().unwrap().remove("via");
+    common::validate_value(&v).unwrap();
+    // Recursion is the other accepted cut reason (KTD8).
+    let mut v = base.clone();
+    v["sites"][i]["via"]["cut"] = "recursion".into();
+    common::validate_value(&v).unwrap();
 }
 
 /// The `go` keys are additive and optional: a report carrying them

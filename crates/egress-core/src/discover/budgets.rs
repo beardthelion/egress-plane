@@ -2,7 +2,7 @@
 
 use serde::Deserialize;
 
-use crate::model::Report;
+use crate::model::{Report, Site};
 
 /// Raw text of `data/budgets.toml`.
 pub const BUDGETS_TOML: &str = include_str!("../../../../data/budgets.toml");
@@ -122,8 +122,11 @@ impl Charger {
 
 /// Applies the findings cap to a report already sorted by
 /// [`crate::identity::finalize`]. Findings are counted in a fixed order: blind
-/// spots, then sites, then unscanned dependencies, each in identity order, and
-/// the first `cap` are kept. Returns true when the cap cut anything.
+/// spots, then direct sites, then unscanned dependencies, then derived sites
+/// (KTD11), each in identity order, and the first `cap` are kept. A derived
+/// site is dropped before a direct site or an unscanned dependency, so a
+/// child never outlives its inner site and never displaces the only record
+/// of a coverage gap. Returns true when the cap cut anything.
 pub fn apply_findings_budget(report: &mut Report, cap: u64) -> bool {
     let cap = usize::try_from(cap).unwrap_or(usize::MAX);
     let total = report.blind_spots.len() + report.sites.len() + report.unscanned_dependencies.len();
@@ -134,9 +137,26 @@ pub fn apply_findings_budget(report: &mut Report, cap: u64) -> bool {
     let keep = report.blind_spots.len().min(left);
     report.blind_spots.truncate(keep);
     left -= keep;
-    let keep = report.sites.len().min(left);
-    report.sites.truncate(keep);
+    let keep_sites = report
+        .sites
+        .iter()
+        .filter(|s| s.via.is_none())
+        .count()
+        .min(left);
+    left -= keep_sites;
+    let keep = report.unscanned_dependencies.len().min(left);
+    report.unscanned_dependencies.truncate(keep);
     left -= keep;
-    report.unscanned_dependencies.truncate(left);
+    // finalize keeps the derived sites at the tail of `sites`; splitting
+    // rather than truncating keeps the order right even on a mis-sorted
+    // input: the first `keep_sites` direct sites and the first `left`
+    // derived sites survive.
+    let (mut derived, mut sites): (Vec<Site>, Vec<Site>) = std::mem::take(&mut report.sites)
+        .into_iter()
+        .partition(|s| s.via.is_some());
+    sites.truncate(keep_sites);
+    derived.truncate(left);
+    sites.append(&mut derived);
+    report.sites = sites;
     true
 }

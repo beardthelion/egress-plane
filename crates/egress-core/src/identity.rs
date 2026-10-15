@@ -136,6 +136,8 @@ fn opt(v: Option<&str>) -> Vec<u8> {
     }
 }
 
+/// Identity components of a direct site (`via` none). A derived site keys
+/// on [`derived_site_components`] instead, under a different tag.
 fn site_components(s: &Site) -> Vec<Vec<u8>> {
     vec![
         b"site".to_vec(),
@@ -147,6 +149,30 @@ fn site_components(s: &Site) -> Vec<Vec<u8>> {
         s.destination.value.as_bytes().to_vec(),
         opt(s.destination.default.as_deref()),
     ]
+}
+
+/// Phase-2 identity components of a derived site (KTD9): the
+/// `derived-site` tag, the inner site's phase-1 id, the caller's file and
+/// symbol, the caller's argument index, the wrapper chain, then the
+/// mechanism and destination. The tag keeps a derived key disjoint from
+/// every direct-site key built from the same field values.
+fn derived_site_components(s: &Site) -> Vec<Vec<u8>> {
+    let via = s.via.as_ref().expect("a derived site carries via");
+    let mut c = Vec::with_capacity(9 + via.chain.len() * 2);
+    c.push(b"derived-site".to_vec());
+    c.push(via.inner_site.as_bytes().to_vec());
+    c.push(raw_path(&s.file, s.file_bytes.as_deref()));
+    c.push(s.symbol.as_bytes().to_vec());
+    c.push(via.argument.to_string().into_bytes());
+    for hop in &via.chain {
+        c.push(hop.file.as_bytes().to_vec());
+        c.push(hop.symbol.as_bytes().to_vec());
+    }
+    c.push(s.mechanism.as_bytes().to_vec());
+    c.push(s.destination.kind.as_str().into());
+    c.push(s.destination.value.as_bytes().to_vec());
+    c.push(opt(s.destination.default.as_deref()));
+    c
 }
 
 fn blind_spot_components(b: &BlindSpot) -> Vec<Vec<u8>> {
@@ -171,9 +197,15 @@ fn with_ordinal(mut c: Vec<Vec<u8>>, ordinal: u32) -> Vec<u8> {
     join(&c)
 }
 
-/// The canonical identity key of a site, including its ordinal.
+/// The canonical identity key of a direct site, including its ordinal.
 pub fn site_key(site: &Site) -> Vec<u8> {
     with_ordinal(site_components(site), site.ordinal)
+}
+
+/// The canonical identity key of a derived site, including its ordinal
+/// (KTD9). `site.via` must be set.
+pub fn derived_site_key(site: &Site) -> Vec<u8> {
+    with_ordinal(derived_site_components(site), site.ordinal)
 }
 
 /// The canonical identity key of a blind spot, including its ordinal.
@@ -259,6 +291,12 @@ fn site_sort_key(s: &Site) -> Vec<Vec<u8>> {
     site_components(s).split_off(1)
 }
 
+fn derived_site_sort_key(s: &Site) -> Vec<Vec<u8>> {
+    // The derived site's own key (KTD9): inner id, caller file and symbol,
+    // argument index, chain, mechanism, destination.
+    derived_site_components(s).split_off(1)
+}
+
 fn blind_spot_sort_key(b: &BlindSpot) -> Vec<Vec<u8>> {
     vec![
         b.language.map(|l| l.as_str()).unwrap_or("").into(),
@@ -273,16 +311,20 @@ fn location_key(l: Option<crate::model::Location>) -> (u32, u32) {
     l.map(|l| (l.line, l.column)).unwrap_or((0, 0))
 }
 
-/// Sorts labels, orders sites by identity components with source position
-/// breaking sibling ties, then assigns ordinals and ids with `components`.
-fn finalize_sites(sites: &mut [Site], components: impl Fn(&Site) -> Vec<Vec<u8>>) {
+/// Sorts labels, orders sites by `sort_key` with source position breaking
+/// sibling ties, then assigns ordinals and ids with `components`.
+fn finalize_sites_keyed(
+    sites: &mut [Site],
+    sort_key: impl Fn(&Site) -> Vec<Vec<u8>>,
+    components: impl Fn(&Site) -> Vec<Vec<u8>>,
+) {
     for s in sites.iter_mut() {
         s.labels.sort_by_key(|l| l.as_str());
         s.labels.dedup();
     }
     sites.sort_by_cached_key(|s| {
         (
-            site_sort_key(s),
+            sort_key(s),
             location_key(s.location),
             s.labels.iter().map(|l| l.as_str()).collect::<Vec<_>>(),
             s.bucket.as_str(),
@@ -296,6 +338,10 @@ fn finalize_sites(sites: &mut [Site], components: impl Fn(&Site) -> Vec<Vec<u8>>
         *n += 1;
         s.id = hash_id(&with_ordinal(c, s.ordinal));
     }
+}
+
+fn finalize_sites(sites: &mut [Site], components: impl Fn(&Site) -> Vec<Vec<u8>>) {
+    finalize_sites_keyed(sites, site_sort_key, components);
 }
 
 fn finalize_blind_spots(spots: &mut [BlindSpot], components: impl Fn(&BlindSpot) -> Vec<Vec<u8>>) {
@@ -431,12 +477,32 @@ fn finalize_dependencies(deps: &mut DependencySection) {
     });
 }
 
+/// Phase 1 of the two-phase finalize for a site list (KTD9): the direct
+/// sites (`via` none) are sorted and keyed exactly as `finalize` has
+/// always done, and any derived sites move to the tail unfinished, in
+/// input order. The derived-site pass runs this first so a
+/// `via.inner_site` names a stable phase-1 id; `finalize` runs phase 2 on
+/// the derived sites afterward.
+pub fn finalize_direct_sites(sites: &mut Vec<Site>) {
+    let (mut derived, mut direct): (Vec<Site>, Vec<Site>) = std::mem::take(sites)
+        .into_iter()
+        .partition(|s| s.via.is_some());
+    finalize_sites(&mut direct, site_components);
+    direct.append(&mut derived);
+    *sites = direct;
+}
+
 /// Assigns ordinals and ids to every finding, then sorts every collection
-/// byte-wise by identity components. Ordinals among identical
-/// siblings follow source position; nothing else depends on position or on
-/// insertion order. Idempotent.
+/// byte-wise by identity components. Phase 1 keys the direct sites, blind
+/// spots, and every other collection exactly as the single-phase finalize
+/// did; phase 2 (KTD9) keys the derived sites (`via` set) by their
+/// `derived-site` components and appends them after the direct sites.
+/// Ordinals among identical siblings follow source position; nothing else
+/// depends on position or on insertion order. Idempotent.
 pub fn finalize(report: &mut Report) {
-    finalize_sites(&mut report.sites, site_components);
+    // Phase 1: direct sites and every other collection. Derived sites
+    // wait for phase 2 so a `via.inner_site` can name a phase-1 id.
+    finalize_direct_sites(&mut report.sites);
     finalize_blind_spots(&mut report.blind_spots, blind_spot_components);
 
     for d in &mut report.unscanned_dependencies {
@@ -469,4 +535,16 @@ pub fn finalize(report: &mut Report) {
     if let Some(deps) = &mut report.dependencies {
         finalize_dependencies(deps);
     }
+
+    // Phase 2 (KTD9): derived sites sit at the tail after phase 1. Key
+    // them by their `derived-site` components and keep them after the
+    // direct sites.
+    let tail = report
+        .sites
+        .iter()
+        .position(|s| s.via.is_some())
+        .unwrap_or(report.sites.len());
+    let mut derived = report.sites.split_off(tail);
+    finalize_sites_keyed(&mut derived, derived_site_sort_key, derived_site_components);
+    report.sites.append(&mut derived);
 }

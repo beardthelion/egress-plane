@@ -7,14 +7,15 @@ use std::path::{Path, PathBuf};
 
 use egress_core::destination as d;
 use egress_core::identity::{
-    auto_run_key, dependency_blind_spot_key, dependency_key, dependency_site_key,
-    encode_path_bytes, encode_rel_path, finalize, hash_id, key_with_version, site_key,
+    auto_run_key, dependency_blind_spot_key, dependency_key, dependency_site_key, derived_site_key,
+    encode_path_bytes, encode_rel_path, finalize, finalize_direct_sites, hash_id, key_with_version,
+    site_key,
 };
 use egress_core::ir::LineIndex;
 use egress_core::json::to_json;
 use egress_core::model::{
-    AutoRun, AutoRunTrigger, BlindSpotKind, DependencyPackage, DependencySection, Location, Report,
-    Site,
+    AutoRun, AutoRunTrigger, BlindSpotKind, DependencyPackage, DependencySection, DerivedCut,
+    Location, Report, Site,
 };
 
 fn ids(r: &Report) -> BTreeSet<String> {
@@ -612,4 +613,197 @@ fn non_utf8_path_has_display_hex_and_a_distinct_id() {
         with_bytes[0]["file_bytes"].as_str().unwrap(),
         "7372632fff612e7079"
     );
+}
+
+// ---- derived sites (KTD9, KTD10) ------------------------------------------
+
+/// The inner `param:` site a wrapper's own egress call produces: the
+/// derived sites point at its phase-1 id through `via.inner_site`.
+fn inner() -> Site {
+    common::site(
+        "api.py",
+        "post_json",
+        "python:requests.post",
+        d::param(1, "post_json"),
+        5,
+    )
+}
+
+/// A derived site: caller `main` in `cli.py` reached the inner site
+/// through the `post_json` wrapper by its `argument`-th parameter.
+fn caller(inner_id: &str, argument: u32, dest: egress_core::model::Destination) -> Site {
+    common::derived(
+        common::site("cli.py", "main", "python:requests.post", dest, 9),
+        common::via(inner_id, argument, &[("api.py", "post_json")]),
+    )
+}
+
+fn finalize_with(r: &mut Report, sites: Vec<Site>) {
+    r.sites.extend(sites);
+    finalize(r);
+}
+
+#[test]
+fn a_derived_site_keys_on_derived_components_and_sorts_last() {
+    let mut r = finalized(vec![inner()]);
+    let inner_id = r.sites[0].id.clone();
+    let mut der = caller(&inner_id, 1, d::literal("https://hook.invalid"));
+    der.via.as_mut().unwrap().cut = Some(DerivedCut::HopLimit);
+    finalize_with(&mut r, vec![der]);
+    assert_eq!(r.sites.len(), 2);
+    let der = &r.sites[1];
+    assert!(der.via.is_some(), "derived sites sort after direct sites");
+    // The phase-2 id comes from `derived-site` components (KTD9).
+    assert_eq!(der.id, hash_id(&derived_site_key(der)));
+    // The same field values keyed as a direct site would differ, and the
+    // inner id is not reused.
+    assert_ne!(der.id, hash_id(&site_key(der)));
+    assert_ne!(der.id, inner_id);
+}
+
+#[test]
+fn derived_sites_differing_only_in_argument_get_different_ids() {
+    let mut r = finalized(vec![inner()]);
+    let inner_id = r.sites[0].id.clone();
+    finalize_with(
+        &mut r,
+        vec![
+            caller(&inner_id, 1, d::literal("https://hook.invalid")),
+            caller(&inner_id, 2, d::literal("https://hook.invalid")),
+        ],
+    );
+    assert_eq!(r.sites[1].via.as_ref().unwrap().argument, 1);
+    assert_eq!(r.sites[2].via.as_ref().unwrap().argument, 2);
+    assert_ne!(r.sites[1].id, r.sites[2].id);
+}
+
+#[test]
+fn a_derived_twin_of_a_direct_site_gets_a_new_id_and_sorts_after() {
+    let direct = || {
+        common::site(
+            "cli.py",
+            "main",
+            "python:requests.post",
+            d::literal("https://hook.invalid"),
+            9,
+        )
+    };
+    let mut r = finalized(vec![inner(), direct()]);
+    let direct_id = r
+        .sites
+        .iter()
+        .find(|s| s.symbol == "main")
+        .unwrap()
+        .id
+        .clone();
+    let inner_id = r
+        .sites
+        .iter()
+        .find(|s| s.symbol == "post_json")
+        .unwrap()
+        .id
+        .clone();
+    // Same file, symbol, mechanism, and destination as the direct site.
+    let twin = common::derived(
+        direct(),
+        common::via(&inner_id, 1, &[("api.py", "post_json")]),
+    );
+    finalize_with(&mut r, vec![twin]);
+    assert_eq!(r.sites.len(), 3);
+    let der = r.sites.last().unwrap();
+    assert!(der.via.is_some());
+    assert_ne!(der.id, direct_id);
+}
+
+#[test]
+fn adding_a_direct_site_elsewhere_changes_no_derived_id() {
+    let build = |extra: Option<Site>| {
+        let mut r = finalized(vec![inner()]);
+        if let Some(e) = extra {
+            r.sites.push(e);
+            finalize(&mut r);
+        }
+        let inner_id = r
+            .sites
+            .iter()
+            .find(|s| s.symbol == "post_json")
+            .unwrap()
+            .id
+            .clone();
+        finalize_with(
+            &mut r,
+            vec![caller(&inner_id, 1, d::literal("https://hook.invalid"))],
+        );
+        r.sites.iter().find(|s| s.via.is_some()).unwrap().id.clone()
+    };
+    let a = build(None);
+    let b = build(Some(common::site(
+        "other/x.py",
+        "x",
+        "python:requests.get",
+        d::literal("https://o.invalid"),
+        1,
+    )));
+    assert_eq!(a, b);
+}
+
+#[test]
+fn derived_ids_and_order_do_not_depend_on_insertion_order() {
+    let r = finalized(vec![inner()]);
+    let inner_id = r.sites[0].id.clone();
+    let pair = || {
+        vec![
+            caller(&inner_id, 1, d::literal("https://b.invalid")),
+            caller(&inner_id, 1, d::literal("https://a.invalid")),
+        ]
+    };
+    let mut a = r.clone();
+    a.sites.extend(pair());
+    finalize(&mut a);
+    let mut b = r.clone();
+    let mut rev = pair();
+    rev.reverse();
+    b.sites.extend(rev);
+    finalize(&mut b);
+    assert_eq!(to_json(&a), to_json(&b));
+    // The byte-wise smaller destination sorts first among derived sites.
+    assert_eq!(a.sites[1].destination.value, "https://a.invalid");
+}
+
+#[test]
+fn phase1_keys_direct_sites_and_passes_derived_through_unfinished() {
+    // `finalize_direct_sites` is the seam the derived-site pass calls
+    // (KTD9): after it runs, `via.inner_site` can name a stable phase-1
+    // id, and phase 2 inside `finalize` keys the derived sites.
+    let mut sites = vec![inner()];
+    let der = caller("placeholder", 1, d::literal("https://hook.invalid"));
+    sites.push(der);
+    finalize_direct_sites(&mut sites);
+    assert_eq!(sites[0].id.len(), 16);
+    assert!(sites[1].via.is_some());
+    assert!(sites[1].id.is_empty(), "phase 2 has not run");
+    // The phase-1 id equals the id `finalize` assigns the same site.
+    let r = finalized(vec![inner()]);
+    assert_eq!(sites[0].id, r.sites[0].id);
+}
+
+#[test]
+fn identical_derived_sites_separate_by_ordinal() {
+    let mut r = finalized(vec![inner()]);
+    let inner_id = r.sites[0].id.clone();
+    let mut late = caller(&inner_id, 1, d::literal("https://hook.invalid"));
+    late.location = Some(Location {
+        line: 20,
+        column: 5,
+    });
+    let early = caller(&inner_id, 1, d::literal("https://hook.invalid"));
+    finalize_with(&mut r, vec![late, early]);
+    let der = &r.sites[1..];
+    assert_eq!(
+        der.iter().map(|s| s.ordinal).collect::<Vec<_>>(),
+        vec![0, 1]
+    );
+    // The earlier source position takes ordinal 0.
+    assert_eq!(der[0].location.unwrap().line, 9);
+    assert_ne!(der[0].id, der[1].id);
 }

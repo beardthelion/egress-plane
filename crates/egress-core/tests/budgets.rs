@@ -1,5 +1,6 @@
 //! Global resource budgets.
 
+mod common;
 mod support;
 
 use std::path::Path;
@@ -114,6 +115,120 @@ fn findings_budget_keeps_the_first_findings_in_identity_order() {
     let mut same = r.clone();
     assert!(!apply_findings_budget(&mut same, 4));
     assert_eq!(same, r);
+}
+
+/// Two direct sites (the first is the `param:` inner site), two derived
+/// sites naming it, one blind spot, one unscanned dependency: six findings
+/// in the KTD11 keep order.
+fn mixed_report() -> Report {
+    let mut r = Report {
+        schema_version: SCHEMA_VERSION,
+        tool: Tool {
+            name: "egress-plane".into(),
+            version: "0".into(),
+            data_digest: String::new(),
+            runtime_range: RuntimeRange::default(),
+        },
+        completeness: Completeness {
+            state: CompletenessState::Incomplete,
+            budget_exceeded: vec![],
+            coverage: Coverage::default(),
+        },
+        caveats: vec![],
+        sites: vec![
+            common::site(
+                "api.py",
+                "post_json",
+                "python:requests.post",
+                egress_core::destination::param(1, "post_json"),
+                5,
+            ),
+            common::site(
+                "b.py",
+                "f",
+                "python:requests.get",
+                egress_core::destination::literal("https://b.invalid"),
+                3,
+            ),
+        ],
+        blind_spots: vec![bs("a.ipynb")],
+        unscanned_dependencies: vec![UnscannedDependency {
+            id: String::new(),
+            language: Language::Javascript,
+            package: "left-pad".into(),
+            files: vec!["a.js".into()],
+            reason: None,
+            distribution: vec![],
+            distribution_source: None,
+            mark: None,
+        }],
+        excluded: vec![],
+        dependencies: None,
+    };
+    egress_core::identity::finalize(&mut r);
+    let inner_id = r
+        .sites
+        .iter()
+        .find(|s| s.symbol == "post_json")
+        .unwrap()
+        .id
+        .clone();
+    for (arg, dest) in [(1, "https://hook.invalid"), (2, "https://o.invalid")] {
+        let s = common::site(
+            "cli.py",
+            "main",
+            "python:requests.post",
+            egress_core::destination::literal(dest),
+            9,
+        );
+        r.sites.push(common::derived(
+            s,
+            common::via(&inner_id, arg, &[("api.py", "post_json")]),
+        ));
+    }
+    egress_core::identity::finalize(&mut r);
+    r
+}
+
+#[test]
+fn findings_budget_keeps_unscanned_dependencies_over_derived_sites() {
+    let r = mixed_report();
+    assert_eq!(r.sites.iter().filter(|s| s.via.is_some()).count(), 2);
+    // A cap that fits the blind spot, both direct sites, and the unscanned
+    // dependency but not the derived sites keeps every coverage entry and
+    // drops only the derived sites (KTD11).
+    let mut c = r.clone();
+    assert!(apply_findings_budget(&mut c, 4));
+    assert_eq!(c.blind_spots.len(), 1);
+    assert_eq!(c.sites.len(), 2);
+    assert!(c.sites.iter().all(|s| s.via.is_none()));
+    assert_eq!(c.unscanned_dependencies.len(), 1);
+    // One slot wider keeps the first derived site only.
+    let mut c = r.clone();
+    assert!(apply_findings_budget(&mut c, 5));
+    assert_eq!(c.sites.iter().filter(|s| s.via.is_some()).count(), 1);
+    // A cap that fits everything cuts nothing.
+    let mut c = r.clone();
+    assert!(!apply_findings_budget(&mut c, 6));
+    assert_eq!(c, r);
+}
+
+#[test]
+fn no_derived_site_survives_a_dropped_inner_site() {
+    let r = mixed_report();
+    // Keep the blind spot and one direct site: whichever direct site is
+    // dropped, no derived site remains, because all of them sort after
+    // the direct ones.
+    let mut c = r.clone();
+    assert!(apply_findings_budget(&mut c, 2));
+    assert_eq!(c.sites.len(), 1);
+    assert!(c.sites.iter().all(|s| s.via.is_none()));
+    assert!(c.unscanned_dependencies.is_empty());
+    // Cap below every site still keeps the blind spot.
+    let mut c = r.clone();
+    assert!(apply_findings_budget(&mut c, 1));
+    assert!(c.sites.is_empty());
+    assert_eq!(c.blind_spots.len(), 1);
 }
 
 #[test]

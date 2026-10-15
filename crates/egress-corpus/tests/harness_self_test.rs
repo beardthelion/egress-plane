@@ -53,6 +53,7 @@ fn report_from(expected: &Expected) -> Report {
                 line: 7 + i as u32,
                 column: 1,
             }),
+            via: None,
         })
         .collect();
     let blind_spots = expected
@@ -183,6 +184,7 @@ fn dependency_section(expected: &Expected) -> Option<DependencySection> {
                     ordinal: 0,
                     labels: vec![],
                     location: None,
+                    via: None,
                 })
                 .collect();
             let blind_spots = expected
@@ -543,6 +545,7 @@ fn absent_text_ignores_identity_hashes() {
         ordinal: 0,
         labels: vec![],
         location: None,
+        via: None,
     });
     assert!(compare(&e, &ok(r)).passed());
 }
@@ -585,6 +588,7 @@ fn unlabeled_site() -> Site {
         ordinal: 0,
         labels: vec![],
         location: None,
+        via: None,
     }
 }
 
@@ -1258,6 +1262,7 @@ state = "complete"
             ordinal: 0,
             labels: vec![],
             location: None,
+            via: None,
         });
     assert!(!compare(&e, &ok(r)).passed());
 
