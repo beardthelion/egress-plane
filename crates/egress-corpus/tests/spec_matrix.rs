@@ -96,11 +96,8 @@ fn authored_rows_have_conforming_twins() {
     assert!(errors.is_empty(), "{}", errors.join("\n"));
 }
 
-/// Definition of Done check: red until U4 authors or refuses every
-/// row. Run explicitly with `--ignored`; ignored so the suite stays
-/// green while rows are pending.
+/// Definition of Done check: every spec row is authored.
 #[test]
-#[ignore = "Definition of Done: red until every spec row is authored (U4)"]
 fn spec_matrix_is_complete() {
     let rows = load_all();
     let errors = incomplete_rows(&rows);
