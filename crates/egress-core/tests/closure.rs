@@ -654,10 +654,7 @@ fn structural_constructs_map_to_their_blind_spot_kinds() {
                     ConstructKind::ConstructorChain,
                     "(()=>{}).constructor(s)",
                 ))
-                .construct(construct(
-                    ConstructKind::DynamicCode,
-                    "setTimeout('x', 1)",
-                )),
+                .construct(construct(ConstructKind::DynamicCode, "setTimeout('x', 1)")),
         )
         .file(
             "src/lib.rs",
