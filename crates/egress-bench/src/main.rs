@@ -38,6 +38,9 @@ fn release_bin(root: &Path) -> PathBuf {
 /// Wall time and the child's own peak RSS (`wait4` on its pid).
 fn timed_run(bin: &Path, tree: &Path) -> (f64, u64) {
     let start = Instant::now();
+    // `wait4` reaps the child directly; `Child::wait` would leave the
+    // rusage unreachable.
+    #[allow(clippy::zombie_processes)]
     let child = Command::new(bin)
         .arg("scan")
         .arg(tree)
