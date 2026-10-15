@@ -146,12 +146,19 @@ fn caveat_follows_javascript_and_keeps_the_state() {
     t.file("index.js", "export const a = 1;\n");
     let r = scan(&t.root).unwrap();
     let ids: Vec<_> = r.caveats.iter().map(|c| c.id.as_str()).collect();
-    assert_eq!(ids, vec!["browser-dom"]);
+    assert_eq!(ids, vec!["browser-dom", "local-io"]);
     assert_eq!(r.completeness.state, CompletenessState::Complete);
     assert_eq!(r.exit_code(), 0);
 
     let t = Tree::new("caveat-py");
     t.file("app.py", "x = 1\n");
+    let r = scan(&t.root).unwrap();
+    let ids: Vec<_> = r.caveats.iter().map(|c| c.id.as_str()).collect();
+    assert_eq!(ids, vec!["local-io"]);
+
+    // An empty tree (no supported source file) carries no caveat.
+    let t = Tree::new("caveat-empty");
+    t.file("Main.hs", "x = 1\n");
     assert!(scan(&t.root).unwrap().caveats.is_empty());
 }
 
@@ -653,4 +660,44 @@ fn cgo_and_assembly_are_listed_native_code() {
         assert!(!b.coverage_gap);
     }
     assert!(r.sites.is_empty() && r.unscanned_dependencies.is_empty());
+}
+
+/// R27, KTD20: the code layer never reads in-tree config files. `.env`,
+/// `config.yaml`, and `settings.toml` hold URL-shaped sentinels on the
+/// `.invalid` TLD; code reads `os.environ["API_URL"]` and
+/// `settings.API_URL`. The destinations stay `env:`/`expr:` symbolic and
+/// no sentinel value reaches the JSON or the text report. Discovery opens
+/// the `.env` only if it is a supported shebang carrier: a `.env` with a
+/// `#!/usr/bin/env python` first line is sniffed as a source file (the
+/// shebang check reads only the first line, and only to route the file's
+/// language); its `KEY=VALUE` body is never read and never parsed.
+#[test]
+fn config_files_never_resolve_destinations_or_leak() {
+    let t = Tree::new("config-flags");
+    t.file(
+        ".env",
+        "#!/usr/bin/env python\nAPI_URL=https://env-sentinel.invalid/x\n",
+    );
+    t.file("config.yaml", "api_url: https://yaml-sentinel.invalid/y\n");
+    t.file(
+        "settings.toml",
+        "api_url = \"https://toml-sentinel.invalid/z\"\n",
+    );
+    t.file(
+        "app.py",
+        "import os\nimport settings\nimport urllib.request\n\ndef probe():\n    urllib.request.urlopen(os.environ[\"API_URL\"])\n    urllib.request.urlopen(settings.API_URL)\n",
+    );
+    let r = scan(&t.root).unwrap();
+    let s = to_json(&r);
+    for sentinel in ["env-sentinel", "yaml-sentinel", "toml-sentinel"] {
+        assert!(!s.contains(sentinel), "{sentinel} in JSON:\n{s}");
+    }
+    // The env read stays symbolic and the settings read is expr:.
+    let dests: Vec<String> = r
+        .sites
+        .iter()
+        .map(|s| s.destination.display.clone())
+        .collect();
+    assert!(dests.iter().any(|d| d == "env:API_URL"), "{dests:?}");
+    assert!(dests.iter().any(|d| d.starts_with("expr:")), "{dests:?}");
 }

@@ -115,6 +115,8 @@ Whenever any JavaScript or TypeScript file is scanned, the report carries the `b
 
 Two caveats attach to Go scans. When a parsed `go.mod` or `go.work` `go` directive names a release newer than the supported range, the report carries `go-version-newer-than-supported`; files using newer syntax become parse errors. When a Go package-level string `var` supplies a resolved destination, the report carries `go-var-ldflags`: a link-time `-ldflags -X` override can change that value without a source change. Neither caveat changes the completeness state or the exit code.
 
+Whenever a Python, JavaScript, TypeScript, or Rust file is scanned, the report carries the `local-io` caveat: filesystem reads and writes, FIFO and shared-memory creation, and anonymous pipes are not counted as egress. The caveat appears in the JSON `caveats` list and in the text report, and does not change the completeness state or the exit code.
+
 ## Secrets in output
 
 Destinations and construct text are redacted before they are printed or hashed. The recognized classes are URL userinfo, values of listed query and fragment keys, runs that start with a known token prefix, provider-specific path secrets, keyword DSN values, and secrets split across a template's literal parts and holes. Each match is replaced by `<redacted>`.

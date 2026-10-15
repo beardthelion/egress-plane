@@ -1,6 +1,6 @@
 state = "complete"
 exit_code = 0
-caveats = ["browser-dom"]
+caveats = ["browser-dom", "local-io"]
 
 [[sites]]
 file = "backend/app.py"

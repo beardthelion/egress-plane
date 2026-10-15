@@ -176,15 +176,30 @@ fn js_tree_carries_the_browser_dom_caveat_and_python_does_not() {
         "complete",
     );
     assert!(section(&text, "Caveats").iter().any(|l| l.contains(DOM)));
-    assert_eq!(json(&j)["caveats"][0]["id"], "browser-dom");
+    let ids = json(&j);
+    let ids: Vec<&str> = ids["caveats"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["browser-dom", "local-io"]);
 
+    // A Python tree carries no DOM caveat but does carry local-io.
     let (text, j) = both(
         &case("python/completeness/python-only-no-caveat"),
         0,
         "complete",
     );
     assert!(!text.contains(DOM), "{text}");
-    assert_eq!(json(&j)["caveats"], serde_json::json!([]));
+    let ids = json(&j);
+    let ids: Vec<&str> = ids["caveats"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["local-io"]);
 }
 
 #[test]

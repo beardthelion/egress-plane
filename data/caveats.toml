@@ -23,3 +23,11 @@ id = "go-var-ldflags"
 languages = ["go"]
 trigger = "go-var-ldflags"
 text = "A Go package-level var supplied a resolved destination; a link-time -ldflags -X override can change it without a source change."
+
+# Fires whenever a Python, JavaScript, or Rust source file is in the
+# tree: filesystem reads and writes, FIFO and shared-memory creation,
+# and anonymous pipes are inert and not counted (R26, KTD19).
+[[caveat]]
+id = "local-io"
+languages = ["python", "javascript", "rust"]
+text = "Filesystem reads and writes, FIFO and shared-memory creation, and anonymous pipes are not counted."

@@ -85,11 +85,18 @@ fn hooks_and_construct_blind_spots_leave_the_state_alone() {
 fn js_trees_carry_the_browser_dom_caveat() {
     let js: BTreeSet<Language> = [Language::Javascript, Language::Python].into();
     let c = caveats(&js, &[], &std::collections::BTreeSet::new());
-    assert_eq!(c.len(), 1);
+    assert_eq!(c.len(), 2);
     assert_eq!(c[0].id, "browser-dom");
     assert!(c[0].text.contains("src") && c[0].text.contains("form submission"));
+    assert_eq!(c[1].id, "local-io");
     let py: BTreeSet<Language> = [Language::Python].into();
-    assert!(caveats(&py, &[], &std::collections::BTreeSet::new()).is_empty());
+    let c = caveats(&py, &[], &std::collections::BTreeSet::new());
+    assert_eq!(
+        c.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(),
+        ["local-io"]
+    );
+    // A tree with no scanned source file carries no caveat.
+    assert!(caveats(&BTreeSet::new(), &[], &std::collections::BTreeSet::new()).is_empty());
 }
 
 /// The newer-Go caveat is trigger-bound, not language-bound: it fires on
@@ -108,9 +115,13 @@ fn a_go_directive_newer_than_the_supported_range_carries_a_caveat() {
             "{v}"
         );
     }
-    // Language presence alone does not trigger it, and a Python-only
-    // tree (no go.mod or go.work, so no parsed versions) never gets it.
+    // Language presence alone does not trigger it, and a Go-only
+    // tree never gets the py/js/rust local-io caveat either.
     assert!(caveats(&go, &[], &std::collections::BTreeSet::new()).is_empty());
     let py: BTreeSet<Language> = [Language::Python].into();
-    assert!(caveats(&py, &[], &std::collections::BTreeSet::new()).is_empty());
+    let c = caveats(&py, &[], &std::collections::BTreeSet::new());
+    assert_eq!(
+        c.iter().map(|x| x.id.as_str()).collect::<Vec<_>>(),
+        ["local-io"]
+    );
 }

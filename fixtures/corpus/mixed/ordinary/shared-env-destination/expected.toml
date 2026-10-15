@@ -3,7 +3,7 @@
 # the two sites under one destination heading and lists each dependency once.
 state = "complete"
 exit_code = 0
-caveats = ["browser-dom"]
+caveats = ["browser-dom", "local-io"]
 
 [[sites]]
 file = "hooks/notify.py"
