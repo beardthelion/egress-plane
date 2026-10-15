@@ -29,9 +29,8 @@ ignore = [
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-# The one permitted git source is ruff, pinned by full commit rev in
-# Cargo.toml. No other git source is allowed.
-allow-git = ["https://github.com/astral-sh/ruff"]
+# No git sources: every dependency resolves from crates.io.
+allow-git = []
 
 [sources.allow-org]
 github = []
