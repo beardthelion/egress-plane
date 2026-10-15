@@ -161,6 +161,17 @@ pub struct TsConfig {
     /// resolves each through the in-tree package index (KTD14); an
     /// unresolved name stays here and changes nothing.
     pub extends_package: Vec<String>,
+    /// In-root `references[].path` targets (KTD15).
+    pub references: Vec<Vec<u8>>,
+    /// `include` patterns resolved relative to the declaring config.
+    /// `None` when the key is absent; `Some(vec![])` counts as set for
+    /// the `**/*` default rule (KTD15).
+    pub include: Option<Vec<Vec<u8>>>,
+    /// `files` entries resolved relative to the declaring config.
+    pub files: Option<Vec<Vec<u8>>>,
+    /// `exclude` patterns resolved relative to the declaring config;
+    /// filters `include` only.
+    pub exclude: Option<Vec<Vec<u8>>>,
     pub base_url: Option<Vec<u8>>,
     /// `paths` patterns and their in-root target patterns.
     pub paths: Vec<(String, Vec<Vec<u8>>)>,
@@ -543,6 +554,15 @@ fn package_json(path: &[u8], text: &str, refs: &mut Refs<'_>) -> Result<PackageJ
     })
 }
 
+fn str_list(v: &Value, refs: &mut Refs<'_>, key: &'static str) -> Option<Vec<Vec<u8>>> {
+    v.get(key).and_then(Value::as_array).map(|a| {
+        a.iter()
+            .filter_map(Value::as_str)
+            .filter_map(|s| refs.add(key, s))
+            .collect()
+    })
+}
+
 fn is_path_specifier(s: &str) -> bool {
     is_dot_relative(s) || s.starts_with('/')
 }
@@ -595,10 +615,27 @@ fn tsconfig(path: &[u8], v: &Value, refs: &mut Refs<'_>) -> TsConfig {
         }
         refs.outside.extend(inner.outside);
     }
+    let references = v
+        .get("references")
+        .and_then(Value::as_array)
+        .map(|a| {
+            a.iter()
+                .filter_map(|r| r.get("path").and_then(Value::as_str))
+                .filter_map(|s| refs.add("references", s))
+                .collect()
+        })
+        .unwrap_or_default();
+    let include = str_list(v, refs, "include");
+    let files = str_list(v, refs, "files");
+    let exclude = str_list(v, refs, "exclude");
     TsConfig {
         path: path.to_vec(),
         extends,
         extends_package,
+        references,
+        include,
+        files,
+        exclude,
         base_url,
         paths,
     }

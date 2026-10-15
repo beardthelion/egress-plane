@@ -552,3 +552,80 @@ fn tsconfig_extends_package_inside_excluded_directory() {
             .any(|c| c.path.starts_with(b"node_modules/"))
     );
 }
+
+/// KTD15: a `references[].path` naming a directory reads
+/// `<dir>/tsconfig.json`; a path without `.json` tries the exact file
+/// then the `.json` suffix.
+#[test]
+fn tsconfig_references_directory_and_json_probe() {
+    let t = Tree::new("tsconfig-ref-dir");
+    t.file(
+        "tsconfig.json",
+        r#"{"files": [], "references": [{"path": "./app"}]}"#,
+    );
+    t.file(
+        "app/tsconfig.json",
+        r#"{"compilerOptions": {"strict": true}}"#,
+    );
+    let d = run(&t);
+    assert!(
+        d.manifests
+            .tsconfig
+            .iter()
+            .any(|c| c.path == b"app/tsconfig.json")
+    );
+
+    let t = Tree::new("tsconfig-ref-json-probe");
+    t.file(
+        "tsconfig.json",
+        r#"{"files": [], "references": [{"path": "./tsconfig.app"}]}"#,
+    );
+    t.file("tsconfig.app.json", r#"{"compilerOptions": {}}"#);
+    let d = run(&t);
+    assert!(
+        d.manifests
+            .tsconfig
+            .iter()
+            .any(|c| c.path == b"tsconfig.app.json")
+    );
+}
+
+/// KTD15: one `seen` set covers `extends` and `references` together,
+/// so a mixed cycle ends.
+#[test]
+fn tsconfig_references_extends_cycle_terminates() {
+    let t = Tree::new("tsconfig-ref-cycle");
+    t.file(
+        "tsconfig.json",
+        r#"{"files": [], "references": [{"path": "./a.json"}]}"#,
+    );
+    t.file("a.json", r#"{"extends": "./b.json"}"#);
+    t.file("b.json", r#"{"references": [{"path": "./tsconfig.json"}]}"#);
+    let d = run(&t);
+    assert_eq!(d.manifests.tsconfig.len(), 3, "{:?}", d.manifests.tsconfig);
+}
+
+/// A malformed referenced config is `manifest-parse-error` and the
+/// other configs still apply.
+#[test]
+fn tsconfig_references_malformed_config() {
+    let t = Tree::new("tsconfig-ref-malformed");
+    t.file(
+        "tsconfig.json",
+        r#"{"files": [], "references": [{"path": "./app/broken.json"}, {"path": "./app/ok.json"}]}"#,
+    );
+    t.file("app/broken.json", "{invalid json");
+    t.file("app/ok.json", r#"{"compilerOptions": {}}"#);
+    let d = run(&t);
+    assert!(
+        d.blind_spots
+            .iter()
+            .any(|b| b.file == "app/broken.json" && b.kind == BlindSpotKind::ManifestParseError)
+    );
+    assert!(
+        d.manifests
+            .tsconfig
+            .iter()
+            .any(|c| c.path == b"app/ok.json")
+    );
+}

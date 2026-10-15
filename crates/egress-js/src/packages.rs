@@ -43,6 +43,111 @@ pub struct JsRules {
     files: BTreeSet<Vec<u8>>,
     packages: Vec<Package>,
     tsconfigs: Vec<TsPaths>,
+    /// One `TsPaths` per parsed tsconfig, parallel to `resolved`
+    /// ordering, for ownership claims (KTD15).
+    owners: Vec<TsPaths>,
+    /// Source file to owning config index into `owners`.
+    owner: BTreeMap<Vec<u8>, usize>,
+}
+
+/// A parsed tsconfig with its effective fields resolved through the
+/// `extends` chain (KTD15).
+struct Resolved {
+    path: Vec<u8>,
+    dir: Vec<u8>,
+    base_url: Option<Vec<u8>>,
+    paths: Vec<(String, Vec<Vec<u8>>)>,
+    include: Option<Vec<Vec<u8>>>,
+    files: Option<Vec<Vec<u8>>>,
+    exclude: Option<Vec<Vec<u8>>>,
+    references: Vec<Vec<u8>>,
+    /// Named `tsconfig.json` or `jsconfig.json`: an ownership root.
+    named: bool,
+}
+
+impl Resolved {
+    /// Whether this config claims `file`: an exact `files` entry, or an
+    /// `include` match not removed by `exclude`. When neither `include`
+    /// nor `files` is set, the default include is the config's own
+    /// subtree (`**/*` under its directory).
+    fn claims(&self, file: &[u8]) -> bool {
+        if let Some(files) = &self.files
+            && files.iter().any(|f| f.as_slice() == file)
+        {
+            return true;
+        }
+        if let Some(include) = &self.include {
+            if !include.iter().any(|p| covers(p, file)) {
+                return false;
+            }
+        } else if self.files.is_none() {
+            if !self.dir.is_empty()
+                && !(file.len() > self.dir.len()
+                    && file.starts_with(&self.dir[..])
+                    && file[self.dir.len()] == b'/')
+            {
+                return false;
+            }
+        } else {
+            return false;
+        }
+        match &self.exclude {
+            Some(exclude) => !exclude.iter().any(|p| covers(p, file)),
+            None => true,
+        }
+    }
+}
+
+/// Whether an `include`/`exclude` pattern covers `file`: a glob match,
+/// or the pattern is a literal directory whose subtree holds the file.
+fn covers(pattern: &[u8], file: &[u8]) -> bool {
+    if !pattern.iter().any(|b| matches!(b, b'*' | b'?'))
+        && file.len() > pattern.len()
+        && file.starts_with(pattern)
+        && file[pattern.len()] == b'/'
+    {
+        return true;
+    }
+    glob_match(pattern, file)
+}
+
+/// The `*`/`**`/`?` glob subset (KTD15): `**` spans path segments, `*`
+/// stays inside one, `?` is one character. Runs in pattern-length
+/// times path-length worst case.
+fn glob_match(pattern: &[u8], path: &[u8]) -> bool {
+    let p: Vec<&[u8]> = pattern.split(|&b| b == b'/').collect();
+    let f: Vec<&[u8]> = path.split(|&b| b == b'/').collect();
+    // DP over (pi, fi): `**` matches zero or more segments.
+    let (pn, fn_) = (p.len(), f.len());
+    let mut dp = vec![vec![false; fn_ + 1]; pn + 1];
+    dp[pn][fn_] = true;
+    for i in (0..pn).rev() {
+        for j in (0..fn_ + 1).rev() {
+            dp[i][j] = if p[i] == b"**" {
+                dp[i + 1][j] || (j < fn_ && dp[i][j + 1])
+            } else {
+                j < fn_ && seg_match(p[i], f[j]) && dp[i + 1][j + 1]
+            };
+        }
+    }
+    dp[0][0]
+}
+
+/// Within-segment wildcard match: `*` any run, `?` one byte.
+fn seg_match(pat: &[u8], seg: &[u8]) -> bool {
+    let mut dp = vec![vec![false; seg.len() + 1]; pat.len() + 1];
+    dp[0][0] = true;
+    for i in 1..=pat.len() {
+        dp[i][0] = pat[i - 1] == b'*' && dp[i - 1][0];
+        for j in 1..=seg.len() {
+            dp[i][j] = match pat[i - 1] {
+                b'*' => dp[i - 1][j] || dp[i][j - 1],
+                b'?' => dp[i - 1][j - 1],
+                c => seg[j - 1] == c && dp[i - 1][j - 1],
+            };
+        }
+    }
+    dp[pat.len()][seg.len()]
 }
 
 /// Whether directory `dir` contains `path` (the root contains everything).
@@ -126,16 +231,15 @@ impl JsRules {
             .iter()
             .map(|t| (t.path.as_slice(), t))
             .collect();
-        let mut tsconfigs = Vec::new();
+        // Resolve every config's effective fields through its `extends`
+        // chain: the first config in the chain that sets each field wins.
+        let mut resolved = Vec::new();
         for t in &manifests.tsconfig {
-            let name = file_name(&t.path);
-            if name != b"tsconfig.json" && name != b"jsconfig.json" {
-                continue;
-            }
-            // `baseUrl` and `paths` come from the nearest config in the
-            // `extends` chain that sets them.
             let mut base_url = None;
             let mut paths = None;
+            let mut include = None;
+            let mut files = None;
+            let mut exclude = None;
             let mut seen = BTreeSet::new();
             let mut queue = vec![t];
             while let Some(c) = queue.pop() {
@@ -148,6 +252,15 @@ impl JsRules {
                 if paths.is_none() && !c.paths.is_empty() {
                     paths = Some(c.paths.clone());
                 }
+                if include.is_none() {
+                    include.clone_from(&c.include);
+                }
+                if files.is_none() {
+                    files.clone_from(&c.files);
+                }
+                if exclude.is_none() {
+                    exclude.clone_from(&c.exclude);
+                }
                 for e in c.extends.iter().rev() {
                     let next = by_path
                         .get(e.as_slice())
@@ -157,16 +270,78 @@ impl JsRules {
                     }
                 }
             }
-            tsconfigs.push(TsPaths {
+            let named = matches!(file_name(&t.path), b"tsconfig.json" | b"jsconfig.json");
+            resolved.push(Resolved {
+                path: t.path.clone(),
                 dir: dir_of(&t.path).to_vec(),
                 base_url,
                 paths: paths.unwrap_or_default(),
+                include,
+                files,
+                exclude,
+                references: t.references.clone(),
+                named,
             });
         }
+        // Ownership (KTD15): claimants are configs named tsconfig.json or
+        // jsconfig.json plus whatever their `references` reach, visited
+        // depth-first from roots taken in byte-wise path order. The first
+        // claimant wins a file; unclaimed files fall back to `nearest()`.
+        let mut order: Vec<usize> = Vec::new();
+        let mut visited = vec![false; resolved.len()];
+        let pos: BTreeMap<&[u8], usize> = resolved
+            .iter()
+            .enumerate()
+            .map(|(i, r)| (r.path.as_slice(), i))
+            .collect();
+        let mut roots: Vec<usize> = (0..resolved.len()).filter(|&i| resolved[i].named).collect();
+        roots.sort_by_key(|&i| resolved[i].path.clone());
+        let mut stack: Vec<usize> = Vec::new();
+        for r in roots {
+            stack.push(r);
+            while let Some(i) = stack.pop() {
+                if visited[i] {
+                    continue;
+                }
+                visited[i] = true;
+                order.push(i);
+                for rf in resolved[i].references.iter().rev() {
+                    if let Some(&j) = pos.get(rf.as_slice()) {
+                        stack.push(j);
+                    }
+                }
+            }
+        }
+        let mut owner: BTreeMap<Vec<u8>, usize> = BTreeMap::new();
+        for &i in &order {
+            for f in index.keys() {
+                if resolved[i].claims(f) && !owner.contains_key(f) {
+                    owner.insert(f.clone(), i);
+                }
+            }
+        }
+        let tsconfigs = resolved
+            .iter()
+            .filter(|r| r.named)
+            .map(|r| TsPaths {
+                dir: r.dir.clone(),
+                base_url: r.base_url.clone(),
+                paths: r.paths.clone(),
+            })
+            .collect();
         JsRules {
             files: index.keys().cloned().collect(),
             packages,
             tsconfigs,
+            owners: resolved
+                .iter()
+                .map(|r| TsPaths {
+                    dir: r.dir.clone(),
+                    base_url: r.base_url.clone(),
+                    paths: r.paths.clone(),
+                })
+                .collect(),
+            owner,
         }
     }
 
@@ -205,7 +380,11 @@ impl JsRules {
     }
 
     fn tsconfig_paths(&self, from: &[u8], spec: &str) -> Option<Vec<Vec<u8>>> {
-        let ts = Self::nearest(&self.tsconfigs, |t| &t.dir, from)?;
+        let ts = self
+            .owner
+            .get(from)
+            .map(|&i| &self.owners[i])
+            .or_else(|| Self::nearest(&self.tsconfigs, |t| &t.dir, from))?;
         for (pattern, targets) in &ts.paths {
             if let Some(star) = match_pattern(pattern, spec) {
                 let candidates: Vec<Vec<u8>> = targets

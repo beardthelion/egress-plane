@@ -863,12 +863,33 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
     // pairs resolved through `package_dirs` into `ts_queue` targets.
     let mut seen: BTreeSet<Vec<u8>> = manifests.tsconfig.iter().map(|t| t.path.clone()).collect();
     let mut pkg_queue: Vec<(Vec<u8>, String)> = Vec::new();
+    let mut ref_queue: Vec<Vec<u8>> = Vec::new();
     for t in &manifests.tsconfig {
         for name in &t.extends_package {
             pkg_queue.push((t.path.clone(), name.clone()));
         }
+        ref_queue.extend(t.references.iter().cloned());
     }
     loop {
+        // A `references[].path` naming a directory reads
+        // `<dir>/tsconfig.json`; a path without `.json` tries the exact
+        // path, then `.json` (KTD15).
+        if let Some(target) = ref_queue.pop() {
+            let resolved = if index.keys().any(|k| {
+                k.starts_with(&target[..]) && k.len() > target.len() && k[target.len()] == b'/'
+            }) {
+                Some(join(&target, b"tsconfig.json"))
+            } else if index.contains_key(&target) {
+                Some(target)
+            } else {
+                let with_ext = [target.as_slice(), b".json"].concat();
+                index.contains_key(&with_ext).then_some(with_ext)
+            };
+            if let Some(target) = resolved {
+                ts_queue.push(target);
+            }
+            continue;
+        }
         if let Some((owner, name)) = pkg_queue.pop() {
             for target in package_extends_targets(&package_dirs, &name) {
                 // The same probe the path worklist applies: the named
@@ -925,6 +946,7 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
                 for name in &t.extends_package {
                     pkg_queue.push((t.path.clone(), name.clone()));
                 }
+                ref_queue.extend(t.references.iter().cloned());
                 manifests.tsconfig.push(t);
             }
             Err(k) => w.blind_spots.push(spot(&target, k, None, true, "")),

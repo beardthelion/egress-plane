@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/api.ts"
+symbol = "go"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.invalid/x"
