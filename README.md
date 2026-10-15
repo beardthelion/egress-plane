@@ -179,6 +179,15 @@ The Linux release probe is a static `<arch>-unknown-linux-musl` build with no in
 
 ## Building and testing
 
+An advisory benchmark lives outside the shipped binary:
+
+```
+cargo build --release --locked -p egress-cli
+cargo run --release --locked -p egress-bench -- --sizes 1000,10000,50000
+```
+
+It generates fixed-seed synthetic monorepos under `target/bench/trees/` and writes `target/bench/results.json` with per-run wall time, files per second, and peak RSS per child. The seed and the content mix are constants recorded in the results file. The benchmark is never run by the test suite or CI; its numbers are advisory and compare runs, not absolute targets.
+
 ```sh
 cargo build --release --locked -p egress-cli     # binary: target/release/egress-plane
 cargo test --workspace --locked

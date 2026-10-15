@@ -1,0 +1,10 @@
+[package]
+name = "egress-bench"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+libc = "=0.2.189"
+serde_json.workspace = true
