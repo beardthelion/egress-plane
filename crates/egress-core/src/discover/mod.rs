@@ -845,10 +845,53 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
             }
         }
     }
+    // The in-tree package-name index (KTD14): `package.json` `name` to
+    // its directory, with multi-valued entries marking ambiguous names.
+    // A directory under an excluded subtree never reaches the index
+    // because its manifest was never parsed.
+    let mut package_dirs: BTreeMap<String, Vec<Vec<u8>>> = BTreeMap::new();
+    for p in &manifests.package_json {
+        if let Some(name) = &p.name {
+            package_dirs
+                .entry(name.clone())
+                .or_default()
+                .push(dir_of(&p.path).to_vec());
+        }
+    }
     // In-tree `extends` targets are JSONC too; each file is parsed once, so
-    // cycles terminate.
+    // cycles terminate. `pkg_queue` holds `(extending config, bare name)`
+    // pairs resolved through `package_dirs` into `ts_queue` targets.
     let mut seen: BTreeSet<Vec<u8>> = manifests.tsconfig.iter().map(|t| t.path.clone()).collect();
-    while let Some(target) = ts_queue.pop() {
+    let mut pkg_queue: Vec<(Vec<u8>, String)> = Vec::new();
+    for t in &manifests.tsconfig {
+        for name in &t.extends_package {
+            pkg_queue.push((t.path.clone(), name.clone()));
+        }
+    }
+    loop {
+        if let Some((owner, name)) = pkg_queue.pop() {
+            for target in package_extends_targets(&package_dirs, &name) {
+                // The same probe the path worklist applies: the named
+                // file, then it with a `.json` suffix.
+                let resolved = if index.contains_key(&target) {
+                    Some(target)
+                } else {
+                    let with_ext = [target.as_slice(), b".json"].concat();
+                    index.contains_key(&with_ext).then_some(with_ext)
+                };
+                let Some(target) = resolved else { continue };
+                if let Some(o) = manifests
+                    .tsconfig
+                    .iter_mut()
+                    .find(|t| t.path == owner && !t.extends.contains(&target))
+                {
+                    o.extends.push(target.clone());
+                }
+                ts_queue.push(target);
+            }
+            continue;
+        }
+        let Some(target) = ts_queue.pop() else { break };
         let target = if index.contains_key(&target) {
             target
         } else {
@@ -879,6 +922,9 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
                     ));
                 }
                 ts_queue.extend(t.extends.iter().cloned());
+                for name in &t.extends_package {
+                    pkg_queue.push((t.path.clone(), name.clone()));
+                }
                 manifests.tsconfig.push(t);
             }
             Err(k) => w.blind_spots.push(spot(&target, k, None, true, "")),
@@ -1054,5 +1100,45 @@ impl Discovery {
             text.drain(..'\u{feff}'.len_utf8());
         }
         Ok(text)
+    }
+}
+
+/// A bare tsconfig `extends` name through the in-tree package index
+/// (KTD14). `name` gives `<dir>/tsconfig` (the worklist adds `.json`);
+/// `name/sub/path` gives `<dir>/sub/path` (the worklist also tries the
+/// `.json` suffix). A name declared by more than one in-tree package is
+/// ambiguous and unresolved; so is a name with no in-tree package.
+fn package_extends_targets(
+    package_dirs: &BTreeMap<String, Vec<Vec<u8>>>,
+    name: &str,
+) -> Vec<Vec<u8>> {
+    // The longest declared package name wins; `pkg` itself is a
+    // directory, `pkg/sub` extends into it.
+    let mut best: Option<(&String, &Vec<Vec<u8>>)> = None;
+    for (pkg, dirs) in package_dirs {
+        let exact = name == pkg;
+        let sub = !exact
+            && name
+                .strip_prefix(pkg.as_str())
+                .and_then(|r| r.strip_prefix('/'))
+                .is_some_and(|r| !r.is_empty());
+        if !(exact || sub) {
+            continue;
+        }
+        if best.is_none_or(|(b, _)| pkg.len() > b.len()) {
+            best = Some((pkg, dirs));
+        }
+    }
+    let Some((pkg, dirs)) = best else {
+        return Vec::new();
+    };
+    if dirs.len() != 1 {
+        return Vec::new();
+    }
+    if name == pkg {
+        vec![join(&dirs[0], b"tsconfig")]
+    } else {
+        let rest = &name.as_bytes()[pkg.len() + 1..];
+        vec![join(&dirs[0], rest)]
     }
 }

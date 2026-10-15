@@ -154,8 +154,13 @@ pub struct PackageJson {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TsConfig {
     pub path: Vec<u8>,
-    /// In-root `extends` targets.
+    /// In-root `extends` targets. A bare package `extends` resolved
+    /// during discovery is recorded here as its resolved path (KTD14).
     pub extends: Vec<Vec<u8>>,
+    /// Bare `extends` specifiers naming packages, as written. Discovery
+    /// resolves each through the in-tree package index (KTD14); an
+    /// unresolved name stays here and changes nothing.
+    pub extends_package: Vec<String>,
     pub base_url: Option<Vec<u8>>,
     /// `paths` patterns and their in-root target patterns.
     pub paths: Vec<(String, Vec<Vec<u8>>)>,
@@ -548,13 +553,23 @@ fn tsconfig(path: &[u8], v: &Value, refs: &mut Refs<'_>) -> TsConfig {
         Some(Value::Array(a)) => a.iter().filter_map(Value::as_str).collect(),
         _ => Vec::new(),
     };
-    // Bare package specifiers name configs outside the tree; following them is
-    // deferred, so only path specifiers are checked here.
-    let extends = ext
-        .into_iter()
-        .filter(|s| is_path_specifier(s))
-        .filter_map(|s| refs.add("extends", s))
-        .collect();
+    // Path specifiers resolve as in-tree references. Bare package
+    // specifiers are kept verbatim for the discovery worklist, which
+    // resolves them through the in-tree package index (KTD14).
+    let (extends, extends_package): (Vec<Vec<u8>>, Vec<String>) = {
+        let mut paths = Vec::new();
+        let mut packages = Vec::new();
+        for s in ext {
+            if is_path_specifier(s) {
+                if let Some(p) = refs.add("extends", s) {
+                    paths.push(p);
+                }
+            } else {
+                packages.push(s.to_string());
+            }
+        }
+        (paths, packages)
+    };
     let opts = v.get("compilerOptions");
     let base_url = opts
         .and_then(|o| o.get("baseUrl"))
@@ -583,6 +598,7 @@ fn tsconfig(path: &[u8], v: &Value, refs: &mut Refs<'_>) -> TsConfig {
     TsConfig {
         path: path.to_vec(),
         extends,
+        extends_package,
         base_url,
         paths,
     }

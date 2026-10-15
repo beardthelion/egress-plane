@@ -1,0 +1,7 @@
+state = "complete"
+exit_code = 0
+caveats = ["browser-dom", "local-io"]
+
+[[unscanned_dependencies]]
+language = "javascript"
+package = "@app/net"

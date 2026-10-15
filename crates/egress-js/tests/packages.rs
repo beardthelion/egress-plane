@@ -233,12 +233,14 @@ fn tsconfig_paths_and_base_url_resolve_and_fall_back_to_bare() {
             TsConfig {
                 path: b"tsconfig.json".to_vec(),
                 extends: vec![b"tsconfig.base.json".to_vec()],
+                extends_package: Vec::new(),
                 base_url: None,
                 paths: Vec::new(),
             },
             TsConfig {
                 path: b"tsconfig.base.json".to_vec(),
                 extends: Vec::new(),
+                extends_package: Vec::new(),
                 base_url: Some(b"src".to_vec()),
                 paths: vec![
                     ("@net/*".into(), vec![b"src/net/*".to_vec()]),

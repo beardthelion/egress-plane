@@ -383,3 +383,172 @@ fn a_garbage_go_mod_is_a_parse_error_not_a_skip() {
         );
     }
 }
+
+/// A bare `extends` naming an in-tree package resolves through the
+/// package index: the resolved config path lands on the extending
+/// config's `extends` list (KTD14).
+#[test]
+fn tsconfig_extends_in_tree_package() {
+    let t = Tree::new("tsconfig-extends-pkg");
+    t.file("tsconfig.json", r#"{"extends": "@acme/tsconfig"}"#);
+    t.file(
+        "packages/tsconfig/package.json",
+        r#"{"name": "@acme/tsconfig"}"#,
+    );
+    t.file(
+        "packages/tsconfig/tsconfig.json",
+        r#"{"compilerOptions": {"paths": {"@app/*": ["src/*"]}}}"#,
+    );
+    t.file("packages/tsconfig/src/net.ts", "export {};\n");
+    t.file("app.ts", "export {};\n");
+    let d = run(&t);
+    let root = d
+        .manifests
+        .tsconfig
+        .iter()
+        .find(|c| c.path == b"tsconfig.json")
+        .expect("root config");
+    assert_eq!(
+        root.extends,
+        vec![b"packages/tsconfig/tsconfig.json".to_vec()]
+    );
+    // The package config itself was parsed into the manifests list.
+    assert!(
+        d.manifests
+            .tsconfig
+            .iter()
+            .any(|c| c.path == b"packages/tsconfig/tsconfig.json")
+    );
+}
+
+/// Two in-tree `package.json` files declaring the same name make the
+/// bare `extends` ambiguous: it stays unresolved, with no candidate
+/// picked by path order (KTD14, R20).
+#[test]
+fn tsconfig_extends_ambiguous_package_stays_unresolved() {
+    let t = Tree::new("tsconfig-extends-ambig");
+    t.file("tsconfig.json", r#"{"extends": "@acme/tsconfig"}"#);
+    t.file(
+        "a/packages/tsconfig/package.json",
+        r#"{"name": "@acme/tsconfig"}"#,
+    );
+    t.file("a/packages/tsconfig/tsconfig.json", "{}");
+    t.file(
+        "b/packages/tsconfig/package.json",
+        r#"{"name": "@acme/tsconfig"}"#,
+    );
+    t.file("b/packages/tsconfig/tsconfig.json", "{}");
+    // A lone decoy elsewhere with a different name does not interfere.
+    t.file("decoy/package.json", r#"{"name": "@acme/other"}"#);
+    t.file("decoy/tsconfig.json", "{}");
+    let d = run(&t);
+    let root = d
+        .manifests
+        .tsconfig
+        .iter()
+        .find(|c| c.path == b"tsconfig.json")
+        .expect("root config");
+    assert!(root.extends.is_empty(), "{:?}", root.extends);
+}
+
+/// `name/sub/path` resolves inside the package directory, and a package
+/// found with no config at the named path is unresolved.
+#[test]
+fn tsconfig_extends_package_subpath_and_missing_config() {
+    let t = Tree::new("tsconfig-extends-subpath");
+    t.file("tsconfig.json", r#"{"extends": "@acme/tsconfig/base"}"#);
+    t.file(
+        "packages/tsconfig/package.json",
+        r#"{"name": "@acme/tsconfig"}"#,
+    );
+    t.file(
+        "packages/tsconfig/base.json",
+        r#"{"compilerOptions": {"baseUrl": "."}}"#,
+    );
+    let d = run(&t);
+    let root = d
+        .manifests
+        .tsconfig
+        .iter()
+        .find(|c| c.path == b"tsconfig.json")
+        .expect("root config");
+    assert_eq!(root.extends, vec![b"packages/tsconfig/base.json".to_vec()]);
+
+    let t = Tree::new("tsconfig-extends-missing");
+    t.file("tsconfig.json", r#"{"extends": "@acme/tsconfig/nope"}"#);
+    t.file(
+        "packages/tsconfig/package.json",
+        r#"{"name": "@acme/tsconfig"}"#,
+    );
+    let d = run(&t);
+    let root = d
+        .manifests
+        .tsconfig
+        .iter()
+        .find(|c| c.path == b"tsconfig.json")
+        .expect("root config");
+    assert!(root.extends.is_empty(), "{:?}", root.extends);
+}
+
+/// A package config that `extends` another in-tree package resolves
+/// the chain, and a cycle stops.
+#[test]
+fn tsconfig_extends_package_chain_and_cycle() {
+    let t = Tree::new("tsconfig-extends-chain");
+    t.file("tsconfig.json", r#"{"extends": "@a/tsconfig"}"#);
+    t.file("packages/a/package.json", r#"{"name": "@a/tsconfig"}"#);
+    t.file("packages/a/tsconfig.json", r#"{"extends": "@b/tsconfig"}"#);
+    t.file("packages/b/package.json", r#"{"name": "@b/tsconfig"}"#);
+    t.file(
+        "packages/b/tsconfig.json",
+        r#"{"compilerOptions": {"strict": true}}"#,
+    );
+    let d = run(&t);
+    let a = d
+        .manifests
+        .tsconfig
+        .iter()
+        .find(|c| c.path == b"packages/a/tsconfig.json")
+        .expect("a config");
+    assert_eq!(a.extends, vec![b"packages/b/tsconfig.json".to_vec()]);
+
+    let t = Tree::new("tsconfig-extends-cycle");
+    t.file("tsconfig.json", r#"{"extends": "@a/tsconfig"}"#);
+    t.file("packages/a/package.json", r#"{"name": "@a/tsconfig"}"#);
+    t.file("packages/a/tsconfig.json", r#"{"extends": "@a/tsconfig"}"#);
+    let d = run(&t);
+    let a = d
+        .manifests
+        .tsconfig
+        .iter()
+        .find(|c| c.path == b"packages/a/tsconfig.json")
+        .expect("a config");
+    assert_eq!(a.extends, vec![b"packages/a/tsconfig.json".to_vec()]);
+}
+
+/// A package under an excluded directory is never parsed, so it is
+/// never in the index and an `extends` naming it stays unresolved.
+#[test]
+fn tsconfig_extends_package_inside_excluded_directory() {
+    let t = Tree::new("tsconfig-extends-excluded");
+    t.file("tsconfig.json", r#"{"extends": "@acme/tsconfig"}"#);
+    t.file(
+        "node_modules/@acme/tsconfig/package.json",
+        r#"{"name": "@acme/tsconfig"}"#,
+    );
+    t.file("node_modules/@acme/tsconfig/tsconfig.json", "{}");
+    let d = run(&t);
+    let root = d
+        .manifests
+        .tsconfig
+        .iter()
+        .find(|c| c.path == b"tsconfig.json")
+        .expect("root config");
+    assert!(root.extends.is_empty(), "{:?}", root.extends);
+    assert!(
+        !d.manifests
+            .tsconfig
+            .iter()
+            .any(|c| c.path.starts_with(b"node_modules/"))
+    );
+}
