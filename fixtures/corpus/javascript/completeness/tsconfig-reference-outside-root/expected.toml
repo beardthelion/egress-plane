@@ -1,6 +1,6 @@
 state = "incomplete"
 exit_code = 2
-absent_text = ["outside"]
+absent_text = ["outside-fixture"]
 
 [[blind_spots]]
 file = "tsconfig.json"

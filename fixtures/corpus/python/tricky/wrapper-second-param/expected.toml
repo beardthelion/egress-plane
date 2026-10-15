@@ -6,3 +6,17 @@ file = "transport.py"
 symbol = "call"
 mechanism = "python:requests.request"
 destination = "param:2:call"
+
+[[sites]]
+file = "transport.py"
+symbol = "ping"
+mechanism = "python:requests.request"
+destination = "https://api.example.com/ping"
+
+[sites.via]
+inner = "call"
+argument = 2
+
+[[sites.via.chain]]
+file = "transport.py"
+symbol = "call"

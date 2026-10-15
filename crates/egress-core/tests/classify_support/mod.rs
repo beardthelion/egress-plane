@@ -627,6 +627,7 @@ pub fn func(path: &str, params: &[&str]) -> SymbolSpan {
         path: path.into(),
         kind: SymbolKind::Function,
         params: params.iter().map(|s| s.to_string()).collect(),
+        defaults: Default::default(),
         strict: None,
         span,
     }

@@ -51,6 +51,7 @@ fn dependency_pass(t: &Tree, root: &str, prefixes: &[&str], import_root: &[u8]) 
         &tree::TreeOptions {
             overrides: &overrides,
             resolver_budget: Config::default().budgets.resolver_steps,
+            derived_sites: false,
         },
     )
     .unwrap()
@@ -68,6 +69,7 @@ fn first_party_pass(t: &Tree, root: &str, prefixes: &[&str]) -> TreePass {
         &tree::TreeOptions {
             overrides: &[],
             resolver_budget: Config::default().budgets.resolver_steps,
+            derived_sites: true,
         },
     )
     .unwrap()

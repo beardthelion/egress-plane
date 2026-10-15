@@ -55,14 +55,28 @@ fn mark_suffix(m: &Option<DependencyMark>) -> String {
 }
 
 fn site_line(s: &Site) -> String {
-    format!(
+    let mut line = format!(
         "    {}  in {}  via {}  [{}]{}",
         place(&s.file, s.location),
         escape(&s.symbol),
         escape(&s.mechanism),
         s.bucket.as_str(),
         labels(&s.labels)
-    )
+    );
+    // A derived site names its wrapper chain after the mechanism (KTD11):
+    // `through <outer>, ..., <inner>`, each hop as `file:symbol`.
+    if let Some(via) = &s.via {
+        let hops: Vec<_> = via
+            .chain
+            .iter()
+            .map(|h| format!("{}:{}", escape(&h.file), escape(&h.symbol)))
+            .collect();
+        let _ = write!(line, "  through {}", hops.join(", "));
+        if let Some(cut) = via.cut {
+            let _ = write!(line, " (cut: {})", cut.as_str());
+        }
+    }
+    line
 }
 
 fn blind_spot_line(b: &BlindSpot) -> String {

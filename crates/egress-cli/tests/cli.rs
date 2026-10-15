@@ -306,6 +306,43 @@ fn text_groups_sites_by_destination_and_lists_dependencies_once() {
     );
 }
 
+/// A derived site renders its wrapper chain as `through <outer>, ...,
+/// <inner>` after the mechanism (KTD11).
+#[test]
+fn derived_sites_render_their_wrapper_chain() {
+    let (text, j) = both(
+        &case("python/tricky/wrapper-callers-derived-sites"),
+        0,
+        "complete",
+    );
+    let sites = section(&text, "Egress sites");
+    let through: Vec<_> = sites.iter().filter(|l| l.contains("through")).collect();
+    assert_eq!(through.len(), 3, "{text}");
+    for l in &through {
+        assert!(l.contains("through app.py:post_json"), "{l}");
+    }
+    // The JSON `via` carries the same chain; the direct `param:` site
+    // keeps `via: null`.
+    let v = json(&j);
+    let all = v["sites"].as_array().unwrap();
+    let derived: Vec<_> = all.iter().filter(|s| !s["via"].is_null()).collect();
+    assert_eq!(derived.len(), 3, "{j}");
+    for s in &derived {
+        assert_eq!(s["via"]["argument"], 1, "{j}");
+        let chain = s["via"]["chain"].as_array().unwrap();
+        assert_eq!(chain.len(), 1, "{j}");
+        assert_eq!(chain[0]["symbol"], "post_json", "{j}");
+        assert!(s["via"]["cut"].is_null(), "{j}");
+    }
+    // A hop-limit cut names its reason on the `through` line.
+    let (cut, _) = both(
+        &case("python/tricky/wrapper-chain-hop-limit"),
+        0,
+        "complete",
+    );
+    assert!(cut.contains("(cut: hop-limit)"), "{cut}");
+}
+
 /// Every corpus case that lists `absent_text` (redaction, out-of-root paths)
 /// keeps those strings out of both the text report and the JSON.
 #[test]

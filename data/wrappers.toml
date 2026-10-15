@@ -1,0 +1,7 @@
+# Wrapper-pass tuning for derived sites (KTD8). Every hop charges the
+# shared resolver budget; the limits below are counts, never time.
+
+# Deepest wrapper chain the derived-site pass follows. A caller one hop
+# past the limit is reported as a derived site with a `param:` destination
+# and `cut = "hop-limit"`; nothing past the cut is derived.
+hop_limit = 8

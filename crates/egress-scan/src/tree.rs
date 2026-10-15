@@ -7,7 +7,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex};
 
-use egress_core::classify::{Classified, classify};
+use egress_core::classify::{Classified, classify_with};
 use egress_core::data::Data;
 use egress_core::discover::completeness::counts_mut;
 use egress_core::discover::labels::content_labels;
@@ -53,6 +53,9 @@ pub struct TreeOptions<'a> {
     pub overrides: &'a [(Language, Box<dyn SpecifierRules>)],
     /// The resolver budget this pass is charged against.
     pub resolver_budget: u64,
+    /// Whether the derived-site pass runs (KTD7): first-party passes only,
+    /// so `via` sites never land in `DependencyPackage` sections.
+    pub derived_sites: bool,
 }
 
 /// Runs lowering through classification on `d`. The work order and
@@ -143,7 +146,7 @@ pub fn run(
             },
         );
     }
-    let mut classified = classify(data, &program, tree.resolver_budget);
+    let mut classified = classify_with(data, &program, tree.resolver_budget, tree.derived_sites);
     drop(program);
     let classify_micros = tc0.elapsed().as_micros() as u64;
     // Steps the link hooks charged count against the same budget.

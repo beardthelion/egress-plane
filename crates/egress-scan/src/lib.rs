@@ -131,6 +131,7 @@ pub fn scan_with(root: &Path, options: &ScanOptions) -> Result<ScanOutput, ToolE
         &tree::TreeOptions {
             overrides: &[],
             resolver_budget: options.config.budgets.resolver_steps,
+            derived_sites: true,
         },
     )?;
     let t2 = std::time::Instant::now();

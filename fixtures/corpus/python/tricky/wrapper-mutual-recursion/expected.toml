@@ -1,0 +1,41 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "b"
+mechanism = "python:requests.post"
+destination = "param:1:b"
+
+[[sites]]
+file = "app.py"
+symbol = "b"
+mechanism = "python:requests.post"
+destination = "param:1:b"
+
+[sites.via]
+inner = "b"
+argument = 1
+cut = "recursion"
+
+[[sites.via.chain]]
+symbol = "a"
+
+[[sites.via.chain]]
+symbol = "b"
+
+[[sites]]
+file = "app.py"
+symbol = "outside"
+mechanism = "python:requests.post"
+destination = "https://x.invalid"
+
+[sites.via]
+inner = "b"
+argument = 1
+
+[[sites.via.chain]]
+symbol = "a"
+
+[[sites.via.chain]]
+symbol = "b"

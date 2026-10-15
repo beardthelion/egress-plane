@@ -24,7 +24,7 @@
 //! global. A name only a star import can bind therefore stays ambient, and
 //! the core looks it up through the file's star imports.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use egress_core::ir::{
     Expr as IrExpr, FileIr, Import, IntrospectionAccess, LineIndex, LocalBinding, ModuleConstant,
@@ -817,6 +817,27 @@ impl<'s> Walker<'s> {
         (args, kwargs)
     }
 
+    /// Default-value expressions keyed by 1-based index into `names`,
+    /// the [`parameters`] output: only parameters that declare a default
+    /// have an entry (KTD7). Defaults are lowered in the enclosing scope,
+    /// where the runtime evaluates them.
+    fn param_defaults(&self, p: &Parameters, names: &[String]) -> BTreeMap<u32, IrExpr> {
+        let mut out = BTreeMap::new();
+        for pd in p.iter_non_variadic_params() {
+            let Some(d) = &pd.default else {
+                continue;
+            };
+            let name = pd.parameter.name.id.as_str();
+            if let Some(i) = names.iter().position(|n| n == name) {
+                out.insert(
+                    u32::try_from(i + 1).unwrap_or(u32::MAX),
+                    self.lower_value(d),
+                );
+            }
+        }
+        out
+    }
+
     fn lower_value(&self, e: &Expr) -> IrExpr {
         match e {
             Expr::StringLiteral(s) => IrExpr::Literal(s.value.to_str().to_string()),
@@ -1374,6 +1395,7 @@ impl<'s> Walker<'s> {
                     SymbolKind::Function
                 },
                 params: params.clone(),
+                defaults: self.param_defaults(&f.parameters, &params),
                 strict: None,
                 span: Self::span(f.range),
             });
@@ -1438,6 +1460,7 @@ impl<'s> Walker<'s> {
                 path: path.clone(),
                 kind: SymbolKind::Class,
                 params: Vec::new(),
+                defaults: BTreeMap::new(),
                 strict: None,
                 span: Self::span(c.range),
             });
@@ -1464,10 +1487,16 @@ impl<'s> Walker<'s> {
             .map(|p| parameters(p, false).0)
             .unwrap_or_default();
         if self.emit() {
+            let defaults = l
+                .parameters
+                .as_ref()
+                .map(|p| self.param_defaults(p, &params))
+                .unwrap_or_default();
             self.ir.symbols.push(SymbolSpan {
                 path: path.clone(),
                 kind: SymbolKind::Closure,
                 params: params.clone(),
+                defaults,
                 strict: None,
                 span: Self::span(l.range),
             });

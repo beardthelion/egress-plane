@@ -6,3 +6,45 @@ file = "api.py"
 symbol = "post_json"
 mechanism = "python:requests.post"
 destination = "param:1:post_json"
+
+[[sites]]
+file = "api.py"
+symbol = "create_user"
+mechanism = "python:requests.post"
+destination = "https://api.example.com/users"
+
+[sites.via]
+inner = "post_json"
+argument = 1
+
+[[sites.via.chain]]
+file = "api.py"
+symbol = "post_json"
+
+[[sites]]
+file = "api.py"
+symbol = "create_team"
+mechanism = "python:requests.post"
+destination = "https://api.example.com/teams"
+
+[sites.via]
+inner = "post_json"
+argument = 1
+
+[[sites.via.chain]]
+file = "api.py"
+symbol = "post_json"
+
+[[sites]]
+file = "api.py"
+symbol = "send_event"
+mechanism = "python:requests.post"
+destination = "https://events.example.com/ingest"
+
+[sites.via]
+inner = "post_json"
+argument = 1
+
+[[sites.via.chain]]
+file = "api.py"
+symbol = "post_json"

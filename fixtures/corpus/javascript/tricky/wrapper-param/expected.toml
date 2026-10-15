@@ -6,3 +6,45 @@ file = "api.js"
 symbol = "postJson"
 mechanism = "javascript:globalThis.fetch"
 destination = "param:1:postJson"
+
+[[sites]]
+file = "api.js"
+symbol = "createUser"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/users"
+
+[sites.via]
+inner = "postJson"
+argument = 1
+
+[[sites.via.chain]]
+file = "api.js"
+symbol = "postJson"
+
+[[sites]]
+file = "api.js"
+symbol = "createTeam"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://api.example.com/teams"
+
+[sites.via]
+inner = "postJson"
+argument = 1
+
+[[sites.via.chain]]
+file = "api.js"
+symbol = "postJson"
+
+[[sites]]
+file = "api.js"
+symbol = "sendEvent"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://events.example.com/ingest"
+
+[sites.via]
+inner = "postJson"
+argument = 1
+
+[[sites.via.chain]]
+file = "api.js"
+symbol = "postJson"

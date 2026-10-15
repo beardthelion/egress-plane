@@ -73,6 +73,7 @@ pub const EMBEDDED: &[DataFile] = &[
     embed!("data/primitives/rust.toml"),
     embed!("data/name-signals.toml"),
     embed!("data/python-distributions.toml"),
+    embed!("data/wrappers.toml"),
 ];
 
 /// Separator between module and member segments in entry IDs.
@@ -109,6 +110,28 @@ pub struct Data {
     pub languages: LanguageMap<RuntimeData>,
     /// The curated Python distribution-to-import mapping (KTD17).
     pub python_distributions: Vec<DistributionMapping>,
+    /// Derived-site pass tuning from `data/wrappers.toml` (KTD8).
+    pub wrappers: Wrappers,
+}
+
+/// `data/wrappers.toml`: limits on the derived-site pass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Wrappers {
+    /// Deepest wrapper chain the pass follows before reporting
+    /// `cut = "hop-limit"` (KTD8).
+    pub hop_limit: u32,
+}
+
+impl Default for Wrappers {
+    fn default() -> Self {
+        Self { hop_limit: 8 }
+    }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawWrappers {
+    hop_limit: u32,
 }
 
 /// One `data/python-distributions.toml` entry: a top-level import name
@@ -725,11 +748,25 @@ pub fn load(files: &[(&str, &str)]) -> Result<Data, String> {
         Some((path, text)) => parse_distributions(path, text)?,
         None => Vec::new(),
     };
+    let wrappers = match files.iter().find(|(p, _)| *p == "data/wrappers.toml") {
+        Some((path, text)) => {
+            let raw: RawWrappers =
+                toml::from_str(text).map_err(|e| format!("{path}: malformed: {e}"))?;
+            if raw.hop_limit == 0 {
+                return Err(format!("{path}: hop_limit must be at least 1"));
+            }
+            Wrappers {
+                hop_limit: raw.hop_limit,
+            }
+        }
+        None => Wrappers::default(),
+    };
     Ok(Data {
         runtime_range,
         data_digest: data_digest(files),
         languages,
         python_distributions,
+        wrappers,
     })
 }
 

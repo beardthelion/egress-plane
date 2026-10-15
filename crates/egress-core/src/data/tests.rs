@@ -139,6 +139,38 @@ fn digest_is_stable_order_independent_and_content_sensitive() {
 }
 
 #[test]
+fn wrappers_file_loads_and_joins_the_digest() {
+    let d = Data::embedded().unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(d.wrappers.hop_limit, 8);
+    assert!(EMBEDDED.iter().any(|f| f.path == "data/wrappers.toml"));
+    // The file participates in the data digest.
+    let without: Vec<(&str, &str)> = EMBEDDED
+        .iter()
+        .filter(|f| f.path != "data/wrappers.toml")
+        .map(|f| (f.path, f.text))
+        .collect();
+    assert_ne!(data_digest(&without), d.data_digest);
+    // Absent the file the default holds.
+    assert_eq!(load(&without).unwrap().wrappers.hop_limit, 8);
+}
+
+#[test]
+fn a_zero_hop_limit_is_rejected() {
+    let files: Vec<(&str, &str)> = EMBEDDED
+        .iter()
+        .map(|f| {
+            if f.path == "data/wrappers.toml" {
+                (f.path, "hop_limit = 0")
+            } else {
+                (f.path, f.text)
+            }
+        })
+        .collect();
+    let e = load(&files).unwrap_err();
+    assert!(e.contains("hop_limit"), "{e}");
+}
+
+#[test]
 fn duplicate_entry_id_fails_with_the_id() {
     let dup = format!(
         "{PRIM}\n[[entry]]\nid = \"python:os.system\"\nkind = \"egress\"\nmechanism = \"process\"\nfixture = \"x/y/z\"\n"

@@ -924,6 +924,7 @@ impl<'a> Lowerer<'a> {
                     path: spec.name.name.clone(),
                     kind: SymbolKind::Class,
                     params: Vec::new(),
+                    defaults: Default::default(),
                     strict: None,
                     span: self.ident_span(&spec.name),
                 });
@@ -1124,6 +1125,7 @@ impl<'a> Lowerer<'a> {
             path: sym.clone(),
             kind,
             params: params.clone(),
+            defaults: Default::default(),
             strict: None,
             span: self.ident_span(&d.name),
         });
@@ -2176,6 +2178,7 @@ impl<'a> Lowerer<'a> {
             path: sym.clone(),
             kind: SymbolKind::Closure,
             params: params.clone(),
+            defaults: Default::default(),
             strict: None,
             span: self.span(l.typ.pos, l.body.pos.1 + 1),
         });

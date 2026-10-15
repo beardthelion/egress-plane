@@ -1,0 +1,50 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.js"
+symbol = "postJson"
+mechanism = "javascript:globalThis.fetch"
+destination = "param:1:postJson"
+
+[[sites]]
+file = "app.js"
+symbol = "sendHook"
+mechanism = "javascript:globalThis.fetch"
+destination = "https://hook.invalid"
+
+[sites.via]
+inner = "postJson"
+argument = 1
+
+[[sites.via.chain]]
+file = "app.js"
+symbol = "postJson"
+
+[[sites]]
+file = "app.js"
+symbol = "sendEnv"
+mechanism = "javascript:globalThis.fetch"
+destination = "env:HOOK"
+
+[sites.via]
+inner = "postJson"
+argument = 1
+
+[[sites.via.chain]]
+file = "app.js"
+symbol = "postJson"
+
+[[sites]]
+file = "app.js"
+symbol = "sendComputed"
+mechanism = "javascript:globalThis.fetch"
+destination = "expr:buildUrl(name)"
+
+[sites.via]
+inner = "postJson"
+argument = 1
+
+[[sites.via.chain]]
+file = "app.js"
+symbol = "postJson"

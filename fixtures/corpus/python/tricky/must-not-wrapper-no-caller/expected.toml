@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "api.py"
+symbol = "post_json"
+mechanism = "python:requests.post"
+destination = "param:1:post_json"

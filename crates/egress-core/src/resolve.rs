@@ -323,7 +323,10 @@ impl<'p, 'a> Resolver<'p, 'a> {
         self.reference_steps = 0;
     }
 
-    fn step(&mut self) -> Result<(), Limit> {
+    /// Charges one resolver step, the way every resolution inside a
+    /// reference does. The derived-site pass charges each wrapper hop
+    /// against the same shared budget (KTD7).
+    pub(crate) fn step(&mut self) -> Result<(), Limit> {
         if self.exhausted {
             return Err(Limit);
         }

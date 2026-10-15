@@ -979,6 +979,7 @@ impl<'a> Lowerer<'a> {
                     path: sym.clone(),
                     kind: SymbolKind::Class,
                     params: Vec::new(),
+                    defaults: Default::default(),
                     strict: None,
                     span: self.span_of(t.ident.span()),
                 });
@@ -1095,6 +1096,7 @@ impl<'a> Lowerer<'a> {
                         path: self.child_symbol(&format!("{name}!")),
                         kind: SymbolKind::Binding,
                         params: Vec::new(),
+                        defaults: Default::default(),
                         strict: None,
                         span: self.span_of(m.span()),
                     });
@@ -1119,6 +1121,7 @@ impl<'a> Lowerer<'a> {
             path,
             kind: SymbolKind::Class,
             params: Vec::new(),
+            defaults: Default::default(),
             strict: None,
             span: self.span_of(span),
         });
@@ -1365,6 +1368,7 @@ impl<'a> Lowerer<'a> {
                     path: sym.clone(),
                     kind: SymbolKind::Module,
                     params: Vec::new(),
+                    defaults: Default::default(),
                     strict: None,
                     span: self.span_of(m.span()),
                 });
@@ -1507,6 +1511,7 @@ impl<'a> Lowerer<'a> {
             path: symbol.clone(),
             kind,
             params: params.clone(),
+            defaults: Default::default(),
             strict: None,
             span: self.span_of(sig.ident.span()),
         });
@@ -2347,6 +2352,7 @@ impl<'ast> Visit<'ast> for Lowerer<'_> {
                     path: symbol.clone(),
                     kind: SymbolKind::Closure,
                     params: params.clone(),
+                    defaults: Default::default(),
                     strict: None,
                     span: self.span_of(c.span()),
                 });

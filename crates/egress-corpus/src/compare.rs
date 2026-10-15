@@ -12,10 +12,12 @@ use std::path::Path;
 
 use egress_core::model::{
     DependencyBudgetReason, DependencyMark, DependencyPackage, DependencySection, Label, MarkRule,
-    Report, ToolError, UnscannedDependency,
+    Report, Site, ToolError, UnscannedDependency,
 };
 
-use crate::labels::{Expected, ExpectedDependency, ExpectedDependencyPackage, ExpectedSite};
+use crate::labels::{
+    Expected, ExpectedDependency, ExpectedDependencyPackage, ExpectedSite, ExpectedVia,
+};
 
 /// Result of comparing one case.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -280,6 +282,9 @@ pub fn compare(expected: &Expected, result: &Result<Report, ToolError>) -> CaseO
 
 fn compare_sites(expected: &Expected, report: &Report, out: &mut CaseOutcome) {
     let mut unclaimed: Vec<bool> = vec![true; report.sites.len()];
+    // A `via` label resolves `inner_site` against the report's sites: the
+    // derived site names its inner `param:` site by id.
+    let by_id: BTreeMap<&str, &Site> = report.sites.iter().map(|s| (s.id.as_str(), s)).collect();
     // Labels with a label set are stricter, so they claim findings first; a
     // label without one then cannot take a finding a stricter label needs.
     let ordered = expected
@@ -292,7 +297,7 @@ fn compare_sites(expected: &Expected, report: &Report, out: &mut CaseOutcome) {
             .sites
             .iter()
             .enumerate()
-            .position(|(i, r)| unclaimed[i] && site_matches(s, r));
+            .position(|(i, r)| unclaimed[i] && site_matches(s, r, &by_id));
         match hit {
             Some(i) => unclaimed[i] = false,
             None => out.failures.push(format!(
@@ -318,7 +323,7 @@ fn compare_sites(expected: &Expected, report: &Report, out: &mut CaseOutcome) {
     }
 }
 
-fn site_matches(s: &ExpectedSite, r: &egress_core::model::Site) -> bool {
+fn site_matches(s: &ExpectedSite, r: &Site, by_id: &BTreeMap<&str, &Site>) -> bool {
     r.file == s.file
         && r.symbol == s.symbol
         && r.mechanism == s.mechanism
@@ -328,6 +333,33 @@ fn site_matches(s: &ExpectedSite, r: &egress_core::model::Site) -> bool {
             let got: BTreeSet<Label> = r.labels.iter().copied().collect();
             want == got
         })
+        // A label without `via` matches only a direct site; a label with
+        // `via` only a derived site with that inner symbol and chain
+        // (KTD10).
+        && match &s.via {
+            None => r.via.is_none(),
+            Some(v) => via_matches(v, r, by_id),
+        }
+}
+
+/// A `via` label matches only a derived site carrying exactly that
+/// provenance: the site `via.inner_site` resolves to is the labeled inner
+/// symbol, every labeled hop matches in order, and a labeled argument or
+/// cut equals the site's.
+fn via_matches(v: &ExpectedVia, r: &Site, by_id: &BTreeMap<&str, &Site>) -> bool {
+    let Some(rv) = &r.via else {
+        return false;
+    };
+    by_id
+        .get(rv.inner_site.as_str())
+        .is_some_and(|s| s.symbol == v.inner)
+        && v.argument.is_none_or(|a| a == rv.argument)
+        && v.cut == rv.cut
+        && v.chain.len() == rv.chain.len()
+        && v.chain
+            .iter()
+            .zip(&rv.chain)
+            .all(|(e, h)| h.symbol == e.symbol && e.file.as_ref().is_none_or(|f| *f == h.file))
 }
 
 fn label_names(labels: &[Label]) -> Vec<&'static str> {

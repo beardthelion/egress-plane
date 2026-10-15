@@ -24,7 +24,7 @@
 //!   joined with `.` (`Api.list`, `api.post`, `outer.inner`), and an
 //!   anonymous `function` expression is `<anonymous>` under its parent.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use egress_core::ir::{self, ConstructKind, Expr, FileIr, LineIndex, Provenance, Root, UseKind};
 use egress_core::model::Language;
@@ -1635,10 +1635,21 @@ impl<'s, 'a> Lowerer<'s, 'a> {
 
     // ---- functions and classes ---------------------------------------------------------------
 
-    fn params(&mut self, params: &FormalParameters<'a>, frame: usize, owner: bool) -> Vec<String> {
+    /// Parameter names in declaration order plus the default-value
+    /// expressions by 1-based index into them (KTD7).
+    fn params(
+        &mut self,
+        params: &FormalParameters<'a>,
+        frame: usize,
+        owner: bool,
+    ) -> (Vec<String>, BTreeMap<u32, Expr>) {
         let mut names = Vec::new();
+        let mut defaults = BTreeMap::new();
         for (i, p) in params.items.iter().enumerate() {
             let idx = u32::try_from(i + 1).unwrap_or(u32::MAX);
+            if let BindingPattern::AssignmentPattern(a) = &p.pattern {
+                defaults.insert(idx, self.lower_expr(&a.right));
+            }
             match &p.pattern {
                 BindingPattern::BindingIdentifier(id) => {
                     names.push(id.name.as_str().to_string());
@@ -1683,7 +1694,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                 self.expr(&d.expression, false);
             }
         }
-        names
+        (names, defaults)
     }
 
     fn strict(&self, scope: Option<oxc_syntax::scope::ScopeId>) -> bool {
@@ -1714,11 +1725,12 @@ impl<'s, 'a> Lowerer<'s, 'a> {
         };
         self.push_frame(path.clone(), true, this, ctor, class);
         let id = self.frame().id;
-        let names = self.params(&f.params, id, true);
+        let (names, defaults) = self.params(&f.params, id, true);
         self.ir.symbols.push(ir::SymbolSpan {
             path,
             kind,
             params: names,
+            defaults,
             strict: Some(strict),
             span: Self::span(f.span),
         });
@@ -1755,11 +1767,12 @@ impl<'s, 'a> Lowerer<'s, 'a> {
                     parent.class.clone(),
                 );
                 let id = self.frame().id;
-                let names = self.params(&a.params, id, true);
+                let (names, defaults) = self.params(&a.params, id, true);
                 self.ir.symbols.push(ir::SymbolSpan {
                     path,
                     kind: ir::SymbolKind::Binding,
                     params: names,
+                    defaults,
                     strict: Some(strict),
                     span: Self::span(a.span),
                 });
@@ -1801,6 +1814,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             path: path.clone(),
             kind: ir::SymbolKind::Class,
             params: Vec::new(),
+            defaults: BTreeMap::new(),
             strict: Some(true),
             span: Self::span(c.span),
         });

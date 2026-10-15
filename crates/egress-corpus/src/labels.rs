@@ -8,8 +8,9 @@ use std::path::Path;
 
 use egress_core::discover::budgets::DependencyBudgets;
 use egress_core::model::{
-    AutoRunTrigger, BlindSpotKind, CompletenessState, DependencyBudgetReason, ExcludedReason,
-    Label, Language, LockfileProblem, MarkRule, UnscannedReason, VerificationStrength,
+    AutoRunTrigger, BlindSpotKind, CompletenessState, DependencyBudgetReason, DerivedCut,
+    ExcludedReason, Label, Language, LockfileProblem, MarkRule, UnscannedReason,
+    VerificationStrength,
 };
 use serde::Deserialize;
 
@@ -64,6 +65,33 @@ pub struct ExpectedSite {
     pub destination: String,
     /// When present, the site's label set must equal this set.
     pub labels: Option<Vec<Label>>,
+    /// The wrapper chain this site is a derived child of (R10, KTD10): a
+    /// label without `via` matches only a direct site; a label with `via`
+    /// matches only a derived site with that inner symbol and chain.
+    pub via: Option<ExpectedVia>,
+}
+
+/// The `via` provenance a derived site must carry (R10, KTD10).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExpectedVia {
+    /// The `symbol` of the inner `param:` site `via.inner_site` names.
+    pub inner: String,
+    /// The caller argument index, when labeled.
+    pub argument: Option<u32>,
+    /// The termination reason, when labeled.
+    pub cut: Option<DerivedCut>,
+    /// The wrapper hops in order: the caller's callee first, the innermost
+    /// wrapper last. A hop with no `file` matches any file.
+    pub chain: Vec<ExpectedViaHop>,
+}
+
+/// One labeled wrapper hop.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExpectedViaHop {
+    /// The file the hop must be in, when labeled.
+    pub file: Option<String>,
+    /// The wrapper symbol the hop must name.
+    pub symbol: String,
 }
 
 /// A required blind spot.
@@ -272,6 +300,29 @@ struct RawSite {
     mechanism: String,
     destination: String,
     labels: Option<Vec<String>>,
+    via: Option<RawVia>,
+}
+
+/// The wrapper chain a derived site reports, labeled under `[sites.via]`:
+/// the inner site's symbol plus the ordered `[[sites.via.chain]]` hops.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawVia {
+    /// The `symbol` of the inner `param:` site `via.inner_site` names.
+    inner: String,
+    argument: Option<u32>,
+    cut: Option<String>,
+    /// Ordered hops; the caller's callee first, the innermost last.
+    #[serde(default)]
+    chain: Vec<RawViaHop>,
+}
+
+/// One labeled hop: `symbol` is required; `file` matches only when given.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawViaHop {
+    file: Option<String>,
+    symbol: String,
 }
 
 #[derive(Deserialize)]
@@ -439,12 +490,42 @@ pub fn parse_expected(text: &str, origin: &str) -> Result<Expected, String> {
                 Some(out)
             }
         };
+        let via = match s.via {
+            None => None,
+            Some(v) => {
+                check_nonempty("via.inner", &v.inner).map_err(&bad)?;
+                let cut = v
+                    .cut
+                    .map(|c| {
+                        DerivedCut::parse(&c).ok_or_else(|| bad(format!("unknown via cut {c:?}")))
+                    })
+                    .transpose()?;
+                let mut chain = Vec::new();
+                for h in v.chain {
+                    if let Some(f) = &h.file {
+                        check_path(f).map_err(&bad)?;
+                    }
+                    check_nonempty("via chain symbol", &h.symbol).map_err(&bad)?;
+                    chain.push(ExpectedViaHop {
+                        file: h.file,
+                        symbol: h.symbol,
+                    });
+                }
+                Some(ExpectedVia {
+                    inner: v.inner,
+                    argument: v.argument,
+                    cut,
+                    chain,
+                })
+            }
+        };
         sites.push(ExpectedSite {
             file: s.file,
             symbol: s.symbol,
             mechanism: s.mechanism,
             destination: s.destination,
             labels,
+            via,
         });
     }
 

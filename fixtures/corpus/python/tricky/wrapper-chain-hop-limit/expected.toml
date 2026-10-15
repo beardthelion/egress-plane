@@ -1,0 +1,43 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "w0"
+mechanism = "python:requests.post"
+destination = "param:1:w0"
+
+[[sites]]
+file = "app.py"
+symbol = "w8"
+mechanism = "python:requests.post"
+destination = "param:1:w8"
+
+[sites.via]
+inner = "w0"
+argument = 1
+cut = "hop-limit"
+
+[[sites.via.chain]]
+symbol = "w7"
+
+[[sites.via.chain]]
+symbol = "w6"
+
+[[sites.via.chain]]
+symbol = "w5"
+
+[[sites.via.chain]]
+symbol = "w4"
+
+[[sites.via.chain]]
+symbol = "w3"
+
+[[sites.via.chain]]
+symbol = "w2"
+
+[[sites.via.chain]]
+symbol = "w1"
+
+[[sites.via.chain]]
+symbol = "w0"

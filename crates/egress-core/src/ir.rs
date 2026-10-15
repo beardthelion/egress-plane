@@ -7,6 +7,8 @@
 //! frontend before they reach the IR: Python identifiers NFKC-normalized and
 //! JS identifier escapes decoded.
 
+use std::collections::BTreeMap;
+
 use crate::model::{Language, Location};
 
 /// A byte range into the file's source text, half open.
@@ -260,6 +262,9 @@ pub struct SymbolSpan {
     pub kind: SymbolKind,
     /// Declared parameter names, excluding `self`, `cls`, and Rust receivers.
     pub params: Vec<String>,
+    /// Default-value expressions by 1-based index into `params`. Only
+    /// parameters that declare a default have an entry (KTD7).
+    pub defaults: BTreeMap<u32, Expr>,
     /// JS strictness of the function body; `None` outside JS.
     pub strict: Option<bool>,
     pub span: Span,

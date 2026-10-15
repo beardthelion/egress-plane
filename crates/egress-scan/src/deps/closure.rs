@@ -487,6 +487,7 @@ fn run_instance(
         &tree::TreeOptions {
             overrides: &overrides,
             resolver_budget: u64::MAX,
+            derived_sites: false,
         },
     )?;
     let st = state(&pass.coverage, &pass.blind_spots, &pass.budget_exceeded);

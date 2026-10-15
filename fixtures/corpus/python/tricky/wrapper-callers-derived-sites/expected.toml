@@ -1,0 +1,50 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.py"
+symbol = "post_json"
+mechanism = "python:requests.post"
+destination = "param:1:post_json"
+
+[[sites]]
+file = "app.py"
+symbol = "send_hook"
+mechanism = "python:requests.post"
+destination = "https://hook.invalid"
+
+[sites.via]
+inner = "post_json"
+argument = 1
+
+[[sites.via.chain]]
+file = "app.py"
+symbol = "post_json"
+
+[[sites]]
+file = "app.py"
+symbol = "send_env"
+mechanism = "python:requests.post"
+destination = "env:HOOK"
+
+[sites.via]
+inner = "post_json"
+argument = 1
+
+[[sites.via.chain]]
+file = "app.py"
+symbol = "post_json"
+
+[[sites]]
+file = "app.py"
+symbol = "send_computed"
+mechanism = "python:requests.post"
+destination = "expr:build_url(name)"
+
+[sites.via]
+inner = "post_json"
+argument = 1
+
+[[sites.via.chain]]
+file = "app.py"
+symbol = "post_json"

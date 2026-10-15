@@ -494,8 +494,11 @@ fn literal_destination_is_redacted() {
 
 // ---- wrappers ----------------------------------------------------------
 
+/// The inner `param:` site is unchanged by the derived-site pass; each
+/// caller adds a derived site (U6; the full pass is tested in
+/// `derived_sites.rs`).
 #[test]
-fn wrapper_param_is_one_site_and_callers_add_none() {
+fn wrapper_param_is_one_site_and_callers_derive() {
     let c = fx()
         .file(
             "api.py",
@@ -536,16 +539,21 @@ fn wrapper_param_is_one_site_and_callers_add_none() {
                 .arg(lit("https://e.example/i"))),
         )
         .run();
-    assert_eq!(
-        sites(&c),
-        vec![(
-            s("api.py"),
-            s("post_json"),
-            s("python:requests.post"),
-            s("param:1:post_json")
-        )]
-    );
-    assert_eq!(c.sites[0].destination.kind, DestinationKind::Param);
+    let direct: Vec<_> = c.sites.iter().filter(|s| s.via.is_none()).collect();
+    assert_eq!(direct.len(), 1);
+    assert_eq!(direct[0].file, "api.py");
+    assert_eq!(direct[0].symbol, "post_json");
+    assert_eq!(direct[0].mechanism, "python:requests.post");
+    assert_eq!(direct[0].destination.kind, DestinationKind::Param);
+    assert_eq!(direct[0].destination.display, "param:1:post_json");
+    let mut callers: Vec<_> = c
+        .sites
+        .iter()
+        .filter(|s| s.via.is_some())
+        .map(|s| s.symbol.clone())
+        .collect();
+    callers.sort();
+    assert_eq!(callers, vec!["create_team", "create_user", "send_event"]);
 }
 
 #[test]

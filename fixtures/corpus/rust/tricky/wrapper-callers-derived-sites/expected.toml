@@ -1,0 +1,50 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "get_json"
+mechanism = "rust:reqwest::blocking::get"
+destination = "param:1:get_json"
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "users"
+mechanism = "rust:reqwest::blocking::get"
+destination = "https://a.invalid/users"
+
+[sites.via]
+inner = "get_json"
+argument = 1
+
+[[sites.via.chain]]
+file = "src/lib.rs"
+symbol = "get_json"
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "hook"
+mechanism = "rust:reqwest::blocking::get"
+destination = "env:HOOK"
+
+[sites.via]
+inner = "get_json"
+argument = 1
+
+[[sites.via.chain]]
+file = "src/lib.rs"
+symbol = "get_json"
+
+[[sites]]
+file = "src/lib.rs"
+symbol = "computed"
+mechanism = "rust:reqwest::blocking::get"
+destination = "https://{param:1:computed}.invalid"
+
+[sites.via]
+inner = "get_json"
+argument = 1
+
+[[sites.via.chain]]
+file = "src/lib.rs"
+symbol = "get_json"

@@ -96,7 +96,7 @@ fn unhex(s: &str) -> Option<Vec<u8>> {
 
 /// The raw bytes of a path for identity and sorting: `file_bytes` when
 /// present, else the UTF-8 text.
-fn raw_path(file: &str, file_bytes: Option<&str>) -> Vec<u8> {
+pub(crate) fn raw_path(file: &str, file_bytes: Option<&str>) -> Vec<u8> {
     file_bytes
         .and_then(unhex)
         .unwrap_or_else(|| file.as_bytes().to_vec())

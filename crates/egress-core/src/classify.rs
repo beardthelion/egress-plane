@@ -120,7 +120,22 @@ pub fn special_entry_ids() -> Vec<&'static str> {
 
 /// Classifies every lowered file in `program`, charging resolver steps
 /// against `resolver_steps`.
+///
+/// The first-party pass also runs the derived-site pass (KTD7): callers
+/// of a wrapper whose parameter feeds an egress site get derived `via`
+/// sites. Dependency package scans call [`classify_with`] with `derive`
+/// false so `via` sites never land in a `DependencyPackage` section.
 pub fn classify(data: &Data, program: &Program<'_>, resolver_steps: u64) -> Classified {
+    classify_with(data, program, resolver_steps, true)
+}
+
+/// [`classify`] with the derived-site pass optional.
+pub fn classify_with(
+    data: &Data,
+    program: &Program<'_>,
+    resolver_steps: u64,
+    derive: bool,
+) -> Classified {
     let indexes: BTreeMap<&[u8], FileIndex<'_>> = program
         .files
         .iter()
@@ -134,6 +149,7 @@ pub fn classify(data: &Data, program: &Program<'_>, resolver_steps: u64) -> Clas
         out: Classified::default(),
         deps: BTreeMap::new(),
         loaded: BTreeSet::new(),
+        derived_calls: Vec::new(),
     };
     for (path, pf) in &program.files {
         st.file(Ctx {
@@ -143,21 +159,24 @@ pub fn classify(data: &Data, program: &Program<'_>, resolver_steps: u64) -> Clas
             rt: data.runtime(pf.language),
         });
     }
+    if derive {
+        crate::derive::run(&mut st);
+    }
     st.finish()
 }
 
 #[derive(Clone, Copy)]
-struct Ctx<'p, 'a> {
-    path: &'p [u8],
-    pf: &'p ProgramFile<'a>,
-    ix: &'p FileIndex<'a>,
-    rt: &'p RuntimeData,
+pub(crate) struct Ctx<'p, 'a> {
+    pub(crate) path: &'p [u8],
+    pub(crate) pf: &'p ProgramFile<'a>,
+    pub(crate) ix: &'p FileIndex<'a>,
+    pub(crate) rt: &'p RuntimeData,
 }
 
 /// Per-file lookup tables over a file's IR, built once so each reference
 /// resolves in constant time rather than rescanning the declarations. Every
 /// table keeps the declaration a linear scan would have picked.
-struct FileIndex<'a> {
+pub(crate) struct FileIndex<'a> {
     /// Non-star imports by local name: the first in IR order, and the one
     /// with the earliest span start (the first such on a tie).
     imports: HashMap<&'a str, (&'a Import, &'a Import)>,
@@ -172,6 +191,9 @@ struct FileIndex<'a> {
     /// The first module constant per name.
     constants: HashMap<&'a str, &'a ModuleConstant>,
     symbols: HashSet<&'a str>,
+    /// Symbol paths of definitions a bare local name can mean: every
+    /// symbol kind but the file's own `Module` span (KTD7).
+    defs: HashSet<&'a str>,
     /// Self attributes per (class, attribute): the first, and whether
     /// there is more than one.
     self_attributes: HashMap<(&'a str, &'a str), (&'a SelfAttribute, bool)>,
@@ -191,6 +213,12 @@ impl<'a> FileIndex<'a> {
             local_names: HashSet::new(),
             constants: HashMap::new(),
             symbols: ir.symbols.iter().map(|s| s.path.as_str()).collect(),
+            defs: ir
+                .symbols
+                .iter()
+                .filter(|s| s.kind != crate::ir::SymbolKind::Module)
+                .map(|s| s.path.as_str())
+                .collect(),
             self_attributes: HashMap::new(),
             self_assigned_elsewhere: HashSet::new(),
         };
@@ -279,7 +307,7 @@ impl<'a> FileIndex<'a> {
 }
 
 impl Ctx<'_, '_> {
-    fn lang(&self) -> Language {
+    pub(crate) fn lang(&self) -> Language {
         self.pf.language
     }
 }
@@ -306,6 +334,13 @@ enum Head {
         prefix: String,
     },
     FirstPartyModule,
+    /// A resolved first-party definition (KTD7): the file and name the
+    /// derived-site pass matches caller edges against. Behaves like
+    /// [`Head::FirstParty`] everywhere else.
+    FirstPartyDef {
+        path: Vec<u8>,
+        name: String,
+    },
     FirstParty,
     /// A value of untracked origin (parameter, call result).
     Untracked,
@@ -315,21 +350,25 @@ enum Head {
 
 /// A destination value under evaluation.
 #[derive(Debug, Clone)]
-enum Val {
+pub(crate) enum Val {
     Lit(String),
     Dest(Destination),
     Seq(Vec<Expr>),
     Obj(Vec<(String, Expr)>),
 }
 
-struct State<'p, 'a> {
-    data: &'p Data,
-    program: &'p Program<'a>,
+pub(crate) struct State<'p, 'a> {
+    pub(crate) data: &'p Data,
+    pub(crate) program: &'p Program<'a>,
     indexes: &'p BTreeMap<&'p [u8], FileIndex<'a>>,
-    r: Resolver<'p, 'a>,
-    out: Classified,
+    pub(crate) r: Resolver<'p, 'a>,
+    pub(crate) out: Classified,
     deps: BTreeMap<(Language, String), BTreeSet<String>>,
     loaded: BTreeSet<Vec<u8>>,
+    /// Calls whose callee resolved to a first-party definition, in
+    /// visitation order (byte-wise file order, source order within a
+    /// file). The derived-site pass reads them (KTD7).
+    pub(crate) derived_calls: Vec<crate::derive::CallEdge>,
 }
 
 enum Item<'p> {
@@ -337,12 +376,12 @@ enum Item<'p> {
     Ref(&'p Reference),
 }
 
-fn is_call(u: UseKind) -> bool {
+pub(crate) fn is_call(u: UseKind) -> bool {
     matches!(u, UseKind::Call | UseKind::Construct)
 }
 
 /// Renders an expression as source-like text for `expr:` destinations.
-fn render(e: &Expr) -> String {
+pub(crate) fn render(e: &Expr) -> String {
     match e {
         Expr::Literal(s) => format!("{s:?}"),
         Expr::Template(parts) => parts.iter().map(render).collect::<Vec<_>>().join(" + "),
@@ -368,7 +407,7 @@ fn render(e: &Expr) -> String {
     }
 }
 
-fn to_dest(v: Val) -> Destination {
+pub(crate) fn to_dest(v: Val) -> Destination {
     match v {
         Val::Lit(s) => destination::literal(&s),
         Val::Dest(d) => d,
@@ -386,7 +425,7 @@ fn to_part(v: Val) -> TemplatePart {
 
 /// The file's labels plus `test` when `symbol` lies in one of the file's
 /// test scopes (Rust `#[cfg(test)]` and `#[test]`).
-fn labels_at(cx: Ctx<'_, '_>, symbol: &str) -> Vec<crate::model::Label> {
+pub(crate) fn labels_at(cx: Ctx<'_, '_>, symbol: &str) -> Vec<crate::model::Label> {
     let mut labels = cx.pf.labels.clone();
     let in_test = cx.pf.ir.test_scopes.iter().any(|t| {
         symbol == t
@@ -467,7 +506,7 @@ impl<'p, 'a> State<'p, 'a> {
         });
     }
 
-    fn blind_at(
+    pub(crate) fn blind_at(
         &mut self,
         cx: Ctx<'p, 'a>,
         symbol: &str,
@@ -713,7 +752,10 @@ impl<'p, 'a> State<'p, 'a> {
                 chain: members,
             },
             Binding::FirstPartyModule(_) => Head::FirstPartyModule,
-            Binding::FirstPartyDef { .. } | Binding::FirstParty => Head::FirstParty,
+            // The def is kept so the derived-site pass can match caller
+            // edges against it (KTD7).
+            Binding::FirstPartyDef { path, name } => Head::FirstPartyDef { path, name },
+            Binding::FirstParty => Head::FirstParty,
             Binding::Inert | Binding::Gap(_) => Head::Nothing,
         }
     }
@@ -797,19 +839,30 @@ impl<'p, 'a> State<'p, 'a> {
                     return Ok(Head::Untracked);
                 }
                 let ix = cx.ix;
-                let same = ix.local(symbol, name).map(|l| (&l.value, true));
-                let value = same
-                    .or_else(|| {
-                        ix.local("<module>", name)
-                            .map(|l| (&l.value, symbol == "<module>"))
-                    })
+                if let Some(l) = ix.local(symbol, name) {
+                    // A function-local binding is a value, never the
+                    // module-level definition of the same name.
+                    let Expr::Reference(r) = &l.value else {
+                        return Ok(Head::FirstParty);
+                    };
+                    if is_call(r.use_kind) {
+                        let h = self.resolve_head(cx, &r.root, &r.members, &r.symbol, hops + 1)?;
+                        return Ok(Self::track(cx.rt, cx.lang(), h, members));
+                    }
+                    let mut chain = r.members.clone();
+                    chain.extend(members.iter().cloned());
+                    return self.resolve_head(cx, &r.root, &chain, &r.symbol, hops + 1);
+                }
+                let value = ix
+                    .local("<module>", name)
+                    .map(|l| (&l.value, symbol == "<module>"))
                     .or_else(|| {
                         ix.constants
                             .get(name.as_str())
                             .map(|c| (&c.value, symbol == "<module>"))
                     });
                 let Some((Expr::Reference(r), same_scope)) = value else {
-                    return Ok(Head::FirstParty);
+                    return Ok(self.local_def_head(cx, name, members));
                 };
                 if is_call(r.use_kind) {
                     if !same_scope {
@@ -847,6 +900,27 @@ impl<'p, 'a> State<'p, 'a> {
                 }
             }
             Root::Param(_) | Root::Expression => Ok(Head::Untracked),
+        }
+    }
+
+    /// The head of a bare local name with no usable binding: a
+    /// `FirstPartyDef` when the file defines `name` at module level and
+    /// the reference names the definition itself (no member chain),
+    /// mirroring the `defined` arm of the resolver's export lookup
+    /// (KTD7). Anything else first-party.
+    fn local_def_head(&self, cx: Ctx<'p, 'a>, name: &str, members: &[String]) -> Head {
+        let ix = cx.ix;
+        let defined = members.is_empty()
+            && (ix.defs.contains(name)
+                || ix.constants.contains_key(name)
+                || ix.local("<module>", name).is_some());
+        if defined {
+            Head::FirstPartyDef {
+                path: cx.path.to_vec(),
+                name: name.to_string(),
+            }
+        } else {
+            Head::FirstParty
         }
     }
 
@@ -992,7 +1066,7 @@ impl<'p, 'a> State<'p, 'a> {
                 self.blind(cx, rf, BlindSpotKind::ReflectiveAccess)
             }
             Head::Tracked { .. } | Head::Nothing => {}
-            Head::FirstParty | Head::Untracked => {
+            Head::FirstParty | Head::FirstPartyDef { .. } | Head::Untracked => {
                 self.by_provenance(cx, rf, BlindSpotKind::ReflectiveAccess)
             }
         }
@@ -1063,6 +1137,18 @@ impl<'p, 'a> State<'p, 'a> {
                     && e.id != ctor
                 {
                     self.entry(cx, rf, e, &[], depth);
+                }
+            }
+            Head::FirstPartyDef { path, name } => {
+                // A call whose callee is a first-party definition is a
+                // caller edge for the derived-site pass (KTD7).
+                if is_call(rf.use_kind) {
+                    self.derived_calls.push(crate::derive::CallEdge {
+                        file: cx.path.to_vec(),
+                        def_path: path,
+                        def_name: name,
+                        rf: rf.clone(),
+                    });
                 }
             }
             Head::FirstPartyModule | Head::FirstParty | Head::Untracked | Head::Nothing => {}
@@ -1387,7 +1473,12 @@ impl<'p, 'a> State<'p, 'a> {
         };
         match head {
             Err(Limit) => self.blind(cx, rf, BlindSpotKind::ResolutionLimit),
-            Ok(Head::Tracked { .. } | Head::FirstParty | Head::Nothing) => {}
+            Ok(
+                Head::Tracked { .. }
+                | Head::FirstParty
+                | Head::FirstPartyDef { .. }
+                | Head::Nothing,
+            ) => {}
             Ok(Head::Untracked) => self.blind(cx, rf, BlindSpotKind::ReflectiveUnknown),
             Ok(Head::Ext { .. } | Head::Ambient { .. } | Head::FirstPartyModule) => {
                 self.blind(cx, rf, kind)
@@ -1520,7 +1611,7 @@ impl<'p, 'a> State<'p, 'a> {
         }
     }
 
-    fn eval(&mut self, path: &[u8], symbol: &str, e: &Expr, depth: u32) -> Val {
+    pub(crate) fn eval(&mut self, path: &[u8], symbol: &str, e: &Expr, depth: u32) -> Val {
         if depth > MAX_EVAL_DEPTH {
             return Val::Dest(destination::expr(&render(e)));
         }
@@ -1565,7 +1656,7 @@ impl<'p, 'a> State<'p, 'a> {
         }
     }
 
-    fn ctx(&self, path: &[u8]) -> Option<Ctx<'p, 'a>> {
+    pub(crate) fn ctx(&self, path: &[u8]) -> Option<Ctx<'p, 'a>> {
         let program = self.program;
         let (path, pf) = program.files.get_key_value(path)?;
         Some(Ctx {
