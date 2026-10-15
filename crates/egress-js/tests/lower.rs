@@ -551,7 +551,7 @@ fn string_timers_are_triggers_and_function_timers_are_not() {
     );
     assert_eq!(
         kinds(&f),
-        vec![ConstructKind::DynamicImport, ConstructKind::DynamicImport]
+        vec![ConstructKind::DynamicCode, ConstructKind::DynamicCode]
     );
 }
 

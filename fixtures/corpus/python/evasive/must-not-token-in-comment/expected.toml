@@ -1,0 +1,4 @@
+state = "complete"
+exit_code = 0
+
+absent_text = ["ghp_placeholder_token"]

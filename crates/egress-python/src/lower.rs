@@ -1233,7 +1233,42 @@ impl<'s> Walker<'s> {
                 }
             }
             Expr::Subscript(s) => {
-                self.visit_subscript(s);
+                if !self.emit() {
+                    self.visit_expr(&s.value);
+                    self.visit_expr(&s.slice);
+                    return;
+                }
+                // A subscript store writes the container: `sys.modules[k]
+                // = v` mutates the import table, it does not read it.
+                // The `__builtins__` table keeps its scope-injection path.
+                let builtins = matches!(s.value.as_ref(), Expr::Name(n)
+                    if n.id.as_str() == "__builtins__"
+                        && self.resolve("__builtins__") == NameRef::Ambient);
+                if builtins {
+                    self.visit_subscript(s);
+                    return;
+                }
+                if let Some(chain) = self.chain_of(&s.value) {
+                    if let Base::Loader(c) = chain.base {
+                        self.visit_chain_base(c);
+                    }
+                    let (root, members, _) = self.chain_root(&chain);
+                    if !members.is_empty() {
+                        let r = self.reference(
+                            root,
+                            members,
+                            UseKind::AssignmentTarget,
+                            s.value.range(),
+                        );
+                        self.ir.references.push(r);
+                    }
+                    for at in &chain.attrs {
+                        self.introspect(at);
+                    }
+                } else {
+                    self.visit_expr(&s.value);
+                }
+                self.visit_expr(&s.slice);
             }
             Expr::Tuple(t) => t.elts.iter().for_each(|e| self.visit_target(e, None)),
             Expr::List(l) => l.elts.iter().for_each(|e| self.visit_target(e, None)),
@@ -1262,6 +1297,26 @@ impl<'s> Walker<'s> {
             };
             self.ir.references.push(r);
             self.visit_expr(&s.slice);
+            return;
+        }
+        // `globals()`/`vars()`/`locals()[k]` on a bare ambient call: a
+        // literal key reads the namespace by name like a bare-name load;
+        // a non-literal key keeps the call's scope-injection spot.
+        if self.emit()
+            && let Expr::Call(c) = s.value.as_ref()
+            && c.arguments.args.is_empty()
+            && let Expr::Name(n) = c.func.as_ref()
+            && matches!(n.id.as_str(), "globals" | "vars" | "locals")
+            && self.resolve(n.id.as_str()) == NameRef::Ambient
+            && let Some(key) = string_literal(&s.slice)
+        {
+            let root = match self.resolve(&key) {
+                NameRef::Import(_) => Root::Import(key),
+                NameRef::Local | NameRef::Param(_) | NameRef::Receiver => Root::Local(key),
+                NameRef::Ambient => Root::Ambient(key),
+            };
+            let r = self.reference(root, Vec::new(), UseKind::ValueEscape, s.range());
+            self.ir.references.push(r);
             return;
         }
         self.visit_expr(&s.value);

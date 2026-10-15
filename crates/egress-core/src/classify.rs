@@ -560,11 +560,17 @@ impl<'p, 'a> State<'p, 'a> {
                 ConstructKind::DynamicImport | ConstructKind::RequireAsValue => {
                     BlindSpotKind::DynamicImport
                 }
+                ConstructKind::DynamicCode => BlindSpotKind::DynamicCode,
                 ConstructKind::ScopeInjection => BlindSpotKind::ScopeInjection,
                 ConstructKind::ImportSystemMutation => BlindSpotKind::ImportSystemMutation,
                 ConstructKind::NativeCode => BlindSpotKind::NativeCode,
                 ConstructKind::MacroCode => BlindSpotKind::MacroCode,
-                ConstructKind::ConstructorChain => BlindSpotKind::Introspection,
+                // A call through a `.constructor` chain invokes the
+                // `Function` constructor, which evaluates its argument
+                // string: dynamic-code, not mere introspection. A bare
+                // `.constructor` read still reports introspection through
+                // the reference path.
+                ConstructKind::ConstructorChain => BlindSpotKind::DynamicCode,
                 ConstructKind::ResolutionLimit => BlindSpotKind::ResolutionLimit,
                 ConstructKind::BuildHook => BlindSpotKind::BuildHook,
             };
@@ -1020,10 +1026,13 @@ impl<'p, 'a> State<'p, 'a> {
         }
         let c = Self::lookup(cx.rt, cx.lang(), &module, &chain);
         if let Some(Classification::Entry(e)) = c
-            && let EntryKind::BlindSpot {
-                kind: BlindSpotKind::ImportSystemMutation,
-                ..
-            } = e.kind
+            && let EntryKind::BlindSpot { kind, .. } = e.kind
+            && (kind == BlindSpotKind::ImportSystemMutation
+                // `sys.modules` reads are `reflective-access`; a write to
+                // the same table changes what `import` resolves to, which
+                // is an import-system mutation.
+                || (kind == BlindSpotKind::ReflectiveAccess
+                    && e.id == "python:sys.modules"))
         {
             self.blind(cx, rf, BlindSpotKind::ImportSystemMutation);
             return;

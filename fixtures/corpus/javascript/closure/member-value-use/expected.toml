@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "app.cjs"
+symbol = "probe"
+mechanism = "javascript:http.get"
+destination = "expr:http.get"

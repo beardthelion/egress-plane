@@ -653,6 +653,10 @@ fn structural_constructs_map_to_their_blind_spot_kinds() {
                 .construct(construct(
                     ConstructKind::ConstructorChain,
                     "(()=>{}).constructor(s)",
+                ))
+                .construct(construct(
+                    ConstructKind::DynamicCode,
+                    "setTimeout('x', 1)",
                 )),
         )
         .file(
@@ -672,10 +676,11 @@ fn structural_constructs_map_to_their_blind_spot_kinds() {
         kinds(&c),
         vec![
             s("build-hook"),
+            s("dynamic-code"),
+            s("dynamic-code"),
             s("dynamic-import"),
             s("dynamic-import"),
             s("import-system-mutation"),
-            s("introspection"),
             s("macro-code"),
             s("native-code"),
             s("scope-injection"),

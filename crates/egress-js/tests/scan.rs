@@ -185,6 +185,7 @@ function f(k, u, code, d) {
   new Function("x");
   setTimeout("tick()", 10);
   (() => {}).constructor("return process")();
+  import(k);
   Object.defineProperty(require("http"), "request", d);
   return this.fetch("https://this.example");
 }
@@ -207,7 +208,6 @@ module.exports = { f };
         "reflective-access",
         "dynamic-code",
         "dynamic-import",
-        "introspection",
         "monkeypatch",
     ] {
         assert!(kinds.iter().any(|x| x == k), "{k}: {kinds:?}");

@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+absent_text = ["ghp_placeholder_token"]
+
+[[blind_spots]]
+file = "app.py"
+symbol = "probe"
+kind = "dynamic-code"

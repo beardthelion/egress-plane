@@ -1,0 +1,11 @@
+state = "complete"
+exit_code = 0
+
+[[blind_spots]]
+file = "app.cjs"
+symbol = "probe"
+kind = "reflective-unknown"
+
+[[unscanned_dependencies]]
+language = "javascript"
+package = "probeclientpkg"

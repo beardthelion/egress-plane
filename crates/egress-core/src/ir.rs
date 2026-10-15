@@ -228,6 +228,9 @@ pub enum ConstructKind {
     MacroCode,
     /// `.constructor` chains on a non-class receiver.
     ConstructorChain,
+    /// A string the runtime evaluates as code: `setTimeout("...")`,
+    /// `setInterval("...")` (eval-equivalent).
+    DynamicCode,
     /// A name the frontend stopped following at its own bound, such as a Rust
     /// `use` alias chain longer than the hop cap.
     ResolutionLimit,

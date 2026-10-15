@@ -2348,7 +2348,7 @@ impl<'s, 'a> Lowerer<'s, 'a> {
             return;
         }
         if self.timer_with_string(c) {
-            self.construct(ConstructKind::DynamicImport, c.span);
+            self.construct(ConstructKind::DynamicCode, c.span);
         }
         if Self::computed_parts(callee).is_some() {
             self.member(callee, false, c.span);
