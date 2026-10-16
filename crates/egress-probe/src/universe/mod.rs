@@ -417,14 +417,7 @@ fn canonical_mount(point: &[Vec<u8>]) -> bool {
 
 /// Joins in-root path components into call bytes (no leading slash).
 pub(crate) fn join(comps: &[Vec<u8>]) -> Vec<u8> {
-    let mut out = Vec::new();
-    for (i, c) in comps.iter().enumerate() {
-        if i > 0 {
-            out.push(b'/');
-        }
-        out.extend_from_slice(c);
-    }
-    out
+    egress_core::paths::join_components(comps)
 }
 
 /// The display and identity form of an in-root path: leading slash.

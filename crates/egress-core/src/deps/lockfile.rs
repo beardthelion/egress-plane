@@ -10,6 +10,8 @@ pub struct CargoLock {
     /// Top-level `version` of the lock file itself (3 or 4).
     pub format: u64,
     pub packages: Vec<LockedPackage>,
+    /// Package indices by folded name (`-`/`_` equal, KTD5).
+    pub by_name: std::collections::BTreeMap<String, Vec<usize>>,
 }
 
 /// One `[[package]]` entry.
@@ -52,14 +54,10 @@ pub fn cargo_lock_result(bytes: &[u8]) -> LockfileResult<CargoLock> {
         Some(v) if !(3..=4).contains(&v) => return LockfileResult::Unreadable,
         _ => {}
     }
-    cargo_lock_inner(bytes).map_or(LockfileResult::Unreadable, LockfileResult::Parsed)
+    cargo_lock_inner(&t).map_or(LockfileResult::Unreadable, LockfileResult::Parsed)
 }
 
-fn cargo_lock_inner(bytes: &[u8]) -> Result<CargoLock, Malformed> {
-    let t: toml::Table = std::str::from_utf8(bytes)
-        .ok()
-        .and_then(|s| toml::from_str(s).ok())
-        .ok_or(Malformed)?;
+fn cargo_lock_inner(t: &toml::Table) -> Result<CargoLock, Malformed> {
     let format: u64 = t
         .get("version")
         .and_then(|v| v.as_integer())
@@ -106,7 +104,16 @@ fn cargo_lock_inner(bytes: &[u8]) -> Result<CargoLock, Malformed> {
             dependencies,
         });
     }
-    Ok(CargoLock { format, packages })
+    let mut by_name: std::collections::BTreeMap<String, Vec<usize>> =
+        std::collections::BTreeMap::new();
+    for (i, p) in packages.iter().enumerate() {
+        by_name.entry(p.name.replace('-', "_")).or_default().push(i);
+    }
+    Ok(CargoLock {
+        format,
+        packages,
+        by_name,
+    })
 }
 
 /// Resolve one dependency edge to a locked package. `name` and
@@ -116,10 +123,14 @@ fn cargo_lock_inner(bytes: &[u8]) -> Result<CargoLock, Malformed> {
 pub fn resolve_edge<'a>(lock: &'a CargoLock, edge: &str) -> Option<&'a LockedPackage> {
     let (name, version) = edge_name_version(edge);
     // KTD5's hyphen fold applies to the lookup spelling as well.
-    lock.packages
-        .iter()
-        .find(|p| rust_eq(&p.name, name) && version.is_none_or(|v| p.version == v))
-        .or_else(|| lock.packages.iter().find(|p| rust_eq(&p.name, name)))
+    let candidates = lock.by_name.get(&name.replace('-', "_"));
+    candidates
+        .and_then(|c| {
+            c.iter()
+                .map(|&i| &lock.packages[i])
+                .find(|p| version.is_none_or(|v| p.version == v))
+        })
+        .or_else(|| candidates.and_then(|c| c.first().map(|&i| &lock.packages[i])))
 }
 
 /// Split a dependency edge into its package name and optional version:

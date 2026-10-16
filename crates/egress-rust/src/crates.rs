@@ -87,6 +87,19 @@ impl RustRules {
             ..RustRules::default()
         };
         let mut roots: BTreeSet<Vec<u8>> = BTreeSet::new();
+        // Buckets for conventional-target lookup: each source by its
+        // directory, and `main.rs` files by their grandparent so
+        // `src/bin/<name>/main.rs` resolves in one lookup.
+        let mut by_dir: std::collections::BTreeMap<&[u8], Vec<&Vec<u8>>> =
+            std::collections::BTreeMap::new();
+        let mut by_bin_main: std::collections::BTreeMap<&[u8], Vec<&Vec<u8>>> =
+            std::collections::BTreeMap::new();
+        for p in &rules.sources {
+            by_dir.entry(dir_of(p)).or_default().push(p);
+            if file_name(p) == b"main.rs" {
+                by_bin_main.entry(dir_of(dir_of(p))).or_default().push(p);
+            }
+        }
         let mut cargo: Vec<&CargoManifest> = manifests.cargo.iter().collect();
         cargo.sort_by(|a, b| a.path.cmp(&b.path));
         for m in &cargo {
@@ -140,13 +153,19 @@ impl RustRules {
             }
             for sub in ["src/bin", "tests", "examples", "benches"] {
                 let base = join(&dir, sub);
-                for p in &rules.sources {
-                    if dir_of(p) == base.as_slice()
-                        || (sub == "src/bin"
-                            && dir_of(dir_of(p)) == base.as_slice()
-                            && file_name(p) == b"main.rs")
+                for p in by_dir.get(base.as_slice()).into_iter().flatten() {
+                    roots.insert((*p).clone());
+                }
+                if sub == "src/bin" {
+                    // `src/bin/<name>/main.rs` nests one level deeper.
+                    for p in by_dir
+                        .iter()
+                        .filter(|(d, _)| dir_of(d) == base.as_slice())
+                        .flat_map(|(_, v)| v.iter())
                     {
-                        roots.insert(p.clone());
+                        if file_name(p) == b"main.rs" {
+                            roots.insert((*p).clone());
+                        }
                     }
                 }
             }

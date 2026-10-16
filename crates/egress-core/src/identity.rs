@@ -76,7 +76,8 @@ pub fn encode_rel_path(root: &Path, path: &Path) -> Option<EncodedPath> {
     Some(encode_path_bytes(&bytes))
 }
 
-fn hex(bytes: &[u8]) -> String {
+/// Lowercase hex of `bytes`.
+pub fn hex(bytes: &[u8]) -> String {
     let mut s = String::with_capacity(bytes.len() * 2);
     for b in bytes {
         let _ = write!(s, "{b:02x}");

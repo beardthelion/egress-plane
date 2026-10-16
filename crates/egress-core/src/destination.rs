@@ -59,6 +59,16 @@ pub fn env(name: &str, default: Option<&str>) -> Destination {
 
 /// Parameter `index` (1-based, excluding `self`, `cls`, and Rust receivers)
 /// of the function at symbol path `function`: `param:N:<function>`.
+/// The `(index, function)` a `param:` destination names, when its
+/// `kind` is `Param` and its `value` parses as `N:<function>`.
+pub fn param_parts(d: &Destination) -> Option<(u32, &str)> {
+    if d.kind != DestinationKind::Param {
+        return None;
+    }
+    let (index, function) = d.value.split_once(':')?;
+    Some((index.parse().ok()?, function))
+}
+
 pub fn param(index: u32, function: &str) -> Destination {
     make(
         DestinationKind::Param,

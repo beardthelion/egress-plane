@@ -558,18 +558,11 @@ fn split_path(path: &[u8]) -> Result<Vec<Vec<u8>>, Denial> {
 
 /// Joins resolved components for the backend call and the read log.
 fn join_path(comps: &[Vec<u8>]) -> Vec<u8> {
-    let mut out = Vec::new();
-    for (i, c) in comps.iter().enumerate() {
-        if i > 0 {
-            out.push(b'/');
-        }
-        out.extend_from_slice(c);
-    }
-    out
+    egress_core::paths::join_components(comps)
 }
 
 fn has_prefix(path: &[Vec<u8>], prefix: &[Vec<u8>]) -> bool {
-    path.len() >= prefix.len() && &path[..prefix.len()] == prefix
+    path.starts_with(prefix)
 }
 
 /// Normalizes link text against the link's parent directory: `..` and `.`

@@ -26,7 +26,6 @@
 //! exact segment beats a glob.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -94,11 +93,7 @@ pub fn data_digest(files: &[(&str, &str)]) -> String {
         h.update((text.len() as u64).to_le_bytes());
         h.update(text.as_bytes());
     }
-    let mut out = String::from("sha256:");
-    for b in h.finalize() {
-        let _ = write!(out, "{b:02x}");
-    }
-    out
+    format!("sha256:{}", crate::identity::hex(&h.finalize()))
 }
 
 /// All loaded data.
@@ -179,6 +174,17 @@ pub struct RuntimeData {
     /// Member entries from both files, sorted by ID.
     pub entries: Vec<Entry>,
     pub inventory: Inventory,
+    /// Declared module names for O(1) membership.
+    declared: std::collections::HashSet<String>,
+    /// `entries` indices keyed by their (literal) module name, sorted so a
+    /// module's subtree is a contiguous range. Scope-glob modules key on
+    /// their literal text.
+    entries_by_module: std::collections::BTreeMap<String, Vec<usize>>,
+    /// Entries whose module is a `scope/*` pattern, matched by
+    /// `module_name_matches`.
+    glob_entries: Vec<usize>,
+    /// Package index by exact module name; first declaration wins.
+    package_by_module: std::collections::HashMap<String, usize>,
 }
 
 /// The runtime's global object as a module.
@@ -418,9 +424,18 @@ impl RuntimeData {
     /// The catalogued package declaring `specifier`, if any. A scope glob
     /// (`@aws-sdk/*`) covers every package directly under that scope.
     pub fn package_for(&self, specifier: &str) -> Option<&Package> {
-        self.packages
-            .iter()
-            .find(|p| p.modules.iter().any(|m| module_name_matches(m, specifier)))
+        let exact = self.package_by_module.get(specifier).copied();
+        let glob = self.packages.iter().position(|p| {
+            p.modules
+                .iter()
+                .any(|m| m.ends_with("/*") && module_name_matches(m, specifier))
+        });
+        match (exact, glob) {
+            (Some(e), Some(g)) => Some(&self.packages[e.min(g)]),
+            (Some(e), None) => Some(&self.packages[e]),
+            (None, Some(g)) => Some(&self.packages[g]),
+            (None, None) => None,
+        }
     }
 
     /// Declared module names: classified modules, catalog modules, and the
@@ -473,15 +488,26 @@ impl RuntimeData {
         for (i, m) in members.iter().enumerate() {
             candidate.push_str(sep);
             candidate.push_str(m);
-            if self.declared_modules().any(|d| d == candidate) {
+            if self.declared.contains(&candidate) {
                 module_name = candidate.clone();
                 rest = &members[i + 1..];
             }
         }
 
         let mut best: Option<(&Entry, usize, bool)> = None;
-        for e in &self.entries {
-            if !module_name_matches(&e.module, &module_name) || e.members.len() > rest.len() {
+        let exact = self
+            .entries_by_module
+            .get(&module_name)
+            .into_iter()
+            .flatten()
+            .map(|&i| &self.entries[i]);
+        let globs = self
+            .glob_entries
+            .iter()
+            .map(|&i| &self.entries[i])
+            .filter(|e| module_name_matches(&e.module, &module_name));
+        for e in exact.chain(globs) {
+            if e.members.len() > rest.len() {
                 continue;
             }
             if drop_inert && matches!(e.kind, EntryKind::Inert { .. }) {
@@ -567,14 +593,7 @@ fn module_name_matches(declared: &str, name: &str) -> bool {
 
 /// Matches one segment against a pattern with at most one `*`.
 fn glob_matches(pattern: &str, segment: &str) -> bool {
-    match pattern.split_once('*') {
-        Some((pre, post)) => {
-            segment.len() >= pre.len() + post.len()
-                && segment.starts_with(pre)
-                && segment.ends_with(post)
-        }
-        None => pattern == segment,
-    }
+    crate::paths::star_match(pattern, segment).is_some()
 }
 
 // ---------------------------------------------------------------------------
@@ -974,6 +993,10 @@ pub fn load_runtime(
         modules: modules.into_values().collect(),
         packages: packages.into_values().collect(),
         entries: Vec::new(),
+        declared: std::collections::HashSet::new(),
+        entries_by_module: std::collections::BTreeMap::new(),
+        glob_entries: Vec::new(),
+        package_by_module: std::collections::HashMap::new(),
         inventory: Inventory {
             generated_from: ri.generated_from,
             not_generated: ri.not_generated,
@@ -1032,7 +1055,56 @@ pub fn load_runtime(
         entries.insert(entry.id.clone(), entry);
     }
     rt.entries = entries.into_values().collect();
+    rt.build_indexes();
     Ok(rt)
+}
+
+impl RuntimeData {
+    /// Builds the lookup indexes from `modules`, `packages`, `ambient`,
+    /// and `entries`; called once at the end of `build_runtime`. Tests
+    /// that mutate a loaded runtime call it again to re-derive the index.
+    /// Production code never mutates a `RuntimeData` after load.
+    pub fn build_indexes(&mut self) {
+        self.declared.clear();
+        self.entries_by_module.clear();
+        self.glob_entries.clear();
+        self.package_by_module.clear();
+        self.declared.extend(
+            self.declared_modules()
+                .map(str::to_string)
+                .collect::<Vec<_>>(),
+        );
+        for (i, e) in self.entries.iter().enumerate() {
+            self.entries_by_module
+                .entry(e.module.clone())
+                .or_default()
+                .push(i);
+            if e.module.ends_with("/*") {
+                self.glob_entries.push(i);
+            }
+        }
+        for (i, p) in self.packages.iter().enumerate() {
+            for m in &p.modules {
+                if !m.ends_with("/*") {
+                    self.package_by_module.entry(m.clone()).or_insert(i);
+                }
+            }
+        }
+    }
+
+    /// Entries whose `module` is `module` or inside its subtree
+    /// (`module<sep>*`), tested literally on the stored name.
+    pub fn entries_under<'a>(&'a self, module: &'a str) -> impl Iterator<Item = &'a Entry> + 'a {
+        let prefix = format!("{module}{}", self.sep());
+        self.entries_by_module
+            .range::<String, _>((
+                std::ops::Bound::Included(module.to_string()),
+                std::ops::Bound::Unbounded,
+            ))
+            .take_while(move |(k, _)| k.as_str() == module || k.starts_with(&prefix))
+            .flat_map(|(_, v)| v.iter())
+            .map(|&i| &self.entries[i])
+    }
 }
 
 fn build_entry(rt: &RuntimeData, e: RawEntry, origin: Origin, path: &str) -> Result<Entry, String> {

@@ -31,7 +31,7 @@ use crate::model::{
     BlindSpot, BlindSpotKind, BudgetReason, Coverage, Excluded, ExcludedReason, Label, Language,
     ToolError,
 };
-use crate::paths::{dir_of, file_name};
+use crate::paths::{dir_of, file_name, join, within};
 
 pub use budgets::Budgets;
 pub use manifests::Manifests;
@@ -219,14 +219,6 @@ fn shebang_language(head: &[u8]) -> Option<Language> {
     Language::ALL.into_iter().find(|l| (l.spec().shebang)(base))
 }
 
-fn join(dir: &[u8], name: &[u8]) -> Vec<u8> {
-    if dir.is_empty() {
-        name.to_vec()
-    } else {
-        [dir, b"/", name].concat()
-    }
-}
-
 /// `modules.txt` is a Go manifest only under a `vendor` directory with a
 /// `go.mod` or `go.work` at or above it (KTD9); anywhere else the name is
 /// ordinary data.
@@ -246,12 +238,6 @@ fn go_modules_candidate(path: &[u8], index: &BTreeMap<Vec<u8>, FileKind>) -> boo
         }
         dir = dir_of(dir);
     }
-}
-
-fn within(path: &[u8], dir: &[u8]) -> bool {
-    dir.is_empty()
-        || path == dir
-        || (path.len() > dir.len() && path.starts_with(dir) && path[dir.len()] == b'/')
 }
 
 fn language_of(path: &[u8]) -> Option<Language> {
@@ -334,11 +320,7 @@ impl Walk<'_> {
         if self.unsafe_open {
             return Err(BlindSpotKind::UnsafeOpenUnavailable);
         }
-        self.root.read_file(path, limit).map_err(|e| match e {
-            ReadError::NotRegular => BlindSpotKind::NotRegularFile,
-            ReadError::TooLarge => BlindSpotKind::TooLarge,
-            ReadError::Unreadable => BlindSpotKind::Unreadable,
-        })
+        self.root.read_file(path, limit).map_err(read_kind)
     }
 
     fn classify_dir(&mut self, path: &[u8], parent: &[(Vec<u8>, Stat)]) -> DirClass {
@@ -528,6 +510,26 @@ impl Walk<'_> {
             }
         }
         let _ = self.drain(stack);
+    }
+}
+
+/// The tsconfig target probe (KTD15): `path` in the index, else
+/// `path + ".json"`.
+fn probe_json(index: &BTreeMap<Vec<u8>, FileKind>, path: &[u8]) -> Option<Vec<u8>> {
+    if index.contains_key(path) {
+        Some(path.to_vec())
+    } else {
+        let with_ext = [path, b".json"].concat();
+        index.contains_key(&with_ext).then_some(with_ext)
+    }
+}
+
+/// A `ReadError` to the whole-file blind-spot kind it means.
+fn read_kind(e: ReadError) -> BlindSpotKind {
+    match e {
+        ReadError::NotRegular => BlindSpotKind::NotRegularFile,
+        ReadError::TooLarge => BlindSpotKind::TooLarge,
+        ReadError::Unreadable => BlindSpotKind::Unreadable,
     }
 }
 
@@ -875,15 +877,13 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
         // `<dir>/tsconfig.json`; a path without `.json` tries the exact
         // path, then `.json` (KTD15).
         if let Some(target) = ref_queue.pop() {
+            // A directory reference reads `<dir>/tsconfig.json`.
             let resolved = if index.keys().any(|k| {
                 k.starts_with(&target[..]) && k.len() > target.len() && k[target.len()] == b'/'
             }) {
                 Some(join(&target, b"tsconfig.json"))
-            } else if index.contains_key(&target) {
-                Some(target)
             } else {
-                let with_ext = [target.as_slice(), b".json"].concat();
-                index.contains_key(&with_ext).then_some(with_ext)
+                probe_json(&index, &target)
             };
             if let Some(target) = resolved {
                 ts_queue.push(target);
@@ -892,15 +892,9 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
         }
         if let Some((owner, name)) = pkg_queue.pop() {
             for target in package_extends_targets(&package_dirs, &name) {
-                // The same probe the path worklist applies: the named
-                // file, then it with a `.json` suffix.
-                let resolved = if index.contains_key(&target) {
-                    Some(target)
-                } else {
-                    let with_ext = [target.as_slice(), b".json"].concat();
-                    index.contains_key(&with_ext).then_some(with_ext)
+                let Some(target) = probe_json(&index, &target) else {
+                    continue;
                 };
-                let Some(target) = resolved else { continue };
                 if let Some(o) = manifests
                     .tsconfig
                     .iter_mut()
@@ -913,14 +907,8 @@ fn finish(mut w: Walk<'_>, config: &Config) -> Result<Discovery, ToolError> {
             continue;
         }
         let Some(target) = ts_queue.pop() else { break };
-        let target = if index.contains_key(&target) {
-            target
-        } else {
-            let with_ext = [target.as_slice(), b".json"].concat();
-            if !index.contains_key(&with_ext) {
-                continue;
-            }
-            with_ext
+        let Some(target) = probe_json(&index, &target) else {
+            continue;
         };
         if !seen.insert(target.clone()) {
             continue;
@@ -1060,22 +1048,15 @@ impl Walk<'_> {
         }
         self.root
             .read_prefix(path, SHEBANG_BYTES)
-            .map_err(|e| match e {
-                ReadError::NotRegular => BlindSpotKind::NotRegularFile,
-                ReadError::TooLarge => BlindSpotKind::TooLarge,
-                ReadError::Unreadable => BlindSpotKind::Unreadable,
-            })
+            .map_err(read_kind)
     }
 
     fn read_manifest(&self, path: &[u8]) -> Result<String, BlindSpotKind> {
         let bytes = self
             .read(path, MAX_FILE_BYTES)
             .map_err(manifest_read_kind)?;
-        let text = String::from_utf8(bytes).map_err(|_| BlindSpotKind::ManifestParseError)?;
-        Ok(text
-            .strip_prefix('\u{feff}')
-            .map(str::to_string)
-            .unwrap_or(text))
+        crate::discover::encoding::decode_utf8(&bytes)
+            .map_err(|_| BlindSpotKind::ManifestParseError)
     }
 }
 
@@ -1107,21 +1088,11 @@ impl Discovery {
         let bytes = self
             .root
             .read_file(&file.path, MAX_FILE_BYTES)
-            .map_err(|e| match e {
-                ReadError::NotRegular => BlindSpotKind::NotRegularFile,
-                ReadError::TooLarge => BlindSpotKind::TooLarge,
-                ReadError::Unreadable => BlindSpotKind::Unreadable,
-            })?;
+            .map_err(read_kind)?;
         if file.language == Language::Python {
             return encoding::decode(&bytes);
         }
-        // A leading BOM is valid UTF-8, so decoding the whole buffer accepts
-        // exactly what decoding the body after it would.
-        let mut text = String::from_utf8(bytes).map_err(|_| BlindSpotKind::Undecodable)?;
-        if text.starts_with('\u{feff}') {
-            text.drain(..'\u{feff}'.len_utf8());
-        }
-        Ok(text)
+        crate::discover::encoding::decode_utf8(&bytes)
     }
 }
 

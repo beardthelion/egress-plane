@@ -457,13 +457,9 @@ impl<'p, 'a> Resolver<'p, 'a> {
         let Some(pkg) = rt.package_for(&top) else {
             return false;
         };
-        let sep = crate::data::separator(language);
-        rt.entries.iter().any(|e| {
-            !matches!(e.kind, EntryKind::Inert { .. })
-                && pkg
-                    .modules
-                    .iter()
-                    .any(|m| e.module == *m || e.module.starts_with(&format!("{m}{sep}")))
+        !pkg.modules.iter().all(|m| {
+            rt.entries_under(m)
+                .all(|e| matches!(e.kind, EntryKind::Inert { .. }))
         })
     }
 

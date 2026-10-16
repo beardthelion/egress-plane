@@ -318,11 +318,7 @@ fn pkg_name(inst: &Instance) -> String {
 }
 
 fn lang_of(kind: DependencyRootKind) -> Language {
-    match kind {
-        DependencyRootKind::Npm => Language::Javascript,
-        DependencyRootKind::Python => Language::Python,
-        _ => Language::Rust,
-    }
+    kind.language()
 }
 
 fn sorted(mut v: Vec<String>) -> Vec<String> {
@@ -393,10 +389,7 @@ fn import_root(inst: &Instance) -> Vec<u8> {
     } else if inst.rel.ends_with(&[b"/".as_slice(), locator].concat()) {
         inst.rel[..inst.rel.len() - locator.len() - 1].to_vec()
     } else {
-        match inst.rel.iter().rposition(|c| *c == b'/') {
-            Some(i) => inst.rel[..i].to_vec(),
-            None => Vec::new(),
-        }
+        egress_core::paths::dir_of(&inst.rel).to_vec()
     }
 }
 

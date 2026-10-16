@@ -26,7 +26,7 @@ use crate::classify::{Ctx, State, Val, labels_at, render, to_dest};
 use crate::destination;
 use crate::identity::{finalize_direct_sites, raw_path};
 use crate::ir::{Expr, Reference, SymbolSpan};
-use crate::model::{BlindSpotKind, DerivedCut, Destination, DestinationKind, Site, Via, ViaHop};
+use crate::model::{BlindSpotKind, DerivedCut, Destination, Site, Via, ViaHop};
 use crate::resolve::Limit;
 
 /// A call whose callee resolved to a first-party definition, recorded
@@ -76,13 +76,7 @@ pub(crate) fn run(st: &mut State<'_, '_>) {
     // point at.
     let mut level: Vec<Active> = Vec::new();
     for (i, s) in st.out.sites.iter().enumerate() {
-        if s.destination.kind != DestinationKind::Param {
-            continue;
-        }
-        let Some((index, _)) = s.destination.value.split_once(':') else {
-            continue;
-        };
-        let Ok(param) = index.parse::<u32>() else {
+        let Some((param, _)) = crate::destination::param_parts(&s.destination) else {
             continue;
         };
         let file = raw_path(&s.file, s.file_bytes.as_deref());
@@ -103,6 +97,15 @@ pub(crate) fn run(st: &mut State<'_, '_>) {
     }
 
     let edges = std::mem::take(&mut st.derived_calls);
+    // Call edges keyed by the definition they call, so a hop visits only
+    // its own callers.
+    let mut callers_of: BTreeMap<(&[u8], &str), Vec<&CallEdge>> = BTreeMap::new();
+    for e in &edges {
+        callers_of
+            .entry((&e.def_path, e.def_name.as_str()))
+            .or_default()
+            .push(e);
+    }
     let mut emitted: Dedup = BTreeMap::new();
     // Hop keys already reached: (inner, file, function, param). A key
     // reached once is never activated again; the recursion cut handles
@@ -118,10 +121,11 @@ pub(crate) fn run(st: &mut State<'_, '_>) {
         // (KTD7).
         let mut next: BTreeMap<(usize, Vec<u8>, String, u32), Active> = BTreeMap::new();
         for active in &level {
-            for edge in &edges {
-                if edge.def_path != active.file || edge.def_name != active.symbol {
-                    continue;
-                }
+            let Some(callers) = callers_of.get(&(active.file.as_slice(), active.symbol.as_str()))
+            else {
+                continue;
+            };
+            for edge in callers {
                 // A followed hop charges the shared resolver budget; a
                 // cut is a `resolution-limit` blind spot and an
                 // incomplete account (KTD7).
@@ -147,20 +151,12 @@ pub(crate) fn run(st: &mut State<'_, '_>) {
                 // function forwards the caller's parameter; the omitted-
                 // argument fallback names the wrapper and stays a
                 // derived destination (KTD7).
-                let forwards_own_param = dest.kind == DestinationKind::Param
-                    && dest
-                        .value
-                        .split_once(':')
-                        .is_some_and(|(_, f)| f == edge.rf.symbol);
-                if forwards_own_param {
+                let forwarded = crate::destination::param_parts(&dest);
+                if forwarded.is_some_and(|(_, f)| f == edge.rf.symbol) {
                     // The caller forwards its own parameter `n`: it
                     // becomes a wrapper for the next hop, unless the
                     // chain must cut here (KTD8).
-                    let n = dest
-                        .value
-                        .split_once(':')
-                        .and_then(|(i, _)| i.parse::<u32>().ok())
-                        .unwrap_or(active.param);
+                    let n = forwarded.map(|(i, _)| i).unwrap_or(active.param);
                     let key = (edge.file.clone(), edge.rf.symbol.clone(), n);
                     if active.keys.contains(&key) {
                         emit(

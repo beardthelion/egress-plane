@@ -77,9 +77,7 @@ fn join_str(dir: &[u8], path: &str) -> Vec<u8> {
 
 /// `path` lies inside `dir` or equals it.
 fn within(path: &[u8], dir: &[u8]) -> bool {
-    dir.is_empty()
-        || path == dir
-        || (path.len() > dir.len() && path.starts_with(dir) && path[dir.len()] == b'/')
+    egress_core::paths::within(path, dir)
 }
 
 /// A `go` directive's `(major, minor)`, for example `1.22` or `1.26rc1`.

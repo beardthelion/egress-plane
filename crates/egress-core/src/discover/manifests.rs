@@ -1007,7 +1007,7 @@ fn go_one(e: &[String]) -> Result<&str, Malformed> {
 /// Whether `t` reads as a `use` or `replace` directory target
 /// (`.`/`..`-relative or absolute), never a module path.
 fn go_is_path(t: &str) -> bool {
-    t == "." || t == ".." || t.starts_with("./") || t.starts_with("../") || t.starts_with('/')
+    is_path_specifier(t)
 }
 
 /// Parses `replace from[ version] => target`. A path target is folded

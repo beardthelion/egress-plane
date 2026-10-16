@@ -138,7 +138,7 @@ pub(crate) fn components(path: &str) -> Vec<String> {
 }
 
 fn prefix_of(prefix: &[String], path: &[String]) -> bool {
-    path.len() >= prefix.len() && path[..prefix.len()] == *prefix
+    path.starts_with(prefix)
 }
 
 fn pattern_matches(pattern: &[&str], path: &[String]) -> bool {

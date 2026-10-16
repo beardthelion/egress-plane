@@ -193,17 +193,7 @@ pub fn probes(base: &[u8]) -> Vec<Vec<u8>> {
 /// Matches `spec` against a `paths` or `imports` pattern with at most one
 /// `*`, returning the text the `*` stands for.
 fn match_pattern<'s>(pattern: &str, spec: &'s str) -> Option<&'s str> {
-    match pattern.split_once('*') {
-        None => (pattern == spec).then_some(""),
-        Some((pre, post)) => {
-            if spec.len() >= pre.len() + post.len() && spec.starts_with(pre) && spec.ends_with(post)
-            {
-                Some(&spec[pre.len()..spec.len() - post.len()])
-            } else {
-                None
-            }
-        }
-    }
+    egress_core::paths::star_match(pattern, spec)
 }
 
 fn substitute(target: &[u8], star: &str) -> Vec<u8> {
@@ -315,7 +305,7 @@ impl JsRules {
         let mut owner: BTreeMap<Vec<u8>, usize> = BTreeMap::new();
         for &i in &order {
             for f in index.keys() {
-                if resolved[i].claims(f) && !owner.contains_key(f) {
+                if !owner.contains_key(f) && resolved[i].claims(f) {
                     owner.insert(f.clone(), i);
                 }
             }

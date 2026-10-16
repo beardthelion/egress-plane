@@ -88,7 +88,7 @@ fn split(target: &[u8]) -> impl Iterator<Item = Vec<u8>> + '_ {
 }
 
 fn join(parts: &[Vec<u8>]) -> Vec<u8> {
-    parts.join(&b'/')
+    crate::paths::join_components(parts)
 }
 
 /// What a failed in-root open means for the link.

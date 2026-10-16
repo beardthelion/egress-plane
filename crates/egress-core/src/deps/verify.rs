@@ -59,14 +59,18 @@ pub fn compare_files(
     };
     let mut complete = !record.is_empty();
     let mut modified = false;
-    let mut listed: Vec<&[u8]> = Vec::new();
+    let by_path: std::collections::HashMap<&[u8], &[u8]> = files
+        .iter()
+        .map(|(p, b)| (p.as_slice(), b.as_slice()))
+        .collect();
+    let mut listed: std::collections::HashSet<&[u8]> = std::collections::HashSet::new();
     for (path, want) in record {
         if path.starts_with(b"../") || path.starts_with(b"/") {
             continue;
         }
-        listed.push(path);
-        match files.iter().find(|(p, _)| p == path) {
-            Some((_, bytes)) => {
+        listed.insert(path.as_slice());
+        match by_path.get(path.as_slice()) {
+            Some(bytes) => {
                 if digest(bytes) != *want {
                     modified = true;
                     complete = false;
@@ -88,7 +92,7 @@ pub fn compare_files(
         {
             continue;
         }
-        if !listed.contains(&path.as_slice()) {
+        if !listed.contains(path.as_slice()) {
             modified = true;
         }
     }
@@ -170,10 +174,5 @@ pub enum LockState {
 
 /// Lowercase hex SHA-256 for `.cargo-checksum.json` `files` entries.
 pub fn hex_sha256(bytes: &[u8]) -> String {
-    let digest = sha2::Sha256::digest(bytes);
-    let mut out = String::with_capacity(64);
-    for b in digest {
-        let _ = std::fmt::Write::write_fmt(&mut out, format_args!("{b:02x}"));
-    }
-    out
+    crate::identity::hex(&sha2::Sha256::digest(bytes))
 }

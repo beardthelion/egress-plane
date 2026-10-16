@@ -140,7 +140,7 @@ pub fn top_level_names(rows: &[RecordRow]) -> Vec<String> {
             continue;
         }
         let name = first.split('.').next().unwrap_or("");
-        if !name.is_empty() && !out.contains(&name.to_string()) {
+        if !name.is_empty() && !out.iter().any(|n| n == name) {
             out.push(name.to_string());
         }
     }
@@ -184,25 +184,43 @@ pub fn cargo_checksum(bytes: &[u8]) -> Result<CargoChecksum, Malformed> {
     Ok(CargoChecksum { files, package })
 }
 
-/// `[package] name` and `version` from a `Cargo.toml`.
-pub fn cargo_toml_name_version(bytes: &[u8]) -> Result<(String, String), Malformed> {
-    let t: toml::Table = std::str::from_utf8(bytes)
+/// A parsed `Cargo.toml` table.
+fn cargo_toml(bytes: &[u8]) -> Result<toml::Table, Malformed> {
+    std::str::from_utf8(bytes)
         .ok()
         .and_then(|s| toml::from_str(s).ok())
-        .ok_or(Malformed)?;
+        .ok_or(Malformed)
+}
+
+/// `[package] name`, `version`, and `[lib] name` from a `Cargo.toml`
+/// (one parse for all three).
+pub fn cargo_toml_fields(bytes: &[u8]) -> Result<(String, String, Option<String>), Malformed> {
+    let t = cargo_toml(bytes)?;
     let pkg = t.get("package").ok_or(Malformed)?;
     let name = pkg.get("name").and_then(|v| v.as_str()).ok_or(Malformed)?;
     let version = pkg
         .get("version")
         .and_then(|v| v.as_str())
         .ok_or(Malformed)?;
-    Ok((name.to_string(), version.to_string()))
+    let lib = t
+        .get("lib")
+        .and_then(|l| l.get("name"))
+        .and_then(|n| n.as_str())
+        .map(str::to_string);
+    Ok((name.to_string(), version.to_string(), lib))
+}
+
+/// `[package] name` and `version` from a `Cargo.toml`.
+pub fn cargo_toml_name_version(bytes: &[u8]) -> Result<(String, String), Malformed> {
+    let (n, v, _) = cargo_toml_fields(bytes)?;
+    Ok((n, v))
 }
 
 /// `[lib] name` when it differs from the package name (KTD5 fold).
 pub fn cargo_toml_lib_name(bytes: &[u8]) -> Option<String> {
-    let t: toml::Table = toml::from_str(std::str::from_utf8(bytes).ok()?).ok()?;
-    t.get("lib")
+    cargo_toml(bytes)
+        .ok()?
+        .get("lib")
         .and_then(|l| l.get("name"))
         .and_then(|n| n.as_str())
         .map(str::to_string)

@@ -127,9 +127,7 @@ fn python(b: &[u8], cap: usize, forced: &BTreeSet<usize>) -> Lex {
         match &mut st[top] {
             Py::Code { hole, inner } => match c {
                 b'#' => {
-                    while i < b.len() && b[i] != b'\n' {
-                        i += 1;
-                    }
+                    i = skip_line_comment(b, i);
                     continue;
                 }
                 b'\\' => i += 1,
@@ -331,6 +329,15 @@ fn code(hole: bool) -> Js {
     }
 }
 
+/// The index after a `//`-style line comment starting at `i` (past the
+/// slashes): the next newline, or the end of input.
+fn skip_line_comment(b: &[u8], mut i: usize) -> usize {
+    while i < b.len() && b[i] != b'\n' {
+        i += 1;
+    }
+    i
+}
+
 /// Skips a quoted string starting at `i` (the quote). Returns the index after
 /// it; an unescaped newline ends it.
 fn js_string(b: &[u8], mut i: usize) -> usize {
@@ -412,9 +419,7 @@ fn javascript(b: &[u8], cap: usize, forced: &BTreeSet<usize>) -> Lex {
                     continue;
                 }
                 if c == b'/' && b.get(i + 1) == Some(&b'/') {
-                    while i < b.len() && b[i] != b'\n' {
-                        i += 1;
-                    }
+                    i = skip_line_comment(b, i);
                     continue;
                 }
                 if c == b'/' && b.get(i + 1) == Some(&b'*') && !forced.contains(&i) {
@@ -604,9 +609,7 @@ fn rust(b: &[u8], cap: usize, forced: &BTreeSet<usize>) -> Lex {
         match &mut st {
             Rs::Code => match c {
                 b'/' if b.get(i + 1) == Some(&b'/') => {
-                    while i < b.len() && b[i] != b'\n' {
-                        i += 1;
-                    }
+                    i = skip_line_comment(b, i);
                     continue;
                 }
                 b'/' if b.get(i + 1) == Some(&b'*') && !forced.contains(&i) => {
@@ -712,18 +715,8 @@ enum Go {
 /// The index past a `"` string or `'` rune literal starting at `i` (the
 /// quote). Both are single-line with `\` escapes; an unescaped newline or
 /// the end of input ends the literal.
-fn go_quoted(b: &[u8], mut i: usize) -> usize {
-    let q = b[i];
-    i += 1;
-    while i < b.len() {
-        match b[i] {
-            b'\\' => i += 2,
-            b'\n' => return i,
-            x if x == q => return i + 1,
-            _ => i += 1,
-        }
-    }
-    i
+fn go_quoted(b: &[u8], i: usize) -> usize {
+    js_string(b, i)
 }
 
 fn go(b: &[u8], cap: usize, forced: &BTreeSet<usize>) -> Lex {
@@ -735,9 +728,7 @@ fn go(b: &[u8], cap: usize, forced: &BTreeSet<usize>) -> Lex {
         match &mut st {
             Go::Code => match c {
                 b'/' if b.get(i + 1) == Some(&b'/') => {
-                    while i < b.len() && b[i] != b'\n' {
-                        i += 1;
-                    }
+                    i = skip_line_comment(b, i);
                     continue;
                 }
                 b'/' if b.get(i + 1) == Some(&b'*') && !forced.contains(&i) => {

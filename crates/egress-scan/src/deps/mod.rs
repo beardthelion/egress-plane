@@ -36,7 +36,10 @@ pub fn run(
     // file; a resolved instance becomes a depth-0 candidate, a reason
     // annotates the entry.
     let mut frontier: Vec<Candidate> = Vec::new();
+    let mut frontier_ix: std::collections::HashMap<(usize, usize), usize> =
+        std::collections::HashMap::new();
     let mut diagnostics: Vec<LockfileDiagnostic> = Vec::new();
+    let ix = select::SelectIx::new(roots, invs);
     let mut outcomes: BTreeMap<(Language, String), Vec<ImportOutcome>> = BTreeMap::new();
     for u in &classified.unscanned_dependencies {
         for file in &u.files {
@@ -57,8 +60,7 @@ pub fn run(
                 None
             };
             let outcome = match select::resolve(
-                roots,
-                invs,
+                &ix,
                 discovery.root_dir(),
                 u.language,
                 &key,
@@ -69,19 +71,19 @@ pub fn run(
                     let inst = &invs[root].instances[instance];
                     // A candidate reached for the first time or by an
                     // earlier importer joins the frontier.
-                    match frontier
-                        .iter_mut()
-                        .find(|c| c.root == root && c.instance == instance)
-                    {
-                        Some(c) => c.importers.push(file.clone()),
-                        None => frontier.push(Candidate {
-                            root,
-                            instance,
-                            depth: 0,
-                            importers: vec![file.clone()],
-                            importing_packages: Vec::new(),
-                            lock: lock.clone(),
-                        }),
+                    match frontier_ix.get(&(root, instance)) {
+                        Some(&ci) => frontier[ci].importers.push(file.clone()),
+                        None => {
+                            frontier_ix.insert((root, instance), frontier.len());
+                            frontier.push(Candidate {
+                                root,
+                                instance,
+                                depth: 0,
+                                importers: vec![file.clone()],
+                                importing_packages: Vec::new(),
+                                lock: lock.clone(),
+                            });
+                        }
                     }
                     let _ = inst;
                     ImportOutcome::Reached(root, instance)
@@ -266,10 +268,7 @@ fn crate_name<'d>(discovery: &'d Discovery, file: &[u8]) -> Option<&'d str> {
 }
 
 fn parent_of(p: &[u8]) -> Vec<u8> {
-    match p.iter().rposition(|c| *c == b'/') {
-        Some(i) => p[..i].to_vec(),
-        None => Vec::new(),
-    }
+    egress_core::paths::dir_of(p).to_vec()
 }
 
 /// The key an import resolves under, per ecosystem: Python takes the

@@ -12,6 +12,7 @@ use egress_core::discover::open::{EntryType, RootDir};
 use egress_core::model::{
     DependencyRootKind, Language, LockfileDiagnostic, LockfileProblem, UnscannedReason,
 };
+use egress_core::paths::{dir_of, join};
 
 /// The outcome of resolving one import against the named roots.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -87,19 +88,11 @@ pub fn governing_lock(
     // `a/b`, `a`, then the scan root.
     let mut dir: Vec<u8> = file.to_vec();
     loop {
-        if let Some(i) = dir.iter().rposition(|b| *b == b'/') {
-            dir.truncate(i);
-        } else {
-            dir.clear();
-        }
+        dir = dir_of(&dir).to_vec();
         let mut unreadable: Option<LockfileDiagnostic> = None;
         let mut parsed: Option<LockSet> = None;
         for name in lock_names {
-            let rel = if dir.is_empty() {
-                name.to_vec()
-            } else {
-                [dir.as_slice(), b"/", name].concat()
-            };
+            let rel = join(&dir, name);
             if !discovery.index.contains_key(&rel) {
                 continue;
             }
@@ -185,10 +178,63 @@ fn cargo_lock_support(bytes: &[u8]) -> LockfileResult<CargoLock> {
     lockfile::cargo_lock_result(bytes)
 }
 
+/// Lookup tables for repeated `resolve` calls over the same
+/// inventories (KTD5): each maps a key to the first matching
+/// (root, instance) in declaration order.
+pub struct SelectIx<'a> {
+    roots: &'a [NamedRoot],
+    invs: &'a [Inventory],
+    /// Python import name (any dotted level) to its first instance.
+    py_import: std::collections::HashMap<&'a str, (usize, usize)>,
+    /// Folded cargo package name to its instance list in order.
+    cargo: std::collections::HashMap<String, Vec<(usize, usize)>>,
+    /// Folded cargo name plus version to its instance.
+    cargo_pin: std::collections::HashMap<(String, String), (usize, usize)>,
+}
+
+impl<'a> SelectIx<'a> {
+    pub fn new(roots: &'a [NamedRoot], invs: &'a [Inventory]) -> Self {
+        let mut ix = SelectIx {
+            roots,
+            invs,
+            py_import: std::collections::HashMap::new(),
+            cargo: std::collections::HashMap::new(),
+            cargo_pin: std::collections::HashMap::new(),
+        };
+        for (ri, inv) in invs.iter().enumerate() {
+            let kind = roots[ri].kind;
+            for (ii, inst) in inv.instances.iter().enumerate() {
+                if kind == DependencyRootKind::Python {
+                    for n in &inst.imports {
+                        ix.py_import.entry(n.as_str()).or_insert((ri, ii));
+                    }
+                } else if matches!(
+                    kind,
+                    DependencyRootKind::CargoVendor
+                        | DependencyRootKind::CargoRegistry
+                        | DependencyRootKind::CargoGit
+                ) {
+                    let pn = inst.package.replace('-', "_");
+                    ix.cargo_pin
+                        .entry((pn.clone(), inst.version.clone()))
+                        .or_insert((ri, ii));
+                    ix.cargo.entry(pn).or_default().push((ri, ii));
+                    for n in &inst.imports {
+                        ix.cargo
+                            .entry(n.replace('-', "_"))
+                            .or_default()
+                            .push((ri, ii));
+                    }
+                }
+            }
+        }
+        ix
+    }
+}
+
 /// Resolves one import to an instance or a reason (KTD5).
 pub fn resolve(
-    roots: &[NamedRoot],
-    invs: &[Inventory],
+    ix: &SelectIx,
     scan: &RootDir,
     lang: Language,
     package: &str,
@@ -196,20 +242,12 @@ pub fn resolve(
     pin: Option<(&str, &str)>,
 ) -> Resolved {
     match lang {
-        Language::Javascript => resolve_npm(roots, invs, scan, package, importer),
-        Language::Python => resolve_python(roots, invs, package),
-        Language::Rust => resolve_cargo(roots, invs, package, importer, pin),
+        Language::Javascript => resolve_npm(ix.roots, ix.invs, scan, package, importer),
+        Language::Python => resolve_python(ix, package),
+        Language::Rust => resolve_cargo(ix, package, pin),
         // No Go module root kind exists yet, so no named root can hold
         // the source a Go import names.
         Language::Go => Resolved::Reason(UnscannedReason::NoSourceInNamedRoot),
-    }
-}
-
-fn join(dir: &[u8], name: &[u8]) -> Vec<u8> {
-    if dir.is_empty() {
-        name.to_vec()
-    } else {
-        [dir, b"/", name].concat()
     }
 }
 
@@ -245,11 +283,7 @@ fn resolve_npm(
     let mut dir: Vec<u8> = if importer_root.is_some() {
         file.to_vec()
     } else {
-        let f = file.to_vec();
-        match f.iter().rposition(|b| *b == b'/') {
-            Some(i) => f[..i].to_vec(),
-            None => Vec::new(),
-        }
+        dir_of(file).to_vec()
     };
     loop {
         // Inside an npm root, the root itself is the `node_modules`
@@ -292,11 +326,7 @@ fn resolve_npm(
         if dir.is_empty() {
             break;
         }
-        if let Some(i) = dir.iter().rposition(|b| *b == b'/') {
-            dir.truncate(i);
-        } else {
-            dir.clear();
-        }
+        dir = dir_of(&dir).to_vec();
     }
     // Ancestors above the scan root: outside npm roots answer the
     // remaining levels, nearest parent of the scan root first.
@@ -359,21 +389,11 @@ fn instance_at_npm(
 /// Python: one environment across the named roots; the full dotted
 /// specifier descends to the instance listing it or one of its
 /// prefixes (KTD5, KTD10's namespace keys).
-fn resolve_python(roots: &[NamedRoot], invs: &[Inventory], key: &str) -> Resolved {
+fn resolve_python(ix: &SelectIx, key: &str) -> Resolved {
     let mut cand = key;
     loop {
-        for (ri, inv) in invs.iter().enumerate() {
-            if roots[ri].kind != DependencyRootKind::Python {
-                continue;
-            }
-            for (ii, inst) in inv.instances.iter().enumerate() {
-                if inst.imports.iter().any(|n| n == cand) {
-                    return Resolved::Instance {
-                        root: ri,
-                        instance: ii,
-                    };
-                }
-            }
+        if let Some(&(root, instance)) = ix.py_import.get(cand) {
+            return Resolved::Instance { root, instance };
         }
         match cand.rfind('.') {
             Some(i) => cand = &cand[..i],
@@ -386,53 +406,19 @@ fn resolve_python(roots: &[NamedRoot], invs: &[Inventory], key: &str) -> Resolve
 /// Rust: the locked name (hyphen-folded) picks the instance among
 /// cargo roots; the first-party crate's lock edge fixes the version
 /// when the governing lock names one (KTD5).
-fn resolve_cargo(
-    roots: &[NamedRoot],
-    invs: &[Inventory],
-    package: &str,
-    _importer: &Importer,
-    pin: Option<(&str, &str)>,
-) -> Resolved {
+fn resolve_cargo(ix: &SelectIx, package: &str, pin: Option<(&str, &str)>) -> Resolved {
     // The importer's Cargo.lock edge names the locked version when
     // several instances share a name (KTD5, KTD7).
-    if let Some((pn, pv)) = pin {
-        for (ri, inv) in invs.iter().enumerate() {
-            if !matches!(
-                roots[ri].kind,
-                DependencyRootKind::CargoVendor
-                    | DependencyRootKind::CargoRegistry
-                    | DependencyRootKind::CargoGit
-            ) {
-                continue;
-            }
-            for (ii, inst) in inv.instances.iter().enumerate() {
-                if lockfile::rust_eq(&inst.package, pn) && inst.version == pv {
-                    return Resolved::Instance {
-                        root: ri,
-                        instance: ii,
-                    };
-                }
-            }
-        }
+    if let Some((pn, pv)) = pin
+        && let Some(&(root, instance)) = ix.cargo_pin.get(&(pn.replace('-', "_"), pv.to_string()))
+    {
+        return Resolved::Instance { root, instance };
     }
-    for (ri, inv) in invs.iter().enumerate() {
-        let kind = roots[ri].kind;
-        if !matches!(
-            kind,
-            DependencyRootKind::CargoVendor
-                | DependencyRootKind::CargoRegistry
-                | DependencyRootKind::CargoGit
-        ) {
-            continue;
-        }
-        for (ii, inst) in inv.instances.iter().enumerate() {
-            if inst.imports.iter().any(|n| lockfile::rust_eq(n, package)) {
-                return Resolved::Instance {
-                    root: ri,
-                    instance: ii,
-                };
-            }
-        }
+    let norm = package.replace('-', "_");
+    if let Some(list) = ix.cargo.get(&norm)
+        && let Some(&(root, instance)) = list.first()
+    {
+        return Resolved::Instance { root, instance };
     }
     Resolved::Reason(UnscannedReason::NoSourceInNamedRoot)
 }
@@ -446,12 +432,7 @@ pub fn pnp_ancestor(scan: &egress_core::discover::open::RootDir, file: &[u8]) ->
         if matches!(scan.lstat(&join(&dir, b".pnp.cjs")), Ok(st) if st.kind == EntryType::File) {
             return true;
         }
-        match dir.iter().rposition(|b| *b == b'/') {
-            Some(i) => dir.truncate(i),
-            None => {
-                dir.clear();
-            }
-        }
+        dir = dir_of(&dir).to_vec();
         if dir.is_empty() {
             // The empty-level check runs before the loop exits.
             return matches!(scan.lstat(&join(&dir, b".pnp.cjs")), Ok(st) if st.kind == EntryType::File);

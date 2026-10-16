@@ -15,6 +15,7 @@ use egress_core::model::{
     BlindSpot, BlindSpotKind, CompletenessState, Coverage, CoverageCounts, DependencyBudgetReason,
     DependencyRootKind, Language, LockfileDiagnostic, Site, ToolError, UnscannedReason,
 };
+use egress_core::paths::{dir_of, join};
 
 use crate::ScanOptions;
 use crate::tree;
@@ -93,6 +94,7 @@ pub fn run(
     options: &ScanOptions,
     budgets: &DependencyBudgets,
 ) -> Result<Closure, ToolError> {
+    let ix = select::SelectIx::new(roots, invs);
     let mut verdicts: BTreeMap<(usize, usize), Verdict> = BTreeMap::new();
     let mut pending: BTreeMap<(usize, usize), Candidate> = BTreeMap::new();
     for c in std::mem::take(&mut frontier) {
@@ -250,8 +252,7 @@ pub fn run(
                     None
                 };
                 match select::resolve(
-                    roots,
-                    invs,
+                    &ix,
                     discovery.root_dir(),
                     lang,
                     &pkg,
@@ -323,11 +324,7 @@ pub fn run(
 }
 
 fn lang_of(kind: DependencyRootKind) -> Language {
-    match kind {
-        DependencyRootKind::Npm => Language::Javascript,
-        DependencyRootKind::Python => Language::Python,
-        _ => Language::Rust,
-    }
+    kind.language()
 }
 
 /// The gate for one instance: inventory flags first, then the lock.
@@ -430,7 +427,7 @@ fn run_instance(
     } else if inst.rel.ends_with(&join(b"/", locator)) {
         inst.rel[..inst.rel.len() - locator.len() - 1].to_vec()
     } else {
-        parent(&inst.rel)
+        dir_of(&inst.rel).to_vec()
     };
     let prefixes: Vec<Vec<u8>> = match kind {
         DependencyRootKind::Npm | DependencyRootKind::Python => vec![inst.rel.clone()],
@@ -619,6 +616,8 @@ pub fn compute_modified(
         DependencyRootKind::Python => Vec::new(),
         _ => join(&inst.rel, b""),
     };
+    let recorded: std::collections::HashSet<Vec<u8>> =
+        files.iter().map(|(p, _)| p.clone()).collect();
     for path in d.index.keys() {
         if path.windows(12).any(|w| w == b"__pycache__") {
             continue;
@@ -626,7 +625,7 @@ pub fn compute_modified(
         if !prefix.is_empty() && !path.starts_with(&prefix) {
             continue;
         }
-        if !files.iter().any(|(p, _)| p == path) {
+        if !recorded.contains(path) {
             files.push((path.clone(), Vec::new()));
         }
     }
@@ -656,21 +655,6 @@ fn lang_coverage(c: &Coverage, lang: Language) -> CoverageCounts {
     c.languages.get(lang).copied().unwrap_or_default()
 }
 
-fn join(dir: &[u8], name: &[u8]) -> Vec<u8> {
-    if dir.is_empty() {
-        name.to_vec()
-    } else {
-        [dir, b"/", name].concat()
-    }
-}
-
-fn parent(path: &[u8]) -> Vec<u8> {
-    match path.iter().rposition(|b| *b == b'/') {
-        Some(i) => path[..i].to_vec(),
-        None => Vec::new(),
-    }
-}
-
 /// A Cargo dependency edge from the importing package's governing
 /// lock: `imp`'s own `dependencies` edges name the locked version of
 /// `dep` (KTD5, KTD7).
@@ -679,9 +663,10 @@ pub fn cargo_pin(lock: &Lock, imp: &str, dep: &str) -> Option<(String, String)> 
         return None;
     };
     let importer = l
-        .packages
-        .iter()
-        .find(|p| egress_core::deps::lockfile::rust_eq(&p.name, imp))?;
+        .by_name
+        .get(&imp.replace('-', "_"))
+        .and_then(|c| c.first())
+        .map(|&i| &l.packages[i])?;
     importer
         .dependencies
         .iter()

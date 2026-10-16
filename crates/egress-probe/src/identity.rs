@@ -10,7 +10,6 @@
 //! ordinal assigned in sorted display order.
 
 use std::collections::BTreeMap;
-use std::fmt::Write;
 
 use egress_core::escape::{escape, needs_escape};
 use egress_core::identity::{encode_path_bytes, hash_id, key_with_version};
@@ -109,14 +108,6 @@ pub struct EncodedField {
     pub bytes_hex: Option<String>,
 }
 
-fn hex(bytes: &[u8]) -> String {
-    let mut s = String::with_capacity(bytes.len() * 2);
-    for b in bytes {
-        let _ = write!(s, "{b:02x}");
-    }
-    s
-}
-
 /// Applies the KTD27 rule to raw field bytes: clean UTF-8 keeps the exact
 /// field; anything else emits only the escaped `display` and the
 /// `*_bytes` hex. Identity still hashes the raw bytes.
@@ -139,7 +130,7 @@ pub fn encode_field(raw: &[u8]) -> EncodedField {
         display: escape(&encoded.display),
         bytes_hex: Some(match encoded.bytes_hex {
             Some(h) => h,
-            None => hex(raw),
+            None => egress_core::identity::hex(raw),
         }),
     }
 }

@@ -339,6 +339,7 @@ fn inventory_guard_flags_unclassified_member_and_missing_inventory() {
     );
     let mut m = r.clone();
     m.entries.retain(|e| e.id != "python:socket.htons");
+    m.build_indexes();
     let v = guards::inventory(&m, &[]);
     assert!(v.iter().any(|s| s.contains("socket.htons")), "{v:?}");
     let mut m = r.clone();

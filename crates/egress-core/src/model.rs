@@ -734,6 +734,15 @@ impl DependencyRootKind {
         Self::CargoGit,
     ];
 
+    /// The source language a root's members are scanned as.
+    pub fn language(self) -> Language {
+        match self {
+            Self::Npm => Language::Javascript,
+            Self::Python => Language::Python,
+            _ => Language::Rust,
+        }
+    }
+
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Npm => "npm",

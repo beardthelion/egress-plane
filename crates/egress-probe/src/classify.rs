@@ -43,10 +43,6 @@ fn component_boundary_under(value: &[u8], prefix: &str) -> bool {
         || (value.len() > p.len() && value.starts_with(p) && value[p.len()] == b'/')
 }
 
-fn basename(value: &[u8]) -> &[u8] {
-    value.rsplit(|b| *b == b'/').next().unwrap_or(value)
-}
-
 /// Cross-universe member path table for `member-of` tests: universe id
 /// to the `path` field bytes (or display string) of its members.
 fn member_paths(universes: &[Universe]) -> BTreeMap<String, Vec<Vec<u8>>> {
@@ -102,7 +98,7 @@ fn predicate_holds(
         hit(component_boundary_under(&bytes, &subst(needle, euid)));
     }
     for needle in &p.basename_in {
-        hit(basename(&bytes) == subst(needle, euid).as_bytes());
+        hit(egress_core::paths::file_name(&bytes) == subst(needle, euid).as_bytes());
     }
     if let Some(univ) = &p.member_of {
         let table = member_paths.get(univ).cloned().unwrap_or_default();

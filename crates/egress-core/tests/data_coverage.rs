@@ -413,6 +413,7 @@ fn marking_a_deny_list_module_inert_turns_the_guard_red() {
         // Drop the module's own entries so its classification decides.
         rt.entries
             .retain(|e| !(e.module == name && e.members.is_empty()));
+        rt.build_indexes();
         let list = deny(lang, &rt);
         let v = guards::deny_list(&rt, &deny_refs(&list));
         assert!(v.iter().any(|s| s.contains(name)), "{name}: {v:?}");
@@ -439,6 +440,7 @@ fn removing_a_socket_member_classification_turns_the_inventory_guard_red() {
     assert!(members.iter().any(|m| m == "create_connection"));
     rt.entries
         .retain(|e| e.id != "python:socket.create_connection");
+    rt.build_indexes();
     let v = guards::inventory(&rt, PYTHON_DENY);
     assert!(
         v.iter().any(|s| s.contains("socket.create_connection")),
@@ -449,6 +451,7 @@ fn removing_a_socket_member_classification_turns_the_inventory_guard_red() {
     let members = rt.inventory.members["net"].clone();
     assert!(members.iter().any(|m| m == "Dial"));
     rt.entries.retain(|e| e.id != "go:net.Dial");
+    rt.build_indexes();
     let list = deny(Language::Go, &rt);
     let v = guards::inventory(&rt, &deny_refs(&list));
     assert!(v.iter().any(|s| s.contains("net.Dial")), "{v:?}");

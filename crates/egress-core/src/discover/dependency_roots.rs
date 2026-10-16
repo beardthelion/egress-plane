@@ -20,6 +20,7 @@ use std::path::{Path, PathBuf};
 use crate::model::{DependencyRootKind, DependencyRootProblem, ToolError};
 
 use super::open::{EntryType, RootDir};
+use crate::paths::{file_name, join};
 
 /// A named dependency root that passed validation.
 #[derive(Debug)]
@@ -36,14 +37,6 @@ pub struct NamedRoot {
     pub ordinal: usize,
     /// Canonical path, used only for overlap checks; never printed (R2).
     pub canonical: PathBuf,
-}
-
-fn join(dir: &[u8], name: &[u8]) -> Vec<u8> {
-    if dir.is_empty() {
-        name.to_vec()
-    } else {
-        [dir, b"/", name].concat()
-    }
 }
 
 fn is_kind(dir: &RootDir, rel: &[u8], kinds: &[EntryType]) -> bool {
@@ -380,7 +373,7 @@ fn npm_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
         /// then descend into its nested `node_modules`.
         fn one(&mut self, dir: &RootDir, rel: &[u8], parts: &[String]) {
             let mut flags = InstanceFlags::default();
-            let dir_name = rel.rsplit(|c| *c == b'/').next().unwrap_or(rel);
+            let dir_name = file_name(rel);
             if clean_name(dir_name).is_none() {
                 flags.escaped_name = true;
             }
@@ -512,14 +505,10 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
                 _ => (String::new(), String::new()),
             };
             let record_rel = join(&dir, b"RECORD");
-            let record_failed = matches!(read_meta(&root.dir, &record_rel, budgets), Some(Err(_)));
-            let rows = if record_failed {
-                Vec::new()
-            } else {
-                match read_meta(&root.dir, &record_rel, budgets) {
-                    Some(Ok(bytes)) => metadata::record(&bytes).unwrap_or_default(),
-                    _ => Vec::new(),
-                }
+            let (record_failed, rows) = match read_meta(&root.dir, &record_rel, budgets) {
+                Some(Ok(bytes)) => (false, metadata::record(&bytes).unwrap_or_default()),
+                Some(Err(_)) => (true, Vec::new()),
+                None => (false, Vec::new()),
             };
             let mut tops = metadata::top_level_names(&rows);
             // A `.py` module in the RECORD counts as a top-level of
@@ -527,10 +516,13 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
             // normalized name; a module filed under an unrelated dist
             // is a loose top-level module instead (KTD7).
             let norm_pkg = crate::deps::version::pep503(&pkg);
+            let root_pys: std::collections::HashSet<&str> = rows
+                .iter()
+                .filter(|r| !r.path.contains('/'))
+                .filter_map(|r| r.path.strip_suffix(".py"))
+                .collect();
             tops.retain(|t| {
-                !rows.iter().any(|r| {
-                    r.path.rsplit('/').next() == Some(&format!("{t}.py")) && !r.path.contains('/')
-                }) || crate::deps::version::pep503(t) == norm_pkg
+                !root_pys.contains(t.as_str()) || crate::deps::version::pep503(t) == norm_pkg
             });
             let top_rel = join(&dir, b"top_level.txt");
             if let Some(Ok(bytes)) = read_meta(&root.dir, &top_rel, budgets) {
@@ -607,7 +599,7 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
     // Loose names: top-level packages, modules, and special layouts a
     // dist-info's RECORD does not cover. A `.py` file is covered only
     // by a dist whose normalized name matches its stem (KTD7).
-    let covered: Vec<&str> = dist_tops
+    let covered: std::collections::HashSet<&str> = dist_tops
         .iter()
         .flat_map(|(_, t)| t.iter().map(String::as_str))
         .collect();
@@ -616,7 +608,7 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
         let Some(name_str) = clean_name(name) else {
             continue;
         };
-        if covered.contains(&name_str.split('.').next().unwrap_or(&name_str))
+        if covered.contains(name_str.split('.').next().unwrap_or(&name_str))
             || name.ends_with(b".dist-info")
             || name == b"bin"
             || name == b"__pycache__"
@@ -777,11 +769,11 @@ fn vendor_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
             _ => flags.unsupported = Some("unreadable-metadata".to_string()),
         }
         let mut imports = vec![pkg.clone()];
-        if let Some(Ok(bytes)) = read_meta(&root.dir, &join(name, b"Cargo.toml"), budgets) {
-            if let Ok((_n, v)) = metadata::cargo_toml_name_version(&bytes) {
-                version = v;
-            }
-            if let Some(lib) = metadata::cargo_toml_lib_name(&bytes)
+        if let Some(Ok(bytes)) = read_meta(&root.dir, &join(name, b"Cargo.toml"), budgets)
+            && let Ok((_n, v, lib)) = metadata::cargo_toml_fields(&bytes)
+        {
+            version = v;
+            if let Some(lib) = lib
                 && lib != pkg
             {
                 imports.push(lib);
@@ -848,24 +840,28 @@ fn registry_inventory(
         // unlocked cache still resolves, KTD6). Metadata is read only
         // for locked names (KTD6's cost bound).
         let mut names: Vec<(String, String)> = lock.clone();
+        let locked_set: std::collections::HashSet<(&str, &str)> =
+            lock.iter().map(|(n, v)| (n.as_str(), v.as_str())).collect();
         if lock.is_empty()
             && let Ok(children) = root.dir.list_dir(index)
         {
+            let mut name_set: std::collections::HashSet<(String, String)> =
+                names.iter().cloned().collect();
             for (child, st) in &children {
                 if st.kind != super::open::EntryType::Dir {
                     continue;
                 }
                 let child = String::from_utf8_lossy(child).into_owned();
                 if let Some(pos) = child.rfind('-') {
-                    let (n, v) = (child[..pos].to_string(), child[pos + 1..].to_string());
-                    if !names.iter().any(|(n2, v2)| n2 == &n && v2 == &v) {
-                        names.push((n, v));
+                    let nv = (child[..pos].to_string(), child[pos + 1..].to_string());
+                    if name_set.insert(nv.clone()) {
+                        names.push(nv);
                     }
                 }
             }
         }
         for (name, version) in &names {
-            let locked = lock.iter().any(|(n, v)| n == name && v == version);
+            let locked = locked_set.contains(&(name.as_str(), version.as_str()));
             let dir = format!("{}-{}", name, version);
             let rel = join(index, dir.as_bytes());
             if !matches!(root.dir.lstat(&rel), Ok(s) if s.kind == super::open::EntryType::Dir) {
@@ -1001,7 +997,7 @@ fn git_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
                 let Some(Ok(bytes)) = read_meta(&root.dir, &m, budgets) else {
                     continue;
                 };
-                let Ok((name, version)) = metadata::cargo_toml_name_version(&bytes) else {
+                let Ok((name, version, lib)) = metadata::cargo_toml_fields(&bytes) else {
                     continue;
                 };
                 let mut flags = InstanceFlags::default();
@@ -1009,7 +1005,7 @@ fn git_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
                     flags.escaped_name = true;
                 }
                 let mut imports = vec![name.clone()];
-                if let Some(lib) = metadata::cargo_toml_lib_name(&bytes)
+                if let Some(lib) = lib
                     && lib != name
                 {
                     imports.push(lib);
@@ -1068,7 +1064,7 @@ fn collect_manifests(dir: &RootDir, rel: &[u8], out: &mut Vec<Vec<u8>>, depth: u
 fn lock_names(discovery: &Discovery, budgets: &DependencyBudgets) -> Vec<(String, String)> {
     let mut out = Vec::new();
     for path in discovery.index.keys() {
-        let name = path.rsplit(|c| *c == b'/').next().unwrap_or(path);
+        let name = file_name(path);
         if name != b"Cargo.lock" {
             continue;
         }

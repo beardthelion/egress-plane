@@ -173,7 +173,7 @@ pub fn decode(bytes: &[u8]) -> Result<String, crate::model::BlindSpotKind> {
 }
 
 /// The UTF-8 path every language shares: BOM stripped after decoding.
-fn decode_utf8(bytes: &[u8]) -> Result<String, crate::model::BlindSpotKind> {
+pub fn decode_utf8(bytes: &[u8]) -> Result<String, crate::model::BlindSpotKind> {
     let mut text =
         String::from_utf8(bytes.to_vec()).map_err(|_| crate::model::BlindSpotKind::Undecodable)?;
     if text.starts_with('\u{feff}') {

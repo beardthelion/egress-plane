@@ -1311,16 +1311,12 @@ impl<'p, 'a> State<'p, 'a> {
     /// dangerous entry.
     fn escape(&mut self, cx: Ctx<'p, 'a>, rf: &Reference, module: &str, ambient: bool) {
         let rt = cx.rt;
-        let prefix = format!("{module}{}", separator(cx.lang()));
         let mut blind = false;
         let mut egress = ambient
             || rt
                 .module(module)
                 .is_some_and(|m| m.class == ModuleClass::Egress);
-        for e in &rt.entries {
-            if e.module != module && !e.module.starts_with(&prefix) {
-                continue;
-            }
+        for e in rt.entries_under(module) {
             match e.kind {
                 EntryKind::BlindSpot { .. } => blind = true,
                 EntryKind::Egress(_) => egress = true,

@@ -172,14 +172,7 @@ fn split_components(path: &str) -> Result<Vec<Vec<u8>>, String> {
 }
 
 fn join(comps: &[Vec<u8>]) -> Vec<u8> {
-    let mut out = Vec::new();
-    for (i, c) in comps.iter().enumerate() {
-        if i > 0 {
-            out.push(b'/');
-        }
-        out.extend_from_slice(c);
-    }
-    out
+    egress_core::paths::join_components(comps)
 }
 
 impl Manifest {
