@@ -68,7 +68,6 @@ pub fn run(
                 pin.as_ref().map(|(a, b)| (a.as_str(), b.as_str())),
             ) {
                 Resolved::Instance { root, instance } => {
-                    let inst = &invs[root].instances[instance];
                     // A candidate reached for the first time or by an
                     // earlier importer joins the frontier.
                     match frontier_ix.get(&(root, instance)) {
@@ -85,7 +84,6 @@ pub fn run(
                             });
                         }
                     }
-                    let _ = inst;
                     ImportOutcome::Reached(root, instance)
                 }
                 Resolved::Reason(r) => ImportOutcome::Reason(r),
@@ -98,18 +96,26 @@ pub fn run(
     }
 
     // The inventory-entries budget: a root whose listing overflowed
-    // marks every instance budget-exhausted (KTD14).
+    // marks every instance budget-exhausted (KTD14). A dropped
+    // candidate must keep a verdict so its importers report
+    // `dependency-budget-exhausted`, not `no-source-in-named-root`,
+    // and so the dropped instance still appears in the imports lists.
+    let mut dropped: Vec<(usize, usize)> = Vec::new();
     for (ri, inv) in invs.iter().enumerate() {
         if !inv.entries_exceeded {
             continue;
         }
-        for (ii, _) in inv.instances.iter().enumerate() {
+        for ii in 0..inv.instances.len() {
+            let before = frontier.len();
             frontier.retain(|c| !(c.root == ri && c.instance == ii));
+            if frontier.len() < before {
+                dropped.push((ri, ii));
+            }
         }
     }
 
     let Closure {
-        verdicts,
+        mut verdicts,
         diagnostics: mut diag,
         budgets_exhausted: mut be,
     } = closure::run(
@@ -121,7 +127,22 @@ pub fn run(
         options,
         &options.dependency_budgets,
     )?;
+    for key in dropped {
+        verdicts.entry(key).or_insert_with(|| closure::Verdict {
+            reason: Some(UnscannedReason::DependencyBudgetExhausted),
+            strength: None,
+            lock: select::Lock::Absent,
+            importers: Vec::new(),
+            importing_packages: Vec::new(),
+            pass: None,
+        });
+    }
     diagnostics.append(&mut diag);
+    // Selection pushes one diagnostic per (dep, importer) so identical
+    // (lockfile, problem) pairs repeat; dedup before the section takes
+    // them.
+    diagnostics.sort();
+    diagnostics.dedup();
     if invs.iter().any(|i| i.entries_exceeded) {
         be.push(egress_core::model::DependencyBudgetReason::InventoryEntries);
     }
@@ -261,7 +282,7 @@ fn crate_name<'d>(discovery: &'d Discovery, file: &[u8]) -> Option<&'d str> {
         .filter(|m| {
             m.has_package
                 && m.name.is_some()
-                && file.starts_with(&[&parent_of(&m.path), b"/".as_slice()].concat())
+                && egress_core::paths::within(file, &parent_of(&m.path))
         })
         .max_by_key(|m| m.path.len())
         .and_then(|m| m.name.as_deref())
@@ -289,23 +310,11 @@ fn resolve_key(
         Language::Rust => spec.split("::").next().unwrap_or(spec).to_string(),
         // The Go specifier is already the module path the import keys on.
         Language::Go => spec.to_string(),
-        Language::Javascript => {
-            // Member chains (`axios.isCancel`) and subpaths (`a/b`)
-            // resolve to the package: the `@scope/name` pair or the
-            // first `.`/`/` segment otherwise.
-            let mut it = spec.char_indices().skip(1).find(|(_, c)| *c == '.');
-            if spec.starts_with('@') {
-                it = spec
-                    .char_indices()
-                    .skip(1)
-                    .filter(|(_, c)| *c == '/')
-                    .nth(1)
-                    .or(it);
-            }
-            match it {
-                Some((i, _)) => spec[..i].to_string(),
-                None => spec.to_string(),
-            }
-        }
+        // The specifier carries member names appended by `.`, so the
+        // key is the dep's already-split package (`package_name` does
+        // the `@scope/name` and `/` cuts); re-cutting the specifier
+        // breaks dotted names (`chart.js`), subpaths (`lodash/fp`),
+        // and dots inside a scope (`@my.org/pkg`).
+        Language::Javascript => u.package.clone(),
     }
 }

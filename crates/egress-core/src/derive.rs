@@ -254,6 +254,12 @@ fn wrapper_span<'p>(st: &State<'p, '_>, active: &Active) -> Option<&'p SymbolSpa
 fn argument_destination(st: &mut State<'_, '_>, active: &Active, edge: &CallEdge) -> Destination {
     let rf = &edge.rf;
     let n = active.param as usize;
+    // A `param:0` destination is malformed (indexes are 1-based); the
+    // data loader does not reject `arg = 0`, so the pass cannot
+    // underflow here on catalog text it did not author.
+    if n == 0 {
+        return destination::param(active.param, &active.symbol);
+    }
     if let Some(e) = rf.args.iter().take(n).find_map(spread) {
         return destination::expr(&render(e));
     }

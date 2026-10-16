@@ -1,0 +1,19 @@
+state = "complete"
+exit_code = 0
+dependency_budget_exceeded = ["inventory-entries"]
+
+[dependency_budgets]
+inventory_entries = 1
+
+[[dependency_root]]
+path = "tree/node_modules"
+
+[[unscanned_dependencies]]
+language = "javascript"
+package = "x"
+reason = "dependency-budget-exhausted"
+
+[[unscanned_dependencies]]
+language = "javascript"
+package = "y"
+reason = "dependency-budget-exhausted"

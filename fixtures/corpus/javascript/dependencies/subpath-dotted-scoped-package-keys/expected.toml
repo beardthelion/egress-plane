@@ -1,0 +1,45 @@
+state = "complete"
+exit_code = 0
+absent_unscanned = [
+  { language = "javascript", package = "lodash" },
+  { language = "javascript", package = "chart.js" },
+  { language = "javascript", package = "@my.org/pkg" },
+]
+
+[[dependency_root]]
+path = "tree/node_modules"
+
+[[dependencies]]
+language = "javascript"
+package = "@my.org/pkg"
+root = "node_modules"
+locator = "@my.org/pkg"
+version = "0.1.0"
+strength = "unlocked"
+state = "complete"
+
+[[dependencies]]
+language = "javascript"
+package = "chart.js"
+root = "node_modules"
+locator = "chart.js"
+version = "4.4.0"
+strength = "unlocked"
+state = "complete"
+
+[[dependencies]]
+language = "javascript"
+package = "lodash"
+root = "node_modules"
+locator = "lodash"
+version = "4.17.21"
+strength = "unlocked"
+state = "complete"
+
+[[dependency_sites]]
+package = "lodash"
+locator = "lodash"
+file = "index.js"
+symbol = "get"
+mechanism = "javascript:http.get"
+destination = "param:1:get"

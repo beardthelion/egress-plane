@@ -1,0 +1,19 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "tree/node_modules"
+
+[[unscanned_dependencies]]
+language = "javascript"
+package = "x"
+reason = "no-source-in-named-root"
+
+[[unscanned_dependencies]]
+language = "javascript"
+package = "y"
+reason = "no-source-in-named-root"
+
+[[dependency_diagnostics]]
+lockfile = "package-lock.json"
+problem = "parse-error"

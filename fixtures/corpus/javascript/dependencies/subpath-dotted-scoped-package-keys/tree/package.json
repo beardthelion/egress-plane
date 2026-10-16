@@ -1,0 +1,1 @@
+{ "name": "app", "version": "1.0.0", "dependencies": { "lodash": "4.17.21", "chart.js": "4.4.0", "@my.org/pkg": "0.1.0" } }

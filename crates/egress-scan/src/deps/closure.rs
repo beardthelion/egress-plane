@@ -132,7 +132,6 @@ pub fn run(
         if level.is_empty() {
             break;
         }
-        let next: Vec<Candidate> = Vec::new();
         for cand in level {
             pending.remove(&(cand.root, cand.instance));
             let key = (cand.root, cand.instance);
@@ -307,9 +306,6 @@ pub fn run(
                     pass: Some(pass),
                 },
             );
-        }
-        for c in next {
-            pending.entry((c.root, c.instance)).or_insert(c);
         }
     }
     diagnostics.sort_by(|a, b| (&a.lockfile, a.problem).cmp(&(&b.lockfile, b.problem)));
@@ -619,7 +615,7 @@ pub fn compute_modified(
     let recorded: std::collections::HashSet<Vec<u8>> =
         files.iter().map(|(p, _)| p.clone()).collect();
     for path in d.index.keys() {
-        if path.windows(12).any(|w| w == b"__pycache__") {
+        if path.split(|&b| b == b'/').any(|s| s == b"__pycache__") {
             continue;
         }
         if !prefix.is_empty() && !path.starts_with(&prefix) {

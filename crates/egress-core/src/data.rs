@@ -1096,12 +1096,21 @@ impl RuntimeData {
     /// (`module<sep>*`), tested literally on the stored name.
     pub fn entries_under<'a>(&'a self, module: &'a str) -> impl Iterator<Item = &'a Entry> + 'a {
         let prefix = format!("{module}{}", self.sep());
+        // Keys equal to `module` or inside its subtree live inside
+        // [`module`, `prefix` with the last byte incremented): every
+        // `prefix`-starting key is strictly below it, and nothing above
+        // it can match. Keys sorting between `module` and the subtree
+        // (a name like `os-a` with `-` < `.`) are skipped by the filter,
+        // never a stop, so a stray key cannot truncate the subtree.
+        let mut hi = prefix.clone().into_bytes();
+        *hi.last_mut().unwrap() = hi.last().unwrap().wrapping_add(1);
+        let hi = String::from_utf8(hi).expect("separators are ASCII");
         self.entries_by_module
             .range::<String, _>((
                 std::ops::Bound::Included(module.to_string()),
-                std::ops::Bound::Unbounded,
+                std::ops::Bound::Excluded(hi),
             ))
-            .take_while(move |(k, _)| k.as_str() == module || k.starts_with(&prefix))
+            .filter(move |(k, _)| k.as_str() == module || k.starts_with(&prefix))
             .flat_map(|(_, v)| v.iter())
             .map(|&i| &self.entries[i])
     }

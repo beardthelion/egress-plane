@@ -1,0 +1,17 @@
+state = "complete"
+exit_code = 0
+absent_unscanned = [
+  { language = "rust", package = "xdep" },
+]
+
+[[dependency_root]]
+path = "roots/registry/src"
+
+[[dependencies]]
+language = "rust"
+package = "xdep"
+root = "cargo-registry"
+locator = "xdep#2"
+version = "2.0.0"
+strength = "version-matched"
+state = "complete"

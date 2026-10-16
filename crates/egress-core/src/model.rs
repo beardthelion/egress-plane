@@ -990,7 +990,7 @@ impl AutoRunTrigger {
 }
 
 /// A lockfile the scan could not use, reported repo-relative.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LockfileDiagnostic {
     /// Repo-relative path of the lockfile.
     pub lockfile: String,

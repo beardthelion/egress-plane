@@ -584,3 +584,48 @@ fn stale_deferred_ignores_category_entries() {
     .unwrap_or_else(|e| panic!("{e}"));
     assert!(guards::stale_deferred(&[&r], &c.0, &d).is_empty());
 }
+
+/// `entries_under("os")` must yield `os` and `os.*` entries while a key
+/// sorting between `os` and `os.` (`os-x`, with `-` < `.`) sits in the
+/// range but outside the subtree: it is skipped, not a stop.
+#[test]
+fn entries_under_skips_keys_between_module_and_subtree() {
+    let prim = r#"language = "python"
+runtime_range = "3.8-3.13"
+[ambient]
+module = "builtins"
+[[module]]
+name = "os"
+class = "egress"
+[[module]]
+name = "os.path"
+class = "egress"
+[[module]]
+name = "os-x"
+class = "egress"
+[[entry]]
+id = "python:os.system"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+fixture = "python/primitives/os-system"
+[[entry]]
+id = "python:os.path.join"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+fixture = "python/primitives/os-path-join"
+[[entry]]
+id = "python:os-x.y"
+kind = "egress"
+mechanism = "network"
+destination = { arg = 1, form = "host-port" }
+fixture = "python/primitives/os-x-y"
+"#;
+    let r = rt(prim, "language = \"python\"\n", "language = \"python\"\n")
+        .unwrap_or_else(|e| panic!("{e}"));
+    let under: Vec<&str> = r.entries_under("os").map(|e| e.id.as_str()).collect();
+    assert!(under.contains(&"python:os.system"));
+    assert!(under.contains(&"python:os.path.join"), "{under:?}");
+    assert!(!under.contains(&"python:os-x.y"), "{under:?}");
+}
