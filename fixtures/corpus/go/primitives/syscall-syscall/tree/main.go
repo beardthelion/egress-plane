@@ -1,7 +1,7 @@
 package main
 
-import "syscall"
+import pkg "syscall"
 
-func main() {
-	syscall.Syscall(39, 0, 0, 0)
+func probe() {
+    pkg.Syscall()
 }

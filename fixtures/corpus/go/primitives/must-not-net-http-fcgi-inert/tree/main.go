@@ -1,17 +1,14 @@
 package main
 
-import "net/http/fcgi"
+import pkg "net/http/fcgi"
 
-// The unexported stream internals bufWriter, conn, and streamWriter
-// carry Close and Write members that stay inert.
 func main() {
-	var _ = fcgi.ErrConnClosed
-	var _ = fcgi.ErrRequestAborted
-	var e fcgi.ProcessEnv
-	_ = e
-	_ = fcgi.response.Write
-	_ = fcgi.bufWriter.Close
-	_ = fcgi.conn.Close
-	_ = fcgi.streamWriter.Close
-	_ = fcgi.streamWriter.Write
+    _ = pkg.ErrConnClosed
+    _ = pkg.ErrRequestAborted
+    _ = pkg.ProcessEnv
+    _ = pkg.bufWriter.Close
+    _ = pkg.conn.Close
+    _ = pkg.response.Example
+    _ = pkg.streamWriter.Close
+    _ = pkg.streamWriter.Write
 }

@@ -1,9 +1,7 @@
 package main
 
-import "database/sql"
+import pkg "database/sql"
 
-type myDriver struct{}
-
-func main() {
-	sql.Register("mydrv", myDriver{})
+func probe() {
+    pkg.Register()
 }

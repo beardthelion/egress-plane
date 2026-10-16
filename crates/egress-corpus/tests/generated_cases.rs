@@ -127,31 +127,30 @@ fn regeneration_is_byte_identical() {
     assert!(expected.contains("symbol = \"probe\""), "{expected}");
 }
 
-/// After `--write`, `deferred.toml` lists no case under a generated
-/// language's `primitives/` (Go entries are not generated and stay).
+/// After `--write`, `deferred.toml` lists no case the generator could
+/// produce. Non-covered fixtures (the Go egress cases) stay deferred.
 #[test]
 fn deferred_ledger_holds_no_generated_primitives_case() {
     let text = fs::read_to_string(corpus().join("deferred.toml")).unwrap();
     let deferred = guards::parse_deferred(&text).unwrap_or_else(|e| panic!("{e}"));
-    for lang in generate::LANGUAGES {
-        let prefix = format!("{}/primitives/", lang.as_str());
-        for c in &deferred.cases {
-            assert!(
-                !c.starts_with(&prefix),
-                "{c} is a generated case still deferred"
-            );
-        }
+    let d = data();
+    let cases =
+        generate::candidates(&runtimes(&d)).unwrap_or_else(|e| panic!("{}", e.join("\n")));
+    for c in &deferred.cases {
+        assert!(
+            !cases.contains_key(c.as_str()),
+            "{c} is a generated case still deferred"
+        );
     }
     // The generator has nothing to change in the ledger.
-    let d = data();
     let plan =
         generate::plan(&runtimes(&d), &corpus()).unwrap_or_else(|e| panic!("{}", e.join("\n")));
     assert!(
         plan.deferred_toml.is_none(),
         "deferred.toml would be rewritten"
     );
-    // Go primitives entries stay: they are named by Go data the
-    // generator does not cover.
+    // Go egress fixtures stay: they are named by Go data the
+    // generator's blind-spot and inert templates do not cover.
     assert!(
         deferred
             .cases

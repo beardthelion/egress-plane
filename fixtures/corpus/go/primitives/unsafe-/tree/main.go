@@ -1,9 +1,7 @@
 package main
 
-import "unsafe"
+import pkg "unsafe"
 
-func main() {
-	x := 0
-	p := unsafe.Pointer(&x)
-	_ = p
+func probe() {
+    pkg.ProbeMember()
 }

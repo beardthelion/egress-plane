@@ -1,8 +1,7 @@
 package main
 
-import "runtime/debug"
+import pkg "runtime/debug"
 
-func main() {
-	b := debug.Stack()
-	_ = b
+func probe() {
+    pkg.Stack()
 }

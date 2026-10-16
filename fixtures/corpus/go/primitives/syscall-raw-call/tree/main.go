@@ -1,7 +1,7 @@
 package main
 
-import "syscall"
+import pkg "syscall"
 
-func main() {
-	syscall.RawSyscall(syscall.SYS_GETPID, 0, 0, 0)
+func probe() {
+    pkg.RawSyscall()
 }

@@ -1,10 +1,8 @@
 package main
 
-import "plugin"
+import pkg "plugin"
 
-func main() {
-	var p plugin.Plugin
-	s, err := p.Lookup("Serve")
-	_ = err
-	_ = s
+func probe() {
+    var v pkg.Plugin
+    v.Lookup()
 }

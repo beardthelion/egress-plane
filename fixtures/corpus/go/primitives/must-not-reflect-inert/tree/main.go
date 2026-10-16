@@ -1,0 +1,52 @@
+package main
+
+import pkg "reflect"
+
+func main() {
+    _ = pkg.Append
+    _ = pkg.AppendSlice
+    _ = pkg.ArExample
+    _ = pkg.Bool
+    _ = pkg.BothDir
+    _ = pkg.ChaExample
+    _ = pkg.ChanDir.String
+    _ = pkg.CoExample
+    _ = pkg.DeepEqual
+    _ = pkg.Float32
+    _ = pkg.Float64
+    _ = pkg.Func
+    _ = pkg.FuncOf
+    _ = pkg.InExample
+    _ = pkg.Kind
+    _ = pkg.Kind.String
+    _ = pkg.MaExample
+    _ = pkg.MapIter.Example
+    _ = pkg.Method
+    _ = pkg.Method.IsExported
+    _ = pkg.New
+    _ = pkg.NewAt
+    _ = pkg.Pointer
+    _ = pkg.PointerTo
+    _ = pkg.Ptr
+    _ = pkg.PtrTo
+    _ = pkg.RecvDir
+    _ = pkg.SeExample
+    _ = pkg.SlicExample
+    _ = pkg.StrExample
+    _ = pkg.StructField.IsExported
+    _ = pkg.StructTag.Get
+    _ = pkg.StructTag.Lookup
+    _ = pkg.Swapper
+    _ = pkg.TypExample
+    _ = pkg.Type.Value
+    _ = pkg.UinExample
+    _ = pkg.UnsafePointer
+    _ = pkg.ValuExample
+    _ = pkg.Value.Example
+    _ = pkg.ValueError.Error
+    _ = pkg.VisibleFields
+    _ = pkg.Zero
+    _ = pkg.interfaceType.Example
+    _ = pkg.rtype.Example
+    _ = pkg.structType.Example
+}

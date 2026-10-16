@@ -1,22 +1,21 @@
 package main
 
-import "expvar"
+import pkg "expvar"
 
 func main() {
-	expvar.Do(func(kv expvar.KeyValue) {})
-	_ = expvar.Get("k")
-	var f expvar.Float
-	var i expvar.Int
-	var m expvar.Map
-	var s expvar.String
-	var fn expvar.Func
-	var v expvar.Var
-	_, _, _, _, _, _ = f, i, m, s, fn, v
-	_ = fn.Value
-	// The type member sets stay inert; the selector forms name them.
-	_ = expvar.Float.Add
-	_ = expvar.Int.Add
-	_ = expvar.Map.Init
-	_ = expvar.String.Set
-	_ = expvar.Func.String
+    _ = pkg.Do
+    _ = pkg.Float
+    _ = pkg.Float.Example
+    _ = pkg.Func
+    _ = pkg.Func.String
+    _ = pkg.Func.Value
+    _ = pkg.Get
+    _ = pkg.Int
+    _ = pkg.Int.Example
+    _ = pkg.KeyValue
+    _ = pkg.Map
+    _ = pkg.Map.Example
+    _ = pkg.String
+    _ = pkg.String.Example
+    _ = pkg.Var
 }

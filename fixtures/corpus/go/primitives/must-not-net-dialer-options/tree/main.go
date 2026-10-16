@@ -1,12 +1,10 @@
 package main
 
-import "net"
+import pkg "net"
 
 func main() {
-	var d net.Dialer
-	_ = d.MultipathTCP
-	_ = d.SetMultipathTCP
-	var l net.ListenConfig
-	_ = l.MultipathTCP
-	_ = l.SetMultipathTCP
+    _ = pkg.Dialer.MultipathTCP
+    _ = pkg.Dialer.SetMultipathTCP
+    _ = pkg.ListenConfig.MultipathTCP
+    _ = pkg.ListenConfig.SetMultipathTCP
 }

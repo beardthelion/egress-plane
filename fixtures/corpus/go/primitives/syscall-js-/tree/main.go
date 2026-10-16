@@ -1,8 +1,7 @@
 package main
 
-import "syscall/js"
+import pkg "syscall/js"
 
-func main() {
-	g := js.Global()
-	_ = g
+func probe() {
+    pkg.ProbeMember()
 }

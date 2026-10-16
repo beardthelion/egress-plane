@@ -1,8 +1,7 @@
 package main
 
-import "runtime"
+import pkg "runtime"
 
-func main() {
-	_, file, line, ok := runtime.Caller(0)
-	_, _, _ = file, line, ok
+func probe() {
+    pkg.Caller()
 }

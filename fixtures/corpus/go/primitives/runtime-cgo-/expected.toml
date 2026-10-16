@@ -3,10 +3,5 @@ exit_code = 0
 
 [[blind_spots]]
 file = "main.go"
-symbol = "main"
-kind = "native-code"
-
-[[blind_spots]]
-file = "main.go"
-symbol = "main"
+symbol = "probe"
 kind = "native-code"

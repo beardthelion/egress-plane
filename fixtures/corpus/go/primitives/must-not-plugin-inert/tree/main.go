@@ -1,9 +1,8 @@
 package main
 
-import "plugin"
+import pkg "plugin"
 
 func main() {
-	var p plugin.Plugin
-	var s plugin.Symbol
-	_, _ = p, s
+    _ = pkg.Plugin
+    _ = pkg.Symbol
 }

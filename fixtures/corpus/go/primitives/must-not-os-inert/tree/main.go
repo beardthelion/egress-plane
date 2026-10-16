@@ -1,0 +1,67 @@
+package main
+
+import pkg "os"
+
+func main() {
+    _ = pkg.Args
+    _ = pkg.ChExample
+    _ = pkg.CopyFS
+    _ = pkg.Create
+    _ = pkg.CreateTemp
+    _ = pkg.DevNull
+    _ = pkg.DirEntry
+    _ = pkg.DirFS
+    _ = pkg.ErrExample
+    _ = pkg.Executable
+    _ = pkg.Exit
+    _ = pkg.FilExample
+    _ = pkg.File.Example
+    _ = pkg.GetExample
+    _ = pkg.Hostname
+    _ = pkg.Interrupt
+    _ = pkg.IsExample
+    _ = pkg.Kill
+    _ = pkg.Lchown
+    _ = pkg.Link
+    _ = pkg.LinkError
+    _ = pkg.LinkError.Error
+    _ = pkg.LinkError.Unwrap
+    _ = pkg.Lstat
+    _ = pkg.MkdiExample
+    _ = pkg.ModeExample
+    _ = pkg.NewFile
+    _ = pkg.NewSyscallError
+    _ = pkg.O_Example
+    _ = pkg.OpeExample
+    _ = pkg.PathExample
+    _ = pkg.ProcAttr
+    _ = pkg.Process.Example
+    _ = pkg.ProcessState
+    _ = pkg.ProcessState.Example
+    _ = pkg.ReExample
+    _ = pkg.Root
+    _ = pkg.Root.Example
+    _ = pkg.SEEK_Example
+    _ = pkg.SameFile
+    _ = pkg.Signal
+    _ = pkg.StExample
+    _ = pkg.Symlink
+    _ = pkg.SyscallError
+    _ = pkg.SyscallError.Example
+    _ = pkg.TempDir
+    _ = pkg.Truncate
+    _ = pkg.UserExample
+    _ = pkg.WriteFile
+    _ = pkg.dirEntry.Example
+    _ = pkg.dirFS.Example
+    _ = pkg.errSymlink.Error
+    _ = pkg.file.PollFD
+    _ = pkg.fileStat.Example
+    _ = pkg.noReadFrom.ReadFrom
+    _ = pkg.noWriteTo.WriteTo
+    _ = pkg.rawConn.Example
+    _ = pkg.root.Close
+    _ = pkg.root.Name
+    _ = pkg.rootFS.Example
+    _ = pkg.unixDirent.Example
+}

@@ -1,0 +1,64 @@
+package main
+
+import pkg "crypto/tls"
+
+func main() {
+    _ = pkg.AlertError
+    _ = pkg.AlertError.Error
+    _ = pkg.CertificatExample
+    _ = pkg.CertificateRequestInfo.Context
+    _ = pkg.CertificateRequestInfo.SupportsCertificate
+    _ = pkg.CertificateVerificationError.Error
+    _ = pkg.CertificateVerificationError.Unwrap
+    _ = pkg.CipherSuite
+    _ = pkg.CipherSuiteName
+    _ = pkg.ClientExample
+    _ = pkg.ClientAuthType.String
+    _ = pkg.ClientHelloInfo.Context
+    _ = pkg.ClientHelloInfo.SupportsCertificate
+    _ = pkg.ClientSessionState.ResumptionState
+    _ = pkg.ConExample
+    _ = pkg.Config.Example
+    _ = pkg.Conn.Example
+    _ = pkg.ConnectionState.ExportKeyingMaterial
+    _ = pkg.CurveExample
+    _ = pkg.ECExample
+    _ = pkg.ECHRejectionError.Error
+    _ = pkg.Ed25519
+    _ = pkg.EncryptedClientHelloKey
+    _ = pkg.InsecureCipherSuites
+    _ = pkg.LoadX509KeyPair
+    _ = pkg.NewLRUClientSessionCache
+    _ = pkg.NewResumptionState
+    _ = pkg.NoClientCert
+    _ = pkg.PKCS1WithSHAExample
+    _ = pkg.PSSWithSHAExample
+    _ = pkg.ParseSessionState
+    _ = pkg.QUICExample
+    _ = pkg.QUICConn.Example
+    _ = pkg.ReExample
+    _ = pkg.RecordHeaderError.Error
+    _ = pkg.SeExample
+    _ = pkg.SessionState.Bytes
+    _ = pkg.SignatureScheme
+    _ = pkg.TLS_Example
+    _ = pkg.VerExample
+    _ = pkg.X25519
+    _ = pkg.X25519MLKEM768
+    _ = pkg.X509KeyPair
+    _ = pkg.alert.Error
+    _ = pkg.alert.String
+    _ = pkg.atLeastReader.Read
+    _ = pkg.cthWrapper.Example
+    _ = pkg.echConfigErr.Error
+    _ = pkg.finishedHash.Sum
+    _ = pkg.finishedHash.Write
+    _ = pkg.listener.Accept
+    _ = pkg.lruSessionCache.Get
+    _ = pkg.lruSessionCache.Put
+    _ = pkg.marshalingFunction.Marshal
+    _ = pkg.permanentError.Example
+    _ = pkg.prefixNonceAEAD.Example
+    _ = pkg.timeoutError.Example
+    _ = pkg.xorNonceAEAD.Example
+}

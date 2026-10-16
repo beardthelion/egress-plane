@@ -1,10 +1,8 @@
 package main
 
-import "net"
+import pkg "net"
 
-func main() {
-	var c net.TCPConn
-	rc, err := c.SyscallConn()
-	_ = err
-	_ = rc
+func probe() {
+    var v pkg.TCPConn
+    v.SyscallConn()
 }

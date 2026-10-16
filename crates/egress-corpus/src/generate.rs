@@ -30,7 +30,12 @@ use serde::Deserialize;
 
 /// The languages the generator has templates for. Go primitives stay
 /// deferred to the Go units.
-pub const LANGUAGES: [Language; 3] = [Language::Python, Language::Javascript, Language::Rust];
+pub const LANGUAGES: [Language; 4] = [
+    Language::Python,
+    Language::Javascript,
+    Language::Rust,
+    Language::Go,
+];
 
 pub const GENERATED_FILE: &str = "generated.toml";
 pub const DEFERRED_FILE: &str = "deferred.toml";
@@ -264,6 +269,53 @@ fn rust_blind_spot(_rt: &RuntimeData, e: &Entry) -> Emitted {
     }
 }
 
+/// Go snippets: one `main.go` whose imports bind the package as `pkg`.
+/// One-member entries emit `pkg.Mem()`, which parses the same whether
+/// the member is a function or a type (a conversion); two-member
+/// entries declare a zero value and call the method; a module-level
+/// entry (`unsafe`, `runtime/cgo`, `syscall/js`) cannot name the bare
+/// package, so it calls a fixed member the empty-members entry still
+/// classifies back to (the rust `probe_member` pattern, KTD4).
+const GO_PATH_MEMBER: &str = "ProbeMember";
+
+fn go_blind_spot(_rt: &RuntimeData, e: &Entry) -> Emitted {
+    let members: Vec<String> = e.members.iter().map(|m| instantiate_member(m)).collect();
+    let module = instantiate_module(&e.module);
+    let body = match members.as_slice() {
+        [] => format!(
+            "    pkg.{GO_PATH_MEMBER}()
+"
+        ),
+        [m] => format!(
+            "    pkg.{m}()
+"
+        ),
+        [t, rest @ ..] => {
+            format!("    var v pkg.{t}\n    v.{}()\n", rest.join("."))
+        }
+    };
+    let src = format!("package main\n\nimport pkg \"{module}\"\n\nfunc probe() {{\n{body}}}\n");
+    let mut chain = vec![module];
+    chain.extend(members.iter().cloned());
+    Emitted {
+        ambient: false,
+        chain,
+        files: BTreeMap::from([
+            ("tree/main.go".to_string(), src),
+            (
+                "expected.toml".to_string(),
+                expected_blind_spot(
+                    "main.go",
+                    match &e.kind {
+                        EntryKind::BlindSpot { kind, .. } => kind.as_str(),
+                        _ => unreachable!(),
+                    },
+                ),
+            ),
+        ]),
+    }
+}
+
 /// The member chains of one inert group, instantiated and (for Python)
 /// with the keyword constants skipped (KTD3).
 fn inert_chains(rt: &RuntimeData, entries: &[&Entry]) -> Vec<Vec<String>> {
@@ -390,6 +442,24 @@ fn rust_inert(rt: &RuntimeData, entries: &[&Entry]) -> Emitted {
     }
 }
 
+fn go_inert(rt: &RuntimeData, entries: &[&Entry]) -> Emitted {
+    let module = instantiate_module(&entries[0].module);
+    let chains = inert_chains(rt, entries);
+    let mut b = String::new();
+    for c in &chains {
+        b.push_str(&format!("    _ = pkg.{}\n", c.join(".")));
+    }
+    let src = format!("package main\n\nimport pkg \"{module}\"\n\nfunc main() {{\n{b}}}\n");
+    Emitted {
+        ambient: false,
+        chain: Vec::new(),
+        files: BTreeMap::from([
+            ("tree/main.go".to_string(), src),
+            ("expected.toml".to_string(), EXPECTED_EMPTY.to_string()),
+        ]),
+    }
+}
+
 fn python_introspection(name: &InertName) -> CaseSpec {
     CaseSpec {
         id: name.fixture.clone(),
@@ -431,7 +501,7 @@ fn blind_spot_case(rt: &RuntimeData, e: &Entry) -> Result<CaseSpec, String> {
         Language::Python => python_blind_spot(rt, e),
         Language::Javascript => javascript_blind_spot(rt, e),
         Language::Rust => rust_blind_spot(rt, e),
-        _ => unreachable!(),
+        Language::Go => go_blind_spot(rt, e),
     };
     // Self-check: the emitted reference must classify so the case
     // produces the entry's kind: this entry itself, another blind-spot
@@ -495,7 +565,7 @@ fn inert_case(rt: &RuntimeData, entries: &[&Entry]) -> Result<CaseSpec, String> 
         Language::Python => python_inert(rt, entries),
         Language::Javascript => javascript_inert(rt, entries),
         Language::Rust => rust_inert(rt, entries),
-        _ => unreachable!(),
+        Language::Go => go_inert(rt, entries),
     };
     Ok(CaseSpec {
         id: fixture,

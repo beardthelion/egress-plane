@@ -1,11 +1,10 @@
 package main
 
-import "log/syslog"
+import pkg "log/syslog"
 
 func main() {
-	var p syslog.Priority
-	var w *syslog.Writer
-	_, _ = p, w
-	_ = syslog.LOG_INFO
-	_ = syslog.Writer.Write
+    _ = pkg.LOG_Example
+    _ = pkg.Priority
+    _ = pkg.Writer
+    _ = pkg.Writer.Example
 }

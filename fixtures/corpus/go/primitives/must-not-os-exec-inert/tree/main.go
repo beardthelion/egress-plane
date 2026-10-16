@@ -1,25 +1,17 @@
 package main
 
-import "os/exec"
+import pkg "os/exec"
 
-// The package's unexported error helpers prefixSuffixSaver.Bytes,
-// prefixSuffixSaver.Write, wrappedError.Error, and wrappedError.Unwrap
-// stay inert.
 func main() {
-	p, err := exec.LookPath("sh")
-	_ = err
-	_ = p
-	var exit *exec.ExitError
-	var e exec.Error
-	_ = exit
-	_ = e
-	_ = exec.ErrNotFound
-	_ = exec.Cmd.String
-	_ = exec.Error.Error
-	_ = exec.Error.Unwrap
-	_ = exec.ExitError.Error
-	_ = exec.prefixSuffixSaver.Bytes
-	_ = exec.prefixSuffixSaver.Write
-	_ = exec.wrappedError.Error
-	_ = exec.wrappedError.Unwrap
+    _ = pkg.Cmd.Example
+    _ = pkg.ErrExample
+    _ = pkg.Error.Error
+    _ = pkg.Error.Unwrap
+    _ = pkg.ExitError
+    _ = pkg.ExitError.Error
+    _ = pkg.LookPath
+    _ = pkg.prefixSuffixSaver.Bytes
+    _ = pkg.prefixSuffixSaver.Write
+    _ = pkg.wrappedError.Error
+    _ = pkg.wrappedError.Unwrap
 }

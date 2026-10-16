@@ -1,9 +1,8 @@
 package main
 
-import "net/http/cookiejar"
+import pkg "net/http/cookiejar"
 
 func main() {
-	var o cookiejar.Options
-	var l cookiejar.PublicSuffixList
-	_, _ = o, l
+    _ = pkg.Options
+    _ = pkg.PublicSuffixList
 }

@@ -1,10 +1,8 @@
 package main
 
-import "os"
+import pkg "os"
 
-func main() {
-	var f os.File
-	rc, err := f.SyscallConn()
-	_ = err
-	_ = rc
+func probe() {
+    var v pkg.File
+    v.SyscallConn()
 }

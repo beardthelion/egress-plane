@@ -1,14 +1,14 @@
 package main
 
-import "os"
+import pkg "os"
 
 func main() {
-	_ = os.Getenv("HOME")
-	_, _ = os.LookupEnv("HOME")
-	_ = os.Environ()
-	_ = os.ExpandEnv("$HOME")
-	_ = os.Expand("$X", func(s string) string { return s })
-	_ = os.Setenv("K", "v")
-	_ = os.Unsetenv("K")
-	os.Clearenv()
+    _ = pkg.Clearenv
+    _ = pkg.Environ
+    _ = pkg.Expand
+    _ = pkg.ExpandEnv
+    _ = pkg.Getenv
+    _ = pkg.LookupEnv
+    _ = pkg.Setenv
+    _ = pkg.Unsetenv
 }

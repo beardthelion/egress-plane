@@ -1,8 +1,7 @@
 package main
 
-import "runtime/cgo"
+import pkg "runtime/cgo"
 
-func main() {
-	var h cgo.Handle
-	_ = h
+func probe() {
+    pkg.ProbeMember()
 }

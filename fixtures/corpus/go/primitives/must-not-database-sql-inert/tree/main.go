@@ -1,0 +1,55 @@
+package main
+
+import pkg "database/sql"
+
+func main() {
+    _ = pkg.ColumnType
+    _ = pkg.ColumnType.Example
+    _ = pkg.Conn.Example
+    _ = pkg.DB.Example
+    _ = pkg.DBStats
+    _ = pkg.Drivers
+    _ = pkg.ErrExample
+    _ = pkg.IsolationLevel
+    _ = pkg.LevelExample
+    _ = pkg.Named
+    _ = pkg.NamedArg
+    _ = pkg.NulExample
+    _ = pkg.Null.Scan
+    _ = pkg.Null.Value
+    _ = pkg.NullBool.Scan
+    _ = pkg.NullBool.Value
+    _ = pkg.NullByte.Scan
+    _ = pkg.NullByte.Value
+    _ = pkg.NullFloat64.Scan
+    _ = pkg.NullFloat64.Value
+    _ = pkg.NullInt16.Scan
+    _ = pkg.NullInt16.Value
+    _ = pkg.NullInt32.Scan
+    _ = pkg.NullInt32.Value
+    _ = pkg.NullInt64.Scan
+    _ = pkg.NullInt64.Value
+    _ = pkg.NullString.Scan
+    _ = pkg.NullString.Value
+    _ = pkg.NullTime.Scan
+    _ = pkg.NullTime.Value
+    _ = pkg.Out
+    _ = pkg.RawBytes
+    _ = pkg.Result
+    _ = pkg.Row
+    _ = pkg.Row.Err
+    _ = pkg.Row.Scan
+    _ = pkg.Rows.Example
+    _ = pkg.Scanner
+    _ = pkg.Stmt.Example
+    _ = pkg.Tx.Example
+    _ = pkg.TxOptions
+    _ = pkg.ccChecker.CheckNamedValue
+    _ = pkg.connRequestSet.Example
+    _ = pkg.driverConn.Close
+    _ = pkg.driverResult.LastInsertId
+    _ = pkg.driverResult.RowsAffected
+    _ = pkg.driverStmt.Close
+    _ = pkg.dsnConnector.Connect
+    _ = pkg.dsnConnector.Driver
+}

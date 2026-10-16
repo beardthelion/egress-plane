@@ -1,12 +1,11 @@
 package main
 
-import "net/http/httptest"
+import pkg "net/http/httptest"
 
 func main() {
-	var r httptest.ResponseRecorder
-	_ = r
-	_ = httptest.NewRecorder
-	_ = httptest.DefaultRemoteAddr
-	_ = httptest.ResponseRecorder.Code
-	_ = httptest.Server.Addr
+    _ = pkg.DefaultRemoteAddr
+    _ = pkg.NewReExample
+    _ = pkg.ResponseRecorder
+    _ = pkg.ResponseRecorder.Example
+    _ = pkg.Server.Example
 }

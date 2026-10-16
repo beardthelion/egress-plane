@@ -1,9 +1,7 @@
 package main
 
-import "plugin"
+import pkg "plugin"
 
-func main() {
-	p, err := plugin.Open("./libexample.so")
-	_ = err
-	_ = p
+func probe() {
+    pkg.Open()
 }

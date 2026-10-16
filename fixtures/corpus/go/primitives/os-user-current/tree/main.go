@@ -1,9 +1,7 @@
 package main
 
-import "os/user"
+import pkg "os/user"
 
-func main() {
-	u, err := user.Current()
-	_ = err
-	_ = u
+func probe() {
+    pkg.Current()
 }

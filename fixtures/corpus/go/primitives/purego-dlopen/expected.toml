@@ -3,9 +3,5 @@ exit_code = 0
 
 [[blind_spots]]
 file = "main.go"
-symbol = "main"
+symbol = "probe"
 kind = "native-code"
-
-[[unscanned_dependencies]]
-language = "go"
-package = "github.com/ebitengine/purego"

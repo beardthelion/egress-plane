@@ -1,9 +1,8 @@
 package main
 
-import "reflect"
+import pkg "reflect"
 
-func main() {
-	var v reflect.Value
-	out := v.Call(nil)
-	_ = out
+func probe() {
+    var v pkg.Value
+    v.Call()
 }

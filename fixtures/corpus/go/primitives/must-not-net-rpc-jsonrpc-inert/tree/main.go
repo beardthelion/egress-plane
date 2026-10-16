@@ -1,9 +1,8 @@
 package main
 
-import "net/rpc/jsonrpc"
+import pkg "net/rpc/jsonrpc"
 
-// The unexported clientCodec and serverCodec members stay inert.
 func main() {
-	_ = jsonrpc.clientCodec.WriteRequest
-	_ = jsonrpc.serverCodec.ReadRequestHeader
+    _ = pkg.clientCodec.Example
+    _ = pkg.serverCodec.Example
 }

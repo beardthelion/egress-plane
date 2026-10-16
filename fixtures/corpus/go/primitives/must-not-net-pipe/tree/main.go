@@ -1,9 +1,8 @@
 package main
 
-import "net"
+import pkg "net"
 
 func main() {
-	a, b := net.Pipe()
-	var buf net.Buffers
-	_, _, _ = a, b, buf
+    _ = pkg.Buffers
+    _ = pkg.Pipe
 }
