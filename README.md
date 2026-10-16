@@ -198,3 +198,8 @@ cargo test -p egress-corpus --locked             # corpus gate; prints the false
 ```
 
 `docs/adding-a-language.md` is the recipe for adding a language; each mechanical step names the test or conformance finding that enforces it.
+
+## License
+
+Licensed under either of the Apache License, Version 2.0 (`LICENSE-APACHE`) or
+the MIT license (`LICENSE-MIT`), at your option.
