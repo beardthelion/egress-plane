@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:github.com/valyala/fasthttp.HostClient"
+destination = "expr:pkg.HostClient"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:github.com/valyala/fasthttp.HostClient.Do"
+destination = "expr:v.Do()"

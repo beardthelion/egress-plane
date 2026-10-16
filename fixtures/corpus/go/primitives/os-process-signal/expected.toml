@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:os.Process"
+destination = "expr:pkg.Process"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:os.Process.Signal"
+destination = "expr:v.Signal()"

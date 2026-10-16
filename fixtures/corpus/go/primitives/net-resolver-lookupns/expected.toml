@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net.Resolver"
+destination = "expr:pkg.Resolver"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net.Resolver.LookupNS"
+destination = "https://x.example/"

@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:github.com/miekg/dns.Server"
+destination = "expr:pkg.Server"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:github.com/miekg/dns.Server.Serve"
+destination = "expr:v.Serve()"

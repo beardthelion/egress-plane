@@ -11,8 +11,9 @@
 //! fixture, and a stale owned case (its entry gone from the data) is
 //! deleted.
 //!
-//! Go primitives fixtures are out of scope: there is no Go template, so
-//! Go deferred entries stay in the ledger for the Go unit sequence.
+//! The Go template emits one `main.go` per fixture; egress fixtures are
+//! adopt-only candidates, emitted only while a ledger names them, so
+//! hand-authored egress cases always win over the template.
 //!
 //! Output depends only on data content: sorted iteration, fixed file
 //! names, no timestamps, no host paths. Case names are the `fixture`
@@ -28,8 +29,7 @@ use egress_core::data::{
 use egress_core::model::{BlindSpotKind, Language};
 use serde::Deserialize;
 
-/// The languages the generator has templates for. Go primitives stay
-/// deferred to the Go units.
+/// The languages the generator has templates for.
 pub const LANGUAGES: [Language; 4] = [
     Language::Python,
     Language::Javascript,
@@ -52,6 +52,10 @@ pub fn corpus_root(manifest_dir: &Path) -> PathBuf {
 pub struct CaseSpec {
     pub id: String,
     pub files: BTreeMap<String, String>,
+    /// An egress candidate: emitted only while a ledger names its
+    /// fixture, and an authored directory on that fixture wins over
+    /// the template instead of conflicting (KTD4).
+    pub adopt_only: bool,
 }
 
 /// `*` in a member pattern becomes a fixed concrete identifier.
@@ -460,9 +464,136 @@ fn go_inert(rt: &RuntimeData, entries: &[&Entry]) -> Emitted {
     }
 }
 
+/// The destination literal a generated Go egress call carries for
+/// `form`, and the text the scanner renders for it: `program` renders
+/// `exec:` and `library` `lib:`, the address and URL forms verbatim.
+fn go_form_literal(
+    form: egress_core::data::DestinationForm,
+) -> Option<(&'static str, &'static str)> {
+    Some(match form {
+        egress_core::data::DestinationForm::Url => ("https://x.example/", "https://x.example/"),
+        egress_core::data::DestinationForm::HostPort
+        | egress_core::data::DestinationForm::Address => ("x.example:443", "x.example:443"),
+        egress_core::data::DestinationForm::Program => ("x", "exec:x"),
+        egress_core::data::DestinationForm::Library => ("x.so", "lib:x.so"),
+    })
+}
+
+/// The `[[sites]]` block for a generated Go egress expected.toml.
+fn expected_sites(lines: &[(&str, &str)]) -> String {
+    let mut out = String::from("state = \"complete\"\nexit_code = 0\n");
+    for (mechanism, destination) in lines {
+        out.push_str(&format!(
+            "\n[[sites]]\nfile = \"main.go\"\nsymbol = \"probe\"\nmechanism = \"{mechanism}\"\ndestination = \"{destination}\"\n"
+        ));
+    }
+    out
+}
+
+/// One Go egress case: a call carrying the destination literal at the
+/// spec's argument index. Two-member entries declare a zero value and
+/// call the method, which adds the constructor site when member one is
+/// itself a constructor entry. Entries whose spec shape the template
+/// cannot express (no positional arg, an empty member list, three or
+/// more members) return `None` and stay deferred.
+fn go_egress(rt: &RuntimeData, e: &Entry) -> Result<Option<CaseSpec>, String> {
+    let EntryKind::Egress(egress) = &e.kind else {
+        return Ok(None);
+    };
+    let members: Vec<String> = e.members.iter().map(|m| instantiate_member(m)).collect();
+    let module = instantiate_module(&e.module);
+
+    // The call's argument list: a literal per destination arg, a
+    // placeholder "x" elsewhere, none when the entry has no spec.
+    let (args, dest) = match &egress.destination {
+        Some(spec) => {
+            let Some(n) = spec.arg else {
+                return Ok(None);
+            };
+            if spec.port.is_some() || spec.keyword.is_some() || spec.port_keyword.is_some() {
+                return Ok(None);
+            }
+            let Some((lit, rendered)) = go_form_literal(spec.form) else {
+                return Ok(None);
+            };
+            let mut args = vec!["x".to_string(); n as usize];
+            args[n as usize - 1] = format!("\"{lit}\"");
+            (args, Some(rendered.to_string()))
+        }
+        None => (Vec::new(), None),
+    };
+    let args = args.iter().map(|a| match a.as_str() {
+        "x" => "\"x\"".to_string(),
+        a => a.to_string(),
+    });
+    let call_args: Vec<String> = args.collect();
+
+    let (body, sites) = match members.as_slice() {
+        [m] => {
+            let dest = dest.unwrap_or_else(|| format!("expr:pkg.{m}({})", call_args.join(", ")));
+            (
+                format!("    pkg.{m}({})\n", call_args.join(", ")),
+                vec![(e.id.clone(), dest)],
+            )
+        }
+        [t, m] => {
+            let mut sites = Vec::new();
+            // A constructor member emits its own site for the zero value.
+            if let Some(Classification::Entry(t_e)) =
+                classify(rt, false, &[module.clone(), t.clone()])
+                && let EntryKind::Egress(t_eg) = &t_e.kind
+                && t_eg.constructor
+            {
+                sites.push((t_e.id.clone(), format!("expr:pkg.{t}")));
+            }
+            let dest = dest.unwrap_or_else(|| format!("expr:v.{m}({})", call_args.join(", ")));
+            sites.push((e.id.clone(), dest));
+            (
+                format!("    var v pkg.{t}\n    v.{m}({})\n", call_args.join(", ")),
+                sites,
+            )
+        }
+        _ => return Ok(None),
+    };
+    // `mechanism` labels carry the entry id.
+    let site_lines: Vec<(&str, &str)> = sites
+        .iter()
+        .map(|(id, d)| (id.as_str(), d.as_str()))
+        .collect();
+    let src = format!("package main\n\nimport pkg \"{module}\"\n\nfunc probe() {{\n{body}}}\n");
+    let chain: Vec<String> = std::iter::once(module.clone())
+        .chain(members.iter().cloned())
+        .collect();
+    match classify(rt, false, &chain) {
+        Some(Classification::Entry(got)) if got.id == e.id => {}
+        other => {
+            return Err(format!(
+                "{}: generated reference {} classifies as {}, not the entry",
+                e.id,
+                chain.join(separator(rt.language)),
+                match other {
+                    Some(Classification::Entry(x)) => format!("entry {}", x.id),
+                    Some(Classification::Module(m)) => format!("module {}", m.name),
+                    Some(Classification::Package(p)) => format!("package {}", p.name),
+                    None => "nothing".to_string(),
+                }
+            ));
+        }
+    }
+    Ok(Some(CaseSpec {
+        id: e.fixture.clone(),
+        adopt_only: true,
+        files: BTreeMap::from([
+            ("tree/main.go".to_string(), src),
+            ("expected.toml".to_string(), expected_sites(&site_lines)),
+        ]),
+    }))
+}
+
 fn python_introspection(name: &InertName) -> CaseSpec {
     CaseSpec {
         id: name.fixture.clone(),
+        adopt_only: false,
         files: BTreeMap::from([
             (
                 "tree/app.py".to_string(),
@@ -539,6 +670,7 @@ fn blind_spot_case(rt: &RuntimeData, e: &Entry) -> Result<CaseSpec, String> {
     }
     Ok(CaseSpec {
         id: e.fixture.clone(),
+        adopt_only: false,
         files: em.files,
     })
 }
@@ -569,6 +701,7 @@ fn inert_case(rt: &RuntimeData, entries: &[&Entry]) -> Result<CaseSpec, String> 
     };
     Ok(CaseSpec {
         id: fixture,
+        adopt_only: false,
         files: em.files,
     })
 }
@@ -598,6 +731,7 @@ fn valid_case_id(id: &str) -> bool {
 const BLIND: u8 = 1;
 const INERT: u8 = 2;
 const INTROSPECTION: u8 = 4;
+const EGRESS_BIT: u8 = 8;
 
 /// Whether a data fixture is a valid corpus case id (KTD4, AE1).
 fn check_id(errors: &mut Vec<String>, fixture: &str) -> bool {
@@ -625,6 +759,33 @@ pub fn candidates(rts: &[&RuntimeData]) -> Result<BTreeMap<String, CaseSpec>, Ve
         for e in &rt.entries {
             if matches!(e.kind, EntryKind::BlindSpot { .. }) && e.fixture.starts_with(&prefix) {
                 blind.entry(e.fixture.as_str()).or_default().push(e);
+            }
+        }
+        let mut egress: BTreeMap<&str, Vec<&Entry>> = BTreeMap::new();
+        for e in &rt.entries {
+            if rt.language == Language::Go
+                && matches!(e.kind, EntryKind::Egress(_))
+                && e.fixture.starts_with(&prefix)
+            {
+                egress.entry(e.fixture.as_str()).or_default().push(e);
+            }
+        }
+        for (fixture, es) in egress {
+            // A fixture several entries name is a hand-authored
+            // multi-entry case; the one-entry template yields to it
+            // (adopt-only, so no error like the blind-spot path).
+            if es.len() > 1 {
+                continue;
+            }
+            match go_egress(rt, es[0]) {
+                Ok(Some(spec)) => {
+                    *claims.entry(fixture.to_string()).or_default() |= EGRESS_BIT;
+                    if check_id(&mut errors, fixture) {
+                        out.insert(fixture.to_string(), spec);
+                    }
+                }
+                Ok(None) => {}
+                Err(e) => errors.push(e),
             }
         }
         for (fixture, es) in blind {
@@ -966,8 +1127,9 @@ pub fn plan(rts: &[&RuntimeData], corpus_root: &Path) -> Result<Plan, Vec<String
         if !wanted {
             // The generator does not write it, but a directory sitting on
             // an entry's fixture without an ownership entry is a conflict:
-            // it is never touched and the run reports it.
-            if dir.exists() {
+            // it is never touched and the run reports it. An adopt-only
+            // (egress) candidate instead yields to the authored case.
+            if dir.exists() && !spec.adopt_only {
                 errors.push(format!(
                     "{id}: a case directory exists but is not in generated.toml; not touching it"
                 ));

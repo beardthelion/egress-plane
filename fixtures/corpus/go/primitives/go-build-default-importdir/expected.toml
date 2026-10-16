@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:go/build.Default.ImportDir"
+destination = "expr:v.ImportDir()"

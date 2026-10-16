@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/http.DefaultClient"
+destination = "expr:pkg.DefaultClient"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/http.DefaultClient.Get"
+destination = "https://x.example/"

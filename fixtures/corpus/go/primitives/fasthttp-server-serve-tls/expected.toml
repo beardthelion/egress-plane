@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:github.com/valyala/fasthttp.Server"
+destination = "expr:pkg.Server"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:github.com/valyala/fasthttp.Server.ServeTLS"
+destination = "expr:v.ServeTLS()"

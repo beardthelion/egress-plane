@@ -128,14 +128,14 @@ fn regeneration_is_byte_identical() {
 }
 
 /// After `--write`, `deferred.toml` lists no case the generator could
-/// produce. Non-covered fixtures (the Go egress cases) stay deferred.
+/// produce. Category deferrals (Go evasive, closure, dependencies) are
+/// unaffected.
 #[test]
 fn deferred_ledger_holds_no_generated_primitives_case() {
     let text = fs::read_to_string(corpus().join("deferred.toml")).unwrap();
     let deferred = guards::parse_deferred(&text).unwrap_or_else(|e| panic!("{e}"));
     let d = data();
-    let cases =
-        generate::candidates(&runtimes(&d)).unwrap_or_else(|e| panic!("{}", e.join("\n")));
+    let cases = generate::candidates(&runtimes(&d)).unwrap_or_else(|e| panic!("{}", e.join("\n")));
     for c in &deferred.cases {
         assert!(
             !cases.contains_key(c.as_str()),
@@ -149,14 +149,11 @@ fn deferred_ledger_holds_no_generated_primitives_case() {
         plan.deferred_toml.is_none(),
         "deferred.toml would be rewritten"
     );
-    // Go egress fixtures stay: they are named by Go data the
-    // generator's blind-spot and inert templates do not cover.
+    // Only the Go categories remain deferred; no primitives case may
+    // outlive its authored or generated fixture.
     assert!(
-        deferred
-            .cases
-            .iter()
-            .any(|c| c.starts_with("go/primitives/")),
-        "go deferred entries should be untouched, not absent"
+        !deferred.cases.iter().any(|c| c.ends_with("/")),
+        "deferred ledger should list whole case ids"
     );
 }
 

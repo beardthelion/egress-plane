@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/http/httputil.ReverseProxy"
+destination = "expr:pkg.ReverseProxy"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/http/httputil.ReverseProxy.ServeHTTP"
+destination = "expr:v.ServeHTTP()"

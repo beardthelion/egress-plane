@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/smtp.Client"
+destination = "expr:pkg.Client"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/smtp.Client.Noop"
+destination = "expr:v.Noop()"

@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net.Dialer"
+destination = "expr:pkg.Dialer"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net.Dialer.DialIP"
+destination = "expr:v.DialIP()"

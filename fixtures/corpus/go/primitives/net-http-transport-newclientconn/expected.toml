@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/http.Transport"
+destination = "expr:pkg.Transport"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/http.Transport.NewClientConn"
+destination = "expr:v.NewClientConn()"

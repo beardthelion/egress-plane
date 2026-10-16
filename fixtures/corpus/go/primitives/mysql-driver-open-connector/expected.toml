@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:github.com/go-sql-driver/mysql.MySQLDriver"
+destination = "expr:pkg.MySQLDriver"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:github.com/go-sql-driver/mysql.MySQLDriver.OpenConnector"
+destination = "expr:v.OpenConnector()"

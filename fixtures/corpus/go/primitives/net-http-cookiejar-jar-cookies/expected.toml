@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/http/cookiejar.Jar"
+destination = "expr:pkg.Jar"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/http/cookiejar.Jar.Cookies"
+destination = "https://x.example/"

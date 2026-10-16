@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/rpc.Client"
+destination = "expr:pkg.Client"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/rpc.Client.Go"
+destination = "expr:v.Go()"

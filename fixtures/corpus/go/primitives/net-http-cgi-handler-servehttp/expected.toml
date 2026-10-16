@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/http/cgi.Handler"
+destination = "expr:pkg.Handler"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/http/cgi.Handler.ServeHTTP"
+destination = "expr:v.ServeHTTP()"

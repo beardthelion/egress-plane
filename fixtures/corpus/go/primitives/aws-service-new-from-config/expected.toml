@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:github.com/aws/aws-sdk-go-v2/service/*.NewFromConfig"
+destination = "expr:pkg.NewFromConfig()"

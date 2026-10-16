@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/http.DefaultTransport"
+destination = "expr:pkg.DefaultTransport"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:net/http.DefaultTransport.RoundTrip"
+destination = "expr:v.RoundTrip()"

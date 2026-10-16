@@ -1,0 +1,20 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:syscall.WSASendto"
+destination = "expr:b"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:syscall.WSASendto"
+destination = "expr:syscall.WSASendto"
+
+[[sites]]
+file = "main.go"
+symbol = "main"
+mechanism = "go:syscall.WSASendTo"
+destination = "expr:syscall.WSASendTo(0, &b, nil, nil, 0)"

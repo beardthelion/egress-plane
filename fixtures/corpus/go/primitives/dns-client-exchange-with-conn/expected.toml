@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:github.com/miekg/dns.Client"
+destination = "expr:pkg.Client"
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:github.com/miekg/dns.Client.ExchangeWithConn"
+destination = "expr:v.ExchangeWithConn()"

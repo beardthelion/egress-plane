@@ -1,0 +1,8 @@
+state = "complete"
+exit_code = 0
+
+[[sites]]
+file = "main.go"
+symbol = "probe"
+mechanism = "go:github.com/rabbitmq/amqp091-go.Connection"
+destination = "expr:pkg.Connection()"

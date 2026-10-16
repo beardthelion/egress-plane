@@ -1,0 +1,7 @@
+package main
+
+import pkg "github.com/segmentio/kafka-go"
+
+func probe() {
+    pkg.DialContext("x", "x", "x.example:443")
+}
