@@ -418,12 +418,12 @@ cases = [
 
 [[categories]]
 id = "go/evasive"
-reason = "The evasive category belongs to the code layer hardening plan; see README \"Limitations\"."
+reason = "Go evasive rows have no spec entries or generator template; they follow the Go catalog coverage work."
 
 [[categories]]
 id = "go/closure"
-reason = "The closure category belongs to the code layer hardening plan; see README \"Limitations\"."
+reason = "Go closure rows have no spec entries; they follow the Go catalog coverage work."
 
 [[categories]]
 id = "go/dependencies"
-reason = "Go module source scanning belongs to the dependency source scan plan."
+reason = "No Go module dependency root kind exists; --deps does not resolve Go imports."
