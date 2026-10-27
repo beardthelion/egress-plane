@@ -343,10 +343,17 @@
                 "enum": [
                   "pth-import-line",
                   "sitecustomize",
-                  "usercustomize"
+                  "usercustomize",
+                  "npm-preinstall",
+                  "npm-install",
+                  "npm-postinstall"
                 ]
               },
               "distribution": {
+                "type": "string",
+                "minLength": 1
+              },
+              "command": {
                 "type": "string",
                 "minLength": 1
               }

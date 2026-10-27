@@ -225,6 +225,8 @@ struct JAutoRun<'a> {
     file: String,
     trigger: &'static str,
     distribution: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    command: Option<String>,
 }
 
 fn is_false(b: &bool) -> bool {
@@ -482,6 +484,7 @@ pub fn to_json(report: &Report) -> String {
                     file: escape(&a.file),
                     trigger: a.trigger.as_str(),
                     distribution: escape(&a.distribution),
+                    command: a.command.as_ref().map(|c| escape(c)),
                 })
                 .collect(),
             packages: d.packages.iter().map(jpackage).collect(),

@@ -964,6 +964,9 @@ pub struct AutoRun {
     pub trigger: AutoRunTrigger,
     /// Installing distribution, or `unattributed` when no `RECORD` lists it.
     pub distribution: String,
+    /// The lifecycle command text, for triggers that carry one (npm
+    /// `scripts` entries). `None` for the file-based triggers.
+    pub command: Option<String>,
 }
 
 /// What makes an installed file auto-run.
@@ -973,13 +976,20 @@ pub enum AutoRunTrigger {
     PthImportLine,
     Sitecustomize,
     Usercustomize,
+    /// npm `scripts` entries the package manager runs at install time.
+    NpmPreinstall,
+    NpmInstall,
+    NpmPostinstall,
 }
 
 impl AutoRunTrigger {
-    pub const ALL: [AutoRunTrigger; 3] = [
+    pub const ALL: [AutoRunTrigger; 6] = [
         Self::PthImportLine,
         Self::Sitecustomize,
         Self::Usercustomize,
+        Self::NpmPreinstall,
+        Self::NpmInstall,
+        Self::NpmPostinstall,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -987,6 +997,9 @@ impl AutoRunTrigger {
             Self::PthImportLine => "pth-import-line",
             Self::Sitecustomize => "sitecustomize",
             Self::Usercustomize => "usercustomize",
+            Self::NpmPreinstall => "npm-preinstall",
+            Self::NpmInstall => "npm-install",
+            Self::NpmPostinstall => "npm-postinstall",
         }
     }
 

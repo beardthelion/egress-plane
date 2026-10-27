@@ -275,6 +275,7 @@ fn dependency_section(expected: &Expected) -> Option<DependencySection> {
                 file: a.file.clone(),
                 trigger: a.trigger,
                 distribution: a.distribution.clone(),
+                command: None,
             })
             .collect(),
         packages,
@@ -1274,6 +1275,7 @@ state = "complete"
         file: "hunter2-sentinel.pth".into(),
         trigger: egress_core::model::AutoRunTrigger::PthImportLine,
         distribution: "evil-dist".into(),
+        command: None,
     });
     assert!(!compare(&e, &ok(r)).passed());
 }

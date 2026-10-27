@@ -150,6 +150,7 @@ pub fn run(
                 file: a.file.clone(),
                 trigger: a.trigger,
                 distribution: a.distribution.clone(),
+                command: a.command.clone(),
             })
         })
         .collect();

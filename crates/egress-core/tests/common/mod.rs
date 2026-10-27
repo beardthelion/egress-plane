@@ -296,6 +296,7 @@ pub fn dependency_section() -> DependencySection {
                 file: "sitecustomize.py".into(),
                 trigger: AutoRunTrigger::Sitecustomize,
                 distribution: "unattributed".into(),
+                command: None,
             },
             AutoRun {
                 id: String::new(),
@@ -303,6 +304,7 @@ pub fn dependency_section() -> DependencySection {
                 file: "a.pth".into(),
                 trigger: AutoRunTrigger::PthImportLine,
                 distribution: "setuptools".into(),
+                command: None,
             },
         ],
         packages: vec![linked, dependency_package()],

@@ -466,6 +466,7 @@ fn auto_run_id_keys_on_label_file_and_trigger() {
         file: file.into(),
         trigger,
         distribution: "setuptools".into(),
+        command: None,
     };
     let mut sec = section_with(vec![]);
     sec.auto_run = vec![auto("b.pth", AutoRunTrigger::PthImportLine)];

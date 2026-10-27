@@ -1,0 +1,10 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "tree/node_modules"
+
+[[auto_run]]
+file = "esbuild-mini/package.json"
+trigger = "npm-postinstall"
+distribution = "esbuild-mini"

@@ -353,6 +353,8 @@ fn npm_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
     struct Acc<'a> {
         budgets: &'a DependencyBudgets,
         instances: Vec<Instance>,
+        auto_runs: Vec<crate::deps::inventory::AutoRunFile>,
+        scripts: std::collections::BTreeMap<String, String>,
         entries: u64,
         exceeded: bool,
         store_layout: bool,
@@ -412,16 +414,19 @@ fn npm_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
             }
             let (pkg_name, version) =
                 match read_meta(dir, &join(rel, b"package.json"), self.budgets) {
-                    Some(Ok(bytes)) => match metadata::package_json(&bytes) {
-                        Ok(m) => (m.name, m.version),
-                        Err(_) => {
-                            flags.unsupported = Some("unreadable-metadata".to_string());
-                            (
-                                clean_name(dir_name).unwrap_or_else(|| escaped_name(dir_name)),
-                                String::new(),
-                            )
+                    Some(Ok(bytes)) => {
+                        self.scripts = metadata::package_json_scripts(&bytes).unwrap_or_default();
+                        match metadata::package_json(&bytes) {
+                            Ok(m) => (m.name, m.version),
+                            Err(_) => {
+                                flags.unsupported = Some("unreadable-metadata".to_string());
+                                (
+                                    clean_name(dir_name).unwrap_or_else(|| escaped_name(dir_name)),
+                                    String::new(),
+                                )
+                            }
                         }
-                    },
+                    }
                     _ => {
                         flags.unsupported = Some("unreadable-metadata".to_string());
                         (
@@ -435,6 +440,14 @@ fn npm_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
                 // The display chain ends on the package name from
                 // package.json.
                 *parts.last_mut().unwrap() = pkg_name.clone();
+            }
+            for (trigger, command) in npm_lifecycle(&std::mem::take(&mut self.scripts)) {
+                self.auto_runs.push(crate::deps::inventory::AutoRunFile {
+                    file: String::from_utf8_lossy(&join(rel, b"package.json")).into_owned(),
+                    trigger,
+                    distribution: pkg_name.clone(),
+                    command: Some(command),
+                });
             }
             self.instances.push(Instance {
                 package: pkg_name.clone(),
@@ -455,6 +468,8 @@ fn npm_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
     let mut acc = Acc {
         budgets,
         instances: Vec::new(),
+        auto_runs: Vec::new(),
+        scripts: std::collections::BTreeMap::new(),
         entries: 0,
         exceeded: false,
         store_layout: false,
@@ -468,7 +483,7 @@ fn npm_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory {
     Inventory {
         kind: Npm,
         instances: acc.instances,
-        auto_runs: Vec::new(),
+        auto_runs: acc.auto_runs,
         entries_exceeded: acc.exceeded,
     }
 }
@@ -739,6 +754,7 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
                 file: String::from_utf8_lossy(name).into_owned(),
                 trigger,
                 distribution,
+                command: None,
             });
         }
     }
@@ -750,6 +766,28 @@ fn python_inventory(root: &NamedRoot, budgets: &DependencyBudgets) -> Inventory 
         auto_runs,
         entries_exceeded: exceeded,
     }
+}
+
+/// npm `scripts` entries the registry-install path runs, as
+/// trigger-kind and command pairs. `prepare` and `preprepare` only
+/// run for git dependencies and local installs, so a registry
+/// `node_modules` root never triggers them; `prepublish` is
+/// publish-time since npm 4.
+fn npm_lifecycle(
+    scripts: &std::collections::BTreeMap<String, String>,
+) -> Vec<(crate::model::AutoRunTrigger, String)> {
+    use crate::model::AutoRunTrigger::*;
+    let mut out = Vec::new();
+    for (name, trig) in [
+        ("preinstall", NpmPreinstall),
+        ("install", NpmInstall),
+        ("postinstall", NpmPostinstall),
+    ] {
+        if let Some(cmd) = scripts.get(name) {
+            out.push((trig, cmd.clone()));
+        }
+    }
+    out
 }
 
 /// cargo-vendor: `<name>-<version>` directories holding

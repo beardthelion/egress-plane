@@ -64,6 +64,9 @@ pub struct AutoRunFile {
     pub trigger: crate::model::AutoRunTrigger,
     /// Installing distribution, or `unattributed`.
     pub distribution: String,
+    /// The lifecycle command text for triggers that carry one (npm
+    /// `scripts` entries); `None` for file-based triggers.
+    pub command: Option<String>,
 }
 
 /// The inventory of one named root.

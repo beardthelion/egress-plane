@@ -24,6 +24,24 @@ pub fn package_json(bytes: &[u8]) -> Result<NpmMeta, Malformed> {
     })
 }
 
+/// The `scripts` map from a `package.json` body: lifecycle commands
+/// the installer runs (the auto-run vector for npm packages).
+/// Absent or non-object `scripts` yields an empty map.
+pub fn package_json_scripts(
+    bytes: &[u8],
+) -> Result<std::collections::BTreeMap<String, String>, Malformed> {
+    let v: serde_json::Value = serde_json::from_slice(bytes).map_err(|_| Malformed)?;
+    let mut out = std::collections::BTreeMap::new();
+    if let Some(obj) = v.get("scripts").and_then(|s| s.as_object()) {
+        for (k, val) in obj {
+            if let Some(cmd) = val.as_str() {
+                out.insert(k.clone(), cmd.to_string());
+            }
+        }
+    }
+    Ok(out)
+}
+
 /// `Name` and `Version` from a Python `METADATA`/`PKG-INFO` header
 /// block. Continuation lines (leading whitespace) append to the open
 /// header; the body after the first blank line is never read.
