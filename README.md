@@ -24,6 +24,23 @@ The text report starts with a header: the completeness state and exit code, per-
 
 Every string taken from the scanned repository (paths, symbols, literals, package names, construct text) is escaped before it is printed: control characters, bidi and other format characters, and line and paragraph separators render as `\u{..}`. A crafted file name or string literal cannot emit terminal escape sequences or forge a report line.
 
+## Demo: a supply-chain incident
+
+`examples/supply-chain-demo/` reconstructs the 2018 event-stream incident — `flatmap-stream` 0.1.1 as an installed dependency carrying an eval-based loader and an https exfiltration route. The reconstruction is inert (it targets an unreachable `.invalid` host); the real 0.1.1 tarball was pulled from npm.
+
+```sh
+egress-plane scan examples/supply-chain-demo/app
+# state complete, zero findings — and "unscanned dependency: flatmap-stream"
+
+egress-plane scan examples/supply-chain-demo/app \
+  --deps examples/supply-chain-demo/app/node_modules
+# inside the installed package:
+#   lib/hidden.js: https.request -> exfil.invalid  (the exfil route)
+#   index.min.js:  new Function("require", payload)  (dynamic code)
+#   index.min.js:  require                           (dynamic import)
+#   imports unscanned: ps-tree
+```
+
 ## What the result means
 
 Every import, member reference, and ambient global in first-party code that can be classified statically is classified at member level into one of four buckets: egress primitive, catalogued egress library, unscanned dependency, or inert. Every call that reaches a primitive or a catalogued library is a site with a destination. A destination is a literal when one can be resolved, and otherwise symbolic: `env:NAME` for an environment read (the scan never reads your environment), `param:N:<function>` for a wrapper's parameter, a template with symbolic holes such as `{env:BASE}/v1`, `exec:<program>`, `lib:<library>`, `host:port`, or `expr:<source text>` for anything assembled at run time.
