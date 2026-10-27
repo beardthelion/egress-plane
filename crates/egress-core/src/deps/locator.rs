@@ -59,6 +59,15 @@ pub fn instance_locator(kind: DependencyRootKind, parts: &[String]) -> String {
             DependencyRootKind::Python => {
                 chain.push(part.clone());
             }
+            // A modcache leaf is `<module>@<version>`; the chain keeps
+            // the nested module path and drops the version suffix.
+            DependencyRootKind::GoModuleCache => {
+                if last && let Some((m, _)) = part.split_once('@') {
+                    chain.push(m.to_string());
+                    continue;
+                }
+                chain.push(part.clone());
+            }
         }
     }
     chain.join("/")

@@ -718,3 +718,80 @@ fn two_python_roots_holding_the_same_import_are_ambiguous() {
         }
     );
 }
+
+// ---- go-module-cache -------------------------------------------------------
+
+/// A GOMODCACHE-shaped root: nested module-path dirs whose leaves are
+/// `<module>@<version>` plus the `cache/download` index.
+fn modcache(dir: &Path) -> PathBuf {
+    let d = dir.join("pkg/mod");
+    mkdir(&d.join("cache/download"));
+    d
+}
+
+#[test]
+fn detects_a_module_cache_by_index_or_leaf_source() {
+    let t = Tree::new("dep-modcache");
+    let d = modcache(&t.outside);
+    let sr = RootDir::open(&t.root).unwrap();
+    let roots = open(&sr, std::slice::from_ref(&d)).unwrap();
+    assert_eq!(roots[0].kind, DependencyRootKind::GoModuleCache);
+
+    // Without cache/download a leaf holding Go source still detects;
+    // a pnpm-style `@version` dir of JavaScript does not.
+    let t2 = Tree::new("dep-modcache2");
+    let d2 = mkdir(&t2.outside.join("mods"));
+    mkdir(&d2.join("github.com/acme/lib@v1.0.0"));
+    t2.outside_file("mods/github.com/acme/lib@v1.0.0/lib.go", "package lib\n");
+    let sr2 = RootDir::open(&t2.root).unwrap();
+    let roots2 = open(&sr2, std::slice::from_ref(&d2)).unwrap();
+    assert_eq!(roots2[0].kind, DependencyRootKind::GoModuleCache);
+}
+
+#[test]
+fn must_not_detect_pnpm_store_as_modcache() {
+    let t = Tree::new("dep-pnpm-not-go");
+    let d = mkdir(&t.outside.join("mods"));
+    mkdir(&d.join("x/.pnpm/leftpad@1.3.0/node_modules/leftpad"));
+    t.outside_file(
+        "mods/x/.pnpm/leftpad@1.3.0/node_modules/leftpad/index.js",
+        "module.exports = 1;",
+    );
+    let sr = RootDir::open(&t.root).unwrap();
+    let res = open(&sr, std::slice::from_ref(&d));
+    assert!(res.is_err());
+}
+
+#[test]
+fn modcache_inventories_versioned_leaves() {
+    let t = Tree::new("inv-modcache");
+    let d = modcache(&t.outside);
+    t.outside_file(
+        "pkg/mod/github.com/miekg/dns@v1.1.61/go.mod",
+        "module github.com/miekg/dns\n\ngo 1.19\n",
+    );
+    t.outside_file(
+        "pkg/mod/github.com/miekg/dns@v1.1.61/dns.go",
+        "package dns\n",
+    );
+    // The uppercase escape: !miekg holds Miekg.
+    t.outside_file(
+        "pkg/mod/github.com/!azure/!sdk@v1.0.0/sdk.go",
+        "package sdk\n",
+    );
+    let inv = inv(&t, &[d]);
+    assert_eq!(inv[0].kind, DependencyRootKind::GoModuleCache);
+    let names: Vec<&str> = inv[0]
+        .instances
+        .iter()
+        .map(|i| i.package.as_str())
+        .collect();
+    assert!(names.contains(&"github.com/miekg/dns"));
+    assert!(names.contains(&"github.com/Azure/Sdk"));
+    let dns = inv[0]
+        .instances
+        .iter()
+        .find(|i| i.package == "github.com/miekg/dns")
+        .unwrap();
+    assert_eq!(dns.version, "v1.1.61");
+}

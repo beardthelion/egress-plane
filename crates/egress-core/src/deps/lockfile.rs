@@ -299,3 +299,33 @@ pub fn rev_matches(checkout_rev: &str, source: &str) -> bool {
         .rsplit_once('#')
         .is_some_and(|(_, sha)| sha.starts_with(checkout_rev))
 }
+
+/// The (module, version) pairs a `go.sum` locks with a source-tree
+/// `h1:` hash. `/go.mod` lines pin the manifest only and do not cover
+/// the source, so they do not count here. Malformed lines are skipped;
+/// a file with no usable line yields an empty set, which gates the
+/// same as absent.
+pub fn go_sum(bytes: &[u8]) -> Result<std::collections::BTreeSet<(String, String)>, Malformed> {
+    let text = std::str::from_utf8(bytes).map_err(|_| Malformed)?;
+    let mut out = std::collections::BTreeSet::new();
+    for line in text.lines() {
+        let mut it = line.split_whitespace();
+        let (Some(module), Some(version), Some(hash)) = (it.next(), it.next(), it.next()) else {
+            continue;
+        };
+        if it.next().is_some() || !hash.starts_with("h1:") {
+            continue;
+        }
+        let (version, kind) = match version.rsplit_once('/') {
+            Some((v, "go.mod")) => (v, true),
+            _ => (version, false),
+        };
+        if kind {
+            continue;
+        }
+        if !module.is_empty() && !version.is_empty() {
+            out.insert((module.to_string(), version.to_string()));
+        }
+    }
+    Ok(out)
+}

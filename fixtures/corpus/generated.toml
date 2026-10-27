@@ -301,6 +301,7 @@ cases = [
     "go/primitives/redis-new-universal-client",
     "go/primitives/reflect-value-call",
     "go/primitives/reflect-value-callslice",
+    "go/primitives/reflect-value-methodbyname",
     "go/primitives/resty-new",
     "go/primitives/resty-new-with-client",
     "go/primitives/resty-v2-client-new-request",

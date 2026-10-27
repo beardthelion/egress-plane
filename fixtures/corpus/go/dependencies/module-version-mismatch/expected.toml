@@ -1,0 +1,10 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/modcache"
+
+[[unscanned_dependencies]]
+language = "go"
+package = "github.com/acme/reportd"
+reason = "version-mismatch"

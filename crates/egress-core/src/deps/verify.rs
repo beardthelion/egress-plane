@@ -124,7 +124,7 @@ pub fn gate(
 ) -> Gate {
     use DependencyRootKind::*;
     match kind {
-        CargoRegistry | CargoGit => match lock {
+        CargoRegistry | CargoGit | GoModuleCache => match lock {
             LockState::Absent | LockState::Unsupported => {
                 Gate::Unscanned(UnscannedReason::UnlockedSharedCache)
             }

@@ -54,10 +54,12 @@ pub fn run(
             }
             let key = resolve_key(classified, u);
             let importer_file = file.as_bytes().to_vec();
-            let pin = if u.language == Language::Rust {
-                crate_name(discovery, &importer_file).and_then(|n| cargo_pin(&lock, n, &key))
-            } else {
-                None
+            let pin = match u.language {
+                Language::Rust => {
+                    crate_name(discovery, &importer_file).and_then(|n| cargo_pin(&lock, n, &key))
+                }
+                Language::Go => go_require(discovery, &importer_file, &key),
+                _ => None,
             };
             let outcome = match select::resolve(
                 &ix,
@@ -260,15 +262,13 @@ pub fn annotate_pnp(discovery: &Discovery, report: &mut Report) {
     }
 }
 
-/// The ecosystem's lockfile-carrying root kind, or `None` for Go: Go
-/// module source has no dependency root kind yet (that scan belongs to
-/// the dependency source plan), so no lockfile governs a Go import.
+/// The ecosystem's lockfile-carrying root kind.
 fn kind_of(lang: Language) -> Option<DependencyRootKind> {
     match lang {
         Language::Javascript => Some(DependencyRootKind::Npm),
         Language::Python => Some(DependencyRootKind::Python),
         Language::Rust => Some(DependencyRootKind::CargoVendor),
-        Language::Go => None,
+        Language::Go => Some(DependencyRootKind::GoModuleCache),
     }
 }
 
@@ -286,6 +286,29 @@ fn crate_name<'d>(discovery: &'d Discovery, file: &[u8]) -> Option<&'d str> {
         })
         .max_by_key(|m| m.path.len())
         .and_then(|m| m.name.as_deref())
+}
+
+/// The version the file's nearest `go.mod` requires for `module`
+/// (KTD9): the pin that picks the modcache instance to scan.
+fn go_require(discovery: &Discovery, file: &[u8], module: &str) -> Option<(String, String)> {
+    discovery
+        .manifests
+        .go_mod
+        .iter()
+        .filter(|m| m.module.is_some() && egress_core::paths::within(file, &parent_of(&m.path)))
+        .max_by_key(|m| m.path.len())
+        .and_then(|m| {
+            m.require
+                .iter()
+                .filter(|(p, _)| {
+                    module == p
+                        || module
+                            .strip_prefix(p.as_str())
+                            .is_some_and(|r| r.starts_with('/') || r.starts_with('.'))
+                })
+                .max_by_key(|(p, _)| p.len())
+        })
+        .map(|(p, v)| (p.clone(), v.clone()))
 }
 
 fn parent_of(p: &[u8]) -> Vec<u8> {

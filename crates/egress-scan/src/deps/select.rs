@@ -52,6 +52,9 @@ pub enum LockSet {
     Npm(lockfile::NpmLock),
     /// poetry.lock and uv.lock pool their versions in one directory.
     Python(Vec<(String, String)>),
+    /// go.sum and go.work.sum pool (module, version) pairs the
+    /// source-tree `h1:` lines lock.
+    Go(std::collections::BTreeSet<(String, String)>),
 }
 
 impl Lock {
@@ -83,6 +86,7 @@ pub fn governing_lock(
         | DependencyRootKind::CargoGit => &[b"Cargo.lock"],
         DependencyRootKind::Npm => &[b"package-lock.json"],
         DependencyRootKind::Python => &[b"poetry.lock", b"uv.lock"],
+        DependencyRootKind::GoModuleCache => &[b"go.sum", b"go.work.sum"],
     };
     // Ancestors of the importer, nearest first: `a/b/f.py` checks
     // `a/b`, `a`, then the scan root.
@@ -135,6 +139,10 @@ pub fn governing_lock(
                         LockfileResult::Unreadable => LockfileResult::Unreadable,
                     },
                 },
+                DependencyRootKind::GoModuleCache => match lockfile::go_sum(&bytes) {
+                    Ok(set) => LockfileResult::Parsed(LockSet::Go(set)),
+                    Err(_) => LockfileResult::Unreadable,
+                },
                 _ => match cargo_lock_support(&bytes) {
                     LockfileResult::Parsed(l) => LockfileResult::Parsed(LockSet::Cargo(l)),
                     LockfileResult::NotSupported => LockfileResult::NotSupported,
@@ -147,6 +155,14 @@ pub fn governing_lock(
                     match &mut parsed {
                         Some(LockSet::Python(existing)) => existing.extend(pkgs),
                         None => parsed = Some(LockSet::Python(pkgs)),
+                        _ => unreachable!(),
+                    }
+                }
+                LockfileResult::Parsed(LockSet::Go(pkgs)) => {
+                    // go.sum and go.work.sum pool in one directory.
+                    match &mut parsed {
+                        Some(LockSet::Go(existing)) => existing.extend(pkgs),
+                        None => parsed = Some(LockSet::Go(pkgs)),
                         _ => unreachable!(),
                     }
                 }
@@ -190,6 +206,8 @@ pub struct SelectIx<'a> {
     cargo: std::collections::HashMap<String, Vec<(usize, usize)>>,
     /// Folded cargo name plus version to its instance.
     cargo_pin: std::collections::HashMap<(String, String), (usize, usize)>,
+    /// Module path to its modcache instances in order.
+    go_mod: std::collections::HashMap<&'a str, Vec<(usize, usize)>>,
 }
 
 impl<'a> SelectIx<'a> {
@@ -200,6 +218,7 @@ impl<'a> SelectIx<'a> {
             py_import: std::collections::HashMap::new(),
             cargo: std::collections::HashMap::new(),
             cargo_pin: std::collections::HashMap::new(),
+            go_mod: std::collections::HashMap::new(),
         };
         for (ri, inv) in invs.iter().enumerate() {
             let kind = roots[ri].kind;
@@ -225,6 +244,16 @@ impl<'a> SelectIx<'a> {
                             .or_default()
                             .push((ri, ii));
                     }
+                } else if kind == DependencyRootKind::GoModuleCache {
+                    ix.go_mod
+                        .entry(inst.package.as_str())
+                        .or_default()
+                        .push((ri, ii));
+                    for n in &inst.imports {
+                        if n != &inst.package {
+                            ix.go_mod.entry(n.as_str()).or_default().push((ri, ii));
+                        }
+                    }
                 }
             }
         }
@@ -245,9 +274,7 @@ pub fn resolve(
         Language::Javascript => resolve_npm(ix.roots, ix.invs, scan, package, importer),
         Language::Python => resolve_python(ix, package),
         Language::Rust => resolve_cargo(ix, package, pin),
-        // No Go module root kind exists yet, so no named root can hold
-        // the source a Go import names.
-        Language::Go => Resolved::Reason(UnscannedReason::NoSourceInNamedRoot),
+        Language::Go => resolve_go(ix, package, pin),
     }
 }
 
@@ -438,4 +465,46 @@ pub fn pnp_ancestor(scan: &egress_core::discover::open::RootDir, file: &[u8]) ->
             return matches!(scan.lstat(&join(&dir, b".pnp.cjs")), Ok(st) if st.kind == EntryType::File);
         }
     }
+}
+
+/// go-module-cache: an import names a package inside a module; the
+/// owning module is the longest `/`-prefix of the specifier present in
+/// the index, matching `go.mod` `require` semantics (KTD10). The pin
+/// from the importer's governing `require` picks the version; without
+/// one, the first instance in root order wins.
+fn resolve_go(ix: &SelectIx, package: &str, pin: Option<(&str, &str)>) -> Resolved {
+    // Candidate module paths: the specifier, then every prefix cut at a
+    // `/` or `.` boundary, longest first. Both cut points matter: the
+    // specifier carries the member after `.` (`a/b.Ping`), while the
+    // module path itself can end in `.vN` (`gopkg.in/yaml.v3`), so a
+    // dot cut alone would misparse the module and a slash cut alone
+    // keeps the member fused to the leaf.
+    let mut candidates = vec![package];
+    for (i, c) in package.char_indices() {
+        if c == '/' || c == '.' {
+            candidates.push(&package[..i]);
+        }
+    }
+    candidates.sort_by_key(|c| std::cmp::Reverse(c.len()));
+    for spec in candidates {
+        let Some(instances) = ix.go_mod.get(spec) else {
+            continue;
+        };
+        let pick = if let Some((_, pv)) = pin {
+            instances
+                .iter()
+                .find(|&&(r, i)| ix.invs[r].instances[i].version == pv)
+                .copied()
+                .or_else(|| instances.first().copied())
+        } else {
+            instances.first().copied()
+        };
+        if let Some((ri, ii)) = pick {
+            return Resolved::Instance {
+                root: ri,
+                instance: ii,
+            };
+        }
+    }
+    Resolved::Reason(UnscannedReason::NoSourceInNamedRoot)
 }

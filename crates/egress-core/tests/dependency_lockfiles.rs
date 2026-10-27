@@ -285,3 +285,18 @@ fn compare_files_sets_modified_and_complete() {
     ];
     assert!(compare_files(&extra, &rec2, true).complete);
 }
+
+#[test]
+fn go_sum_collects_h1_pairs_and_skips_mod_lines() {
+    use egress_core::deps::lockfile::go_sum;
+    let set = go_sum(
+        b"github.com/a/b v1.0.0 h1:AAA=\ngithub.com/a/b v1.0.0/go.mod h1:BBB=\ngithub.com/c/d v2.0.0 h1:CCC=\n\nmalformed\n",
+    )
+    .expect("parsed");
+    assert!(set.contains(&("github.com/a/b".into(), "v1.0.0".into())));
+    assert!(set.contains(&("github.com/c/d".into(), "v2.0.0".into())));
+    assert_eq!(set.len(), 2);
+    // A `/go.mod`-only line does not cover the source tree.
+    let mods_only = go_sum(b"github.com/e/f v3.0.0/go.mod h1:ZZZ=\n").expect("parsed");
+    assert!(mods_only.is_empty());
+}

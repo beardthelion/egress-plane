@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use crate::model::{DependencyRootKind, DependencyRootProblem, ToolError};
 
 use super::open::{EntryType, RootDir};
-use crate::paths::{file_name, join};
+use crate::paths::{dir_of, file_name, join};
 
 /// A named dependency root that passed validation.
 #[derive(Debug)]
@@ -71,6 +71,38 @@ fn detect(dir: &RootDir) -> Result<Vec<DependencyRootKind>, DependencyRootProble
     // directory (site-packages, dist-packages, pip --target).
     if has_file(b"pyvenv.cfg") || children.iter().any(|e| e.ends_with(b".dist-info")) {
         kinds.push(DependencyRootKind::Python);
+    }
+    // go-module-cache: the `cache/download` index a GOMODCACHE always
+    // carries, or a nested `<module-path>@<version>` leaf directory
+    // holding a `go.mod`; module paths nest, so the leaf search walks
+    // at most three levels and sixty-four listings.
+    {
+        let mut found = is_kind(dir, b"cache/download", &[EntryType::Dir]);
+        let mut frontier: Vec<Vec<u8>> = children.iter().map(|e| e.to_vec()).collect();
+        let mut listed = 0usize;
+        while !found && let Some(d) = frontier.pop() {
+            // Pre-modules source has no go.mod in the cache leaf, and
+            // pnpm's `.pnpm/<pkg>@<v>` store shares the `@` suffix, so the
+            // marker is the suffix plus Go source under the leaf.
+            if file_name(&d).contains(&b'@') && dir_holds_go(dir, &d, 0) {
+                found = true;
+                break;
+            }
+            if listed >= 64 || d.iter().filter(|&&c| c == b'/').count() >= 3 {
+                continue;
+            }
+            listed += 1;
+            if let Ok(l) = dir.list_dir(&d) {
+                frontier.extend(
+                    l.iter()
+                        .filter(|(_, st)| st.kind == EntryType::Dir)
+                        .map(|(e, _)| join(&d, e)),
+                );
+            }
+        }
+        if found {
+            kinds.push(DependencyRootKind::GoModuleCache);
+        }
     }
     // cargo-vendor: a child directory holding `.cargo-checksum.json`. A
     // Go, PHP, or Ruby vendor tree matches nothing.
@@ -260,6 +292,7 @@ pub fn inventory(
             CargoVendor => vendor_inventory(root, budgets),
             CargoRegistry => registry_inventory(root, discovery, budgets),
             CargoGit => git_inventory(root, budgets),
+            GoModuleCache => modcache_inventory(root, discovery, budgets),
         });
     }
     // KTD5: two Python roots holding the same top-level import name.
@@ -933,6 +966,204 @@ fn registry_inventory(
     }
     Inventory {
         kind: CargoRegistry,
+        instances,
+        auto_runs: Vec::new(),
+        entries_exceeded: exceeded,
+    }
+}
+
+/// Whether a directory holds a `.go` file within three levels
+/// (a modcache leaf's package dirs sit just under it), bounded by
+/// sixty-four listings.
+fn dir_holds_go(dir: &RootDir, at: &[u8], depth: usize) -> bool {
+    if depth > 3 {
+        return false;
+    }
+    let Ok(l) = dir.list_dir(at) else {
+        return false;
+    };
+    for (name, st) in &l {
+        if st.kind == super::open::EntryType::Dir
+            && name != b"cache"
+            && dir_holds_go(dir, &join(at, name), depth + 1)
+        {
+            return true;
+        }
+        if st.kind == super::open::EntryType::File && name.ends_with(b".go") {
+            return true;
+        }
+    }
+    false
+}
+
+/// The `!x` -> `X` escape a module cache applies to uppercase path
+/// elements (`!miekg` holds `Miekg`). Lowercase bytes and `/` pass.
+fn modcache_unescape(path: &str) -> String {
+    let mut out = String::with_capacity(path.len());
+    let mut bang = false;
+    for c in path.chars() {
+        if bang {
+            out.push(c.to_ascii_uppercase());
+            bang = false;
+        } else if c == '!' {
+            bang = true;
+        } else {
+            out.push(c);
+        }
+    }
+    if bang {
+        out.push('!');
+    }
+    out
+}
+
+/// The (module, version) pairs the scan root's `go.sum` or
+/// `go.work.sum` locks with a source `h1:` line, read through the
+/// discovery index under `lockfile_bytes`.
+fn go_sum_names(
+    discovery: &Discovery,
+    budgets: &DependencyBudgets,
+) -> std::collections::BTreeSet<(String, String)> {
+    let mut out = std::collections::BTreeSet::new();
+    for path in discovery.index.keys() {
+        let name = file_name(path);
+        if name != b"go.sum" && name != b"go.work.sum" {
+            continue;
+        }
+        let Ok(bytes) = discovery.read_indexed(path, budgets.lockfile_bytes) else {
+            continue;
+        };
+        if let Ok(set) = crate::deps::lockfile::go_sum(&bytes) {
+            out.extend(set);
+        }
+    }
+    out
+}
+
+/// go-module-cache: nested `<module-path>@<version>` leaf directories,
+/// each the extracted source of one module version (KTD6). The module
+/// path is the directory chain with `!x` -> `X` escapes undone; the
+/// declared `module` line of the leaf's `go.mod` wins when it differs.
+/// Metadata is read only for modules a `go.sum` or `go.work.sum` in
+/// the scan root locks (the shared-cache cost bound); with no lock
+/// the full leaf set still enumerates.
+fn modcache_inventory(
+    root: &NamedRoot,
+    discovery: &Discovery,
+    budgets: &DependencyBudgets,
+) -> Inventory {
+    let locked = go_sum_names(discovery, budgets);
+    let locked_set: std::collections::HashSet<(&str, &str)> = locked
+        .iter()
+        .map(|(m, v)| (m.as_str(), v.as_str()))
+        .collect();
+    let mut instances = Vec::new();
+    let mut entries = 0u64;
+    let mut exceeded = false;
+    let mut frontier: Vec<Vec<u8>> = match root.dir.list_dir(b"") {
+        Ok(l) => {
+            entries += l.len() as u64;
+            l.into_iter()
+                .filter(|(_, st)| st.kind == super::open::EntryType::Dir)
+                .map(|(e, _)| e)
+                .collect()
+        }
+        Err(_) => Vec::new(),
+    };
+    while let Some(d) = frontier.pop() {
+        let leaf = file_name(&d);
+        // `cache/download/<module>/@v/` dirs hold zips and hashes, not
+        // source: the cache index subtree never joins the frontier. A
+        // leaf needs no go.mod (pre-modules source has none).
+        if d == b"cache" {
+            continue;
+        }
+        if leaf.contains(&b'@') {
+            entries += 1;
+            if entries > budgets.inventory_entries {
+                exceeded = true;
+                break;
+            }
+            let (mdir, version) = match leaf.iter().rposition(|c| *c == b'@') {
+                Some(i) => (&leaf[..i], &leaf[i + 1..]),
+                None => (leaf, &leaf[..0]),
+            };
+            let mut path: Vec<u8> = dir_of(&d).to_vec();
+            if !path.is_empty() {
+                path.push(b'/');
+            }
+            path.extend_from_slice(mdir);
+            let module = modcache_unescape(&String::from_utf8_lossy(&path));
+            let version = String::from_utf8_lossy(version).into_owned();
+            let mut flags = InstanceFlags::default();
+            // The `@version` suffix is syntax, not name: the escape
+            // check applies to the module path part of the chain.
+            if clean_name(mdir).is_none() || clean_name(dir_of(&d)).is_none() {
+                flags.escaped_name = true;
+            }
+            // The declared module path wins over the directory name; a
+            // leaf with no readable go.mod keeps the derived name.
+            let mut declared = module.clone();
+            let is_locked = locked_set.contains(&(module.as_str(), version.as_str()));
+            if (is_locked || locked.is_empty())
+                && is_kind(
+                    &root.dir,
+                    &join(&d, b"go.mod"),
+                    &[super::open::EntryType::File],
+                )
+            {
+                match read_meta(&root.dir, &join(&d, b"go.mod"), budgets) {
+                    Some(Ok(bytes)) => {
+                        if let Ok(text) = String::from_utf8(bytes) {
+                            for line in text.lines() {
+                                let l = line.trim();
+                                if let Some(m) = l.strip_prefix("module") {
+                                    let m = m.trim();
+                                    if !m.is_empty() {
+                                        declared = m.to_string();
+                                    }
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    Some(Err(())) => {
+                        flags.unsupported = Some("unreadable-metadata".to_string());
+                    }
+                    None => {}
+                }
+            }
+            instances.push(Instance {
+                package: declared.clone(),
+                locator: declared.clone(),
+                version,
+                rel: d,
+                imports: vec![declared],
+                distribution: None,
+                record: Vec::new(),
+                package_checksum: None,
+                flags,
+            });
+            continue;
+        }
+        if entries > budgets.inventory_entries {
+            exceeded = true;
+            break;
+        }
+        if let Ok(l) = root.dir.list_dir(&d) {
+            entries += l.len() as u64;
+            if entries > budgets.inventory_entries {
+                exceeded = true;
+            }
+            for (e, st) in &l {
+                if st.kind == super::open::EntryType::Dir {
+                    frontier.push(join(&d, e));
+                }
+            }
+        }
+    }
+    Inventory {
+        kind: GoModuleCache,
         instances,
         auto_runs: Vec::new(),
         entries_exceeded: exceeded,

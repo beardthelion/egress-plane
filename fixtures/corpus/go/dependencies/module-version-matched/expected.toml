@@ -1,0 +1,14 @@
+state = "complete"
+exit_code = 0
+
+[[dependency_root]]
+path = "roots/modcache"
+
+[[dependencies]]
+language = "go"
+package = "github.com/acme/reportd"
+root = "go-module-cache"
+locator = "github.com/acme/reportd"
+version = "v1.2.0"
+strength = "version-matched"
+state = "complete"

@@ -395,6 +395,9 @@ fn version_match(kind: DependencyRootKind, inst: &Instance, lock: &Lock) -> Opti
             .packages
             .iter()
             .any(|(n, v)| n == &inst.package && version::npm_eq(&inst.version, v)),
+        (DependencyRootKind::GoModuleCache, LockSet::Go(set)) => {
+            set.contains(&(inst.package.clone(), inst.version.clone()))
+        }
         (DependencyRootKind::Python, LockSet::Python(pkgs)) => {
             inst.distribution.as_ref().is_some_and(|d| {
                 pkgs.iter().any(|(n, v)| {
@@ -426,7 +429,9 @@ fn run_instance(
         dir_of(&inst.rel).to_vec()
     };
     let prefixes: Vec<Vec<u8>> = match kind {
-        DependencyRootKind::Npm | DependencyRootKind::Python => vec![inst.rel.clone()],
+        DependencyRootKind::Npm
+        | DependencyRootKind::Python
+        | DependencyRootKind::GoModuleCache => vec![inst.rel.clone()],
         // `src/` plus `build.rs` when present; an absent build script
         // is not a gap.
         _ => [b"src".as_slice(), b"build.rs"]

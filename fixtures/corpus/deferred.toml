@@ -16,6 +16,3 @@
 # not resolved today.
 cases = []
 
-[[categories]]
-id = "go/dependencies"
-reason = "No Go module dependency root kind exists; --deps does not resolve Go imports."

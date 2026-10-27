@@ -723,15 +723,19 @@ pub enum DependencyRootKind {
     CargoVendor,
     CargoRegistry,
     CargoGit,
+    /// A Go module cache tree: nested module-path directories whose
+    /// leaves are `<module>@<version>`.
+    GoModuleCache,
 }
 
 impl DependencyRootKind {
-    pub const ALL: [DependencyRootKind; 5] = [
+    pub const ALL: [DependencyRootKind; 6] = [
         Self::Npm,
         Self::Python,
         Self::CargoVendor,
         Self::CargoRegistry,
         Self::CargoGit,
+        Self::GoModuleCache,
     ];
 
     /// The source language a root's members are scanned as.
@@ -739,6 +743,7 @@ impl DependencyRootKind {
         match self {
             Self::Npm => Language::Javascript,
             Self::Python => Language::Python,
+            Self::GoModuleCache => Language::Go,
             _ => Language::Rust,
         }
     }
@@ -750,6 +755,7 @@ impl DependencyRootKind {
             Self::CargoVendor => "cargo-vendor",
             Self::CargoRegistry => "cargo-registry",
             Self::CargoGit => "cargo-git",
+            Self::GoModuleCache => "go-module-cache",
         }
     }
 

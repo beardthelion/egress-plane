@@ -261,7 +261,8 @@
                   "python",
                   "cargo-vendor",
                   "cargo-registry",
-                  "cargo-git"
+                  "cargo-git",
+                  "go-module-cache"
                 ]
               }
             }
