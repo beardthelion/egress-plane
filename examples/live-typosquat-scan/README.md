@@ -72,6 +72,21 @@ jwt_auth         | complete    | 0 sites
 numpy_utils      | complete    | 0 sites
 ```
 
+### A second PyPI batch and an npm batch
+
+24 more PyPI lookalikes (`docker-py`, `oauth2_client`, `passlib`,
+`sh-utils`, `kubernetes_client`, `typer-cli`, `wmi-query`, `boto`,
+`pycrypto`, `pycryptodomex`, `websockets`, `websocket-client`, and
+the rest) scan as repacks or documented utilities. The npm side is
+cleaner still: `axios-x` is an old axios fork, `npm-install` is a
+webpack bundle of npm itself, `npm-upgrade` fetches changelogs over
+`got`. npm's typosquat policing leaves less on the shelf than PyPI's.
+
+One npm finding worth its own line: the `auto_run` entries now report
+`core-js`'s real `postinstall` (`node -e "try{require('./postinstall')}"`),
+the funding-message package every npm user knows. Install-time exec
+reported on a live dependency tree.
+
 ## Reading it
 
 `egress-plane` does not decide a package is malicious. It surfaces
