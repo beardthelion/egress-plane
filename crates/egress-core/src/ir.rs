@@ -48,6 +48,12 @@ pub struct FileIr {
     /// scopes and `#[test]` functions. A finding is in a scope when its symbol
     /// equals the scope or starts with the scope followed by `::`.
     pub test_scopes: Vec<String>,
+    /// Names bound in a function or block scope: `let`/`var`/`:=`
+    /// bindings, `for`/`range` variables, receivers, type parameters.
+    /// The Go `link` hook reads them to tell a real local from a name
+    /// that might be an unaliased import; other frontends leave it
+    /// empty.
+    pub bound_names: Vec<BoundName>,
 }
 
 impl FileIr {
@@ -64,6 +70,7 @@ impl FileIr {
             self_attributes: Vec::new(),
             introspection: Vec::new(),
             test_scopes: Vec::new(),
+            bound_names: Vec::new(),
         }
     }
 }
@@ -268,6 +275,17 @@ pub struct SymbolSpan {
     /// JS strictness of the function body; `None` outside JS.
     pub strict: Option<bool>,
     pub span: Span,
+}
+
+/// One name bound in a local scope, keyed by the enclosing symbol path
+/// (`<module>` for the file scope). Params are not listed: `SymbolSpan`
+/// already carries them.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BoundName {
+    /// Enclosing symbol path of the scope holding the binding.
+    pub symbol: String,
+    /// The bound identifier.
+    pub name: String,
 }
 
 /// A module-level single-assignment constant.

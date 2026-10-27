@@ -8,8 +8,8 @@
 packages = 20000
 # Dependency source files parsed across admitted packages.
 files = 20000
-# Dependency source bytes parsed.
-bytes = 1048576
+# Dependency source bytes parsed (64 MiB).
+bytes = 67108864
 # Dependency findings kept in the report.
 findings = 200000
 # Resolver steps inside dependency code.

@@ -844,6 +844,10 @@ fn file_decls(ir: &FileIr) -> Vec<(String, bool)> {
 /// Per-file derived import facts the rewrite applies.
 #[derive(Default)]
 struct FileWork {
+    /// Names bound in a local scope per enclosing symbol, plus each
+    /// symbol's declared params. The "unaliased import" flag yields to
+    /// a name a scope provably binds.
+    bound: std::collections::HashMap<String, std::collections::HashSet<String>>,
     /// Guessed or explicit local -> the real clause name, for imports the
     /// rewrite renamed.
     renames: HashMap<String, String>,
@@ -1018,6 +1022,22 @@ fn bind_member(
 /// a synthetic import and the root rebinds to it; a guessed import name
 /// and an undeclared selector root under an unknown-clause import are
 /// `resolution-limit` constructs.
+/// Whether `name` is bound in `symbol`'s scope chain: the symbol's own
+/// locals and params, then each enclosing symbol's, then `<module>`'s.
+fn bound_in_scope(fw: &FileWork, symbol: &str, name: &str) -> bool {
+    let mut sym = symbol;
+    loop {
+        if fw.bound.get(sym).is_some_and(|s| s.contains(name)) {
+            return true;
+        }
+        match sym.rfind('.') {
+            Some(i) => sym = &sym[..i],
+            None => break,
+        }
+    }
+    fw.bound.get("<module>").is_some_and(|s| s.contains(name))
+}
+
 #[allow(clippy::too_many_arguments)]
 fn package_name_root(
     w: &mut Work2<'_>,
@@ -1072,10 +1092,15 @@ fn package_name_root(
             location,
             format!("{name} names a package clause that differs"),
         ));
-    } else if fw.unknown_clause && !members.is_empty() && use_kind != UseKind::AssignmentTarget {
+    } else if fw.unknown_clause
+        && !members.is_empty()
+        && use_kind != UseKind::AssignmentTarget
+        && !bound_in_scope(fw, symbol, name)
+    {
         // A selector rooted at a name bound by no import or package
         // declaration may name an unaliased import whose real clause is
         // unknown (KTD8): a guessed name never silently drops a call.
+        // A name a local scope binds is not a guessed import.
         out.constructs.push(limit_construct(
             symbol,
             span,
@@ -1254,6 +1279,18 @@ fn rewrite_file(w: &mut Work2<'_>, path: &[u8], ir: &mut FileIr, _rt: &RuntimeDa
 
     // ---- imports ----------------------------------------------------
     let mut fw = FileWork::default();
+    for b in &ir.bound_names {
+        fw.bound
+            .entry(b.symbol.clone())
+            .or_default()
+            .insert(b.name.clone());
+    }
+    for sym in &ir.symbols {
+        fw.bound
+            .entry(sym.path.clone())
+            .or_default()
+            .extend(sym.params.iter().cloned());
+    }
     for (i, imp) in ir.imports.iter().enumerate() {
         if !w.charge() {
             return;

@@ -25,8 +25,8 @@ use gosyn::ast::{self, Expression};
 use gosyn::token::{LitKind, Operator};
 
 use egress_core::ir::{
-    ConstructKind, DynamicConstruct, Expr, FileIr, Import, LineIndex, LocalBinding, ModuleConstant,
-    Provenance, Reference, Root, Span, SymbolKind, SymbolSpan, UseKind,
+    BoundName, ConstructKind, DynamicConstruct, Expr, FileIr, Import, LineIndex, LocalBinding,
+    ModuleConstant, Provenance, Reference, Root, Span, SymbolKind, SymbolSpan, UseKind,
 };
 use egress_core::model::{Language, Location};
 
@@ -446,6 +446,10 @@ pub struct Lowerer<'a> {
     /// opaque-valued local bindings after the `lets` so they shadow a
     /// package-level name without hiding a same-symbol `let`.
     receivers: Vec<(String, String, Span)>,
+    /// Every name a popped scope bound, for `ir.bound_names`: a local
+    /// binding suppresses the "unaliased import" flag a guessed name
+    /// would otherwise earn in `link`.
+    bound_names: Vec<BoundName>,
 }
 
 impl<'a> Lowerer<'a> {
@@ -473,10 +477,12 @@ impl<'a> Lowerer<'a> {
             mutations: HashSet::new(),
             candidates: Vec::new(),
             receivers: Vec::new(),
+            bound_names: Vec::new(),
         }
     }
 
     pub fn finish(mut self) -> FileIr {
+        self.ir.bound_names = std::mem::take(&mut self.bound_names);
         for (symbol, name, value, span) in std::mem::take(&mut self.lets) {
             let key = (symbol.clone(), name.clone());
             if self.bind_counts.get(&key) == Some(&1) && !self.reassigned.contains(&key) {
@@ -571,6 +577,25 @@ impl<'a> Lowerer<'a> {
 
     fn leave(&mut self) {
         self.depth = self.depth.saturating_sub(1);
+    }
+
+    /// Pops the innermost scope, recording every name it bound so
+    /// `link` can tell a real local from a name that might be an
+    /// unaliased import.
+    fn pop_scope(&mut self) {
+        if let Some((scope, symbol)) = self.scopes.pop() {
+            for name in scope
+                .locals
+                .into_iter()
+                .chain(scope.tracked.into_keys())
+                .chain(scope.types)
+            {
+                self.bound_names.push(BoundName {
+                    symbol: symbol.clone(),
+                    name,
+                });
+            }
+        }
     }
 
     // ---- names ---------------------------------------------------------
@@ -939,7 +964,7 @@ impl<'a> Lowerer<'a> {
                 }
             }
             self.ty(&spec.typ, TyCtx::Plain);
-            self.scopes.pop();
+            self.pop_scope();
             if spec.alias
                 && let Some(ch) = self.leaf_chain(&spec.typ)
             {
@@ -1149,7 +1174,7 @@ impl<'a> Lowerer<'a> {
         if let Some(b) = &d.body {
             self.block(b);
         }
-        self.scopes.pop();
+        self.pop_scope();
         self.fns.pop();
         self.symbols.pop();
     }
@@ -1404,7 +1429,7 @@ impl<'a> Lowerer<'a> {
                 break;
             }
         }
-        self.scopes.pop();
+        self.pop_scope();
         self.leave();
     }
 
@@ -1443,7 +1468,7 @@ impl<'a> Lowerer<'a> {
                 if let Some(e) = &i.else_ {
                     self.stmt(e);
                 }
-                self.scopes.pop();
+                self.pop_scope();
             }
             ast::Statement::For(f) => {
                 self.scopes.push((Scope::default(), self.symbol()));
@@ -1457,7 +1482,7 @@ impl<'a> Lowerer<'a> {
                     self.stmt(post);
                 }
                 self.block(&f.body);
-                self.scopes.pop();
+                self.pop_scope();
             }
             ast::Statement::Range(r) => {
                 self.scopes.push((Scope::default(), self.symbol()));
@@ -1479,7 +1504,7 @@ impl<'a> Lowerer<'a> {
                     None => {}
                 }
                 self.block(&r.body);
-                self.scopes.pop();
+                self.pop_scope();
             }
             ast::Statement::Switch(s) => {
                 self.scopes.push((Scope::default(), self.symbol()));
@@ -1497,7 +1522,7 @@ impl<'a> Lowerer<'a> {
                         self.stmt(st);
                     }
                 }
-                self.scopes.pop();
+                self.pop_scope();
             }
             ast::Statement::TypeSwitch(s) => {
                 self.scopes.push((Scope::default(), self.symbol()));
@@ -1515,7 +1540,7 @@ impl<'a> Lowerer<'a> {
                         self.stmt(st);
                     }
                 }
-                self.scopes.pop();
+                self.pop_scope();
             }
             ast::Statement::Select(s) => {
                 self.scopes.push((Scope::default(), self.symbol()));
@@ -1527,7 +1552,7 @@ impl<'a> Lowerer<'a> {
                         self.stmt(st);
                     }
                 }
-                self.scopes.pop();
+                self.pop_scope();
             }
             ast::Statement::Label(l) => self.stmt(&l.stmt),
             ast::Statement::Branch(_) | ast::Statement::Empty(_) => {}
@@ -2187,7 +2212,7 @@ impl<'a> Lowerer<'a> {
         self.scopes.push((Scope::default(), self.symbol()));
         self.signature(&l.typ);
         self.block(&l.body);
-        self.scopes.pop();
+        self.pop_scope();
         self.fns.pop();
         self.symbols.pop();
     }
