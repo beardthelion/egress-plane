@@ -26,11 +26,11 @@ Every string taken from the scanned repository (paths, symbols, literals, packag
 
 ## Demo: a supply-chain incident
 
-`examples/supply-chain-demo/` reconstructs the 2018 event-stream incident — `flatmap-stream` 0.1.1 as an installed dependency carrying an eval-based loader and an https exfiltration route. The reconstruction is inert (it targets an unreachable `.invalid` host); the real 0.1.1 tarball was pulled from npm.
+`examples/supply-chain-demo/` reconstructs the 2018 event-stream incident: `flatmap-stream` 0.1.1 as an installed dependency carrying an eval-based loader and an https exfiltration route. The reconstruction is inert (it targets an unreachable `.invalid` host); the real 0.1.1 tarball was pulled from npm. For the same scan run cold over live packages, `examples/live-typosquat-scan/` covers a PyPI lookalike batch where it flags `os-sys` fetching executable payloads from `stranica.nl` and a Bitrix24 share.
 
 ```sh
 egress-plane scan examples/supply-chain-demo/app
-# state complete, zero findings — and "unscanned dependency: flatmap-stream"
+# state complete, zero findings, and "unscanned dependency: flatmap-stream"
 
 egress-plane scan examples/supply-chain-demo/app \
   --deps examples/supply-chain-demo/app/node_modules

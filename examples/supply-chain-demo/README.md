@@ -24,4 +24,4 @@ egress-plane scan examples/supply-chain-demo/app \
 
 The first scan says only that the dep is unscanned. The `--deps` pass
 opens installed package source and finds the egress route plus the
-eval-and-require loader that hid it — the shape of the actual incident.
+eval-and-require loader that hid it, the shape of the actual incident.
