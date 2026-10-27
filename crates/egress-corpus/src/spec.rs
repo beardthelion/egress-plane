@@ -104,20 +104,26 @@ impl SpecKind {
     /// (the applicability table beside the row schema in the plan).
     pub fn applies(self, family: &str, language: Language) -> bool {
         let py_js = matches!(language, Language::Python | Language::Javascript);
+        let go = language == Language::Go;
         let py_js_rs = py_js || language == Language::Rust;
         match self {
             Self::Evasive => match family {
-                "dynamic-loading"
-                | "reflective-access"
-                | "scope-injection"
-                | "import-system-mutation"
-                | "introspection-roots" => py_js,
-                "native-and-macro-code" => language == Language::Rust,
+                // Go: plugin.Open is the dynamic loader, reflect method
+                // lookup the reflective access, runtime.Caller the
+                // introspection root. No runtime scope injection or
+                // import-table mutation exists in Go.
+                "dynamic-loading" | "reflective-access" | "introspection-roots" => py_js || go,
+                "scope-injection" | "import-system-mutation" => py_js,
+                "native-and-macro-code" => language == Language::Rust || go,
                 _ => false,
             },
             Self::Closure => match family {
-                "module-escape" | "value-use" | "constructor-return" => py_js_rs,
-                "ambient-module" | "untracked-receiver" => py_js,
+                // Go: a member bound to a name escapes the module, and a
+                // symbol returned by plugin.Lookup is a receiver of
+                // untracked provenance. Go has no ambient module.
+                "module-escape" | "value-use" | "constructor-return" => py_js_rs || go,
+                "untracked-receiver" => py_js || go,
+                "ambient-module" => py_js,
                 _ => false,
             },
         }
@@ -360,7 +366,7 @@ pub fn load_spec(path: &Path, kind: SpecKind) -> Result<Vec<SpecRow>, String> {
 pub fn check_coverage(rows: &[SpecRow], kind: SpecKind) -> Vec<String> {
     let mut errors = Vec::new();
     for family in kind.vocabulary() {
-        for language in [Language::Python, Language::Javascript, Language::Rust] {
+        for language in Language::ALL {
             if !kind.applies(family, language) {
                 continue;
             }

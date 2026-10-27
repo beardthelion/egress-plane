@@ -258,3 +258,43 @@ twin = "rust/evasive/must-not-include-literal"
 axis = "the include! path is a non-literal or OUT_DIR path vs a literal in-tree path to an inert file"
 status = "authored"
 # The skipped Rust include! class.
+
+# ---- go ------------------------------------------------------------------------
+
+[[row]]
+case = "go/evasive/plugin-dynamic-open"
+language = "go"
+family = "dynamic-loading"
+label = { kind = "native-code", symbol = "probe", count = 1 }
+twin = "go/evasive/must-not-file-open"
+axis = "the Open call resolves to the plugin dynamic loader vs the filesystem"
+status = "authored"
+
+[[row]]
+case = "go/evasive/reflect-method-name"
+language = "go"
+family = "reflective-access"
+label = { kind = "reflective-unknown", symbol = "probe", count = 2 }
+twin = "go/evasive/must-not-direct-dispatch"
+axis = "the method is selected by a name string and called vs asserted to an interface and called directly"
+status = "authored"
+# ValueOf chains resolve to reflect.Value; MethodByName and the Call each flag.
+
+[[row]]
+case = "go/evasive/linkname-pragma"
+language = "go"
+family = "native-and-macro-code"
+label = { kind = "native-code", symbol = "<module>", count = 2 }
+twin = "go/evasive/must-not-ordinary-directive-comment"
+axis = "the line comment spells //go:linkname vs an ordinary comment"
+status = "authored"
+# Both files import unsafe blank: one native-code blind spot each, plus the directive.
+
+[[row]]
+case = "go/evasive/caller-introspection"
+language = "go"
+family = "introspection-roots"
+label = { kind = "introspection", symbol = "probe", count = 1 }
+twin = "go/evasive/must-not-runtime-inert"
+axis = "the runtime member is the stack-frame introspection entry vs an inert member"
+status = "authored"

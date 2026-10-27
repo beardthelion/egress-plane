@@ -17,13 +17,5 @@
 cases = []
 
 [[categories]]
-id = "go/evasive"
-reason = "Go evasive rows have no spec entries or generator template; they follow the Go catalog coverage work."
-
-[[categories]]
-id = "go/closure"
-reason = "Go closure rows have no spec entries; they follow the Go catalog coverage work."
-
-[[categories]]
 id = "go/dependencies"
 reason = "No Go module dependency root kind exists; --deps does not resolve Go imports."

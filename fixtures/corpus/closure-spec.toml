@@ -175,3 +175,41 @@ label = { kind = "site", symbol = "probe", count = 1 }
 twin = "rust/closure/must-not-local-new"
 axis = "the constructor resolves to a catalogued client entry vs a first-party type"
 status = "authored"
+
+# ---- go ------------------------------------------------------------------------
+
+[[row]]
+case = "go/closure/function-value-call"
+language = "go"
+family = "module-escape"
+label = { kind = "site", symbol = "probe", count = 2 }
+twin = "go/closure/must-not-inert-func-value"
+axis = "the bound function names an egress member vs an inert member"
+status = "authored"
+
+[[row]]
+case = "go/closure/member-as-value"
+language = "go"
+family = "value-use"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "go/closure/must-not-inert-member-value"
+axis = "the member bound as a value is an egress entry vs an inert member"
+status = "authored"
+
+[[row]]
+case = "go/closure/client-constructor-return"
+language = "go"
+family = "constructor-return"
+label = { kind = "site", symbol = "probe", count = 1 }
+twin = "go/closure/must-not-local-ctor-return"
+axis = "the returned constructor resolves to a catalogued client entry vs a first-party type"
+status = "authored"
+
+[[row]]
+case = "go/closure/loaded-symbol-receiver"
+language = "go"
+family = "untracked-receiver"
+label = { kind = "native-code", symbol = "probe", count = 1 }
+twin = "go/closure/must-not-declared-receiver"
+axis = "the receiver came from a plugin symbol lookup vs a declared first-party function"
+status = "authored"

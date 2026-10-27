@@ -9,5 +9,4 @@ func main() {
     _ = pkg.Value.FieldByName
     _ = pkg.Value.FieldByNameFunc
     _ = pkg.Value.Method
-    _ = pkg.Value.MethodByName
 }

@@ -2419,6 +2419,13 @@ reason = "dispatches a call on an arbitrary reflected value; the callee is whate
 fixture = "go/primitives/reflect-value-call"
 
 [[entry]]
+id = "go:reflect.Value.MethodByName"
+kind = "blind-spot"
+blind_spot = "reflective-unknown"
+reason = "selects a method by a name string for a later call; the dispatch target cannot be resolved statically"
+fixture = "go/primitives/reflect-value-methodbyname"
+
+[[entry]]
 id = "go:reflect.Value.CallSlice"
 kind = "blind-spot"
 blind_spot = "reflective-unknown"
@@ -3825,14 +3832,13 @@ fixture = "go/primitives/must-not-plugin-inert"
 module = "reflect"
 members = [
     "MethodByName",
-    "Value.MethodByName",
     "Value.FieldByName",
     "Value.Field",
     "Value.Method",
     "Value.FieldByIndex",
     "Value.FieldByNameFunc",
 ]
-justification = "Name lookups return a value or method handle without calling it; a literal name stays a member use and a computed one is the reflective lowering's job."
+justification = "Name lookups return a value or field handle without calling it; a literal name stays a member use. MethodByName is the dispatch primitive and carries its own entry."
 fixture = "go/primitives/must-not-reflect-name-lookups"
 
 [[inert]]
