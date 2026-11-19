@@ -4,6 +4,24 @@ egress-plane scans the first-party source of a Rust, Python, JavaScript/TypeScri
 
 It is one static binary. It parses Python with ruff's parser, JavaScript and TypeScript with oxc, Rust with syn, and Go with gosyn and go, all in-process. It never runs the code it scans, spawns no subprocess (no `cargo`, `rustc`, `node`, `python`, `tsc`, `go`, or `git`), opens no network connection, and reads nothing outside the scan root. Those guarantees describe `scan`; the `probe` subcommand below has its own, narrower ones.
 
+## Install
+
+Build from source with the Rust toolchain pinned in `rust-toolchain.toml` (rustup picks it up automatically):
+
+```sh
+git clone https://github.com/beardthelion/egress-plane
+cd egress-plane
+cargo build --release --locked -p egress-cli
+./target/release/egress-plane scan <root>
+```
+
+There are no prebuilt releases. The command line is:
+
+```
+egress-plane scan <root> [--format text|json] [--deps <path>]...
+egress-plane probe [--format text|json] [--nonce HEX] [--active --allow IP:PORT ...]
+```
+
 ## Usage
 
 ```sh
@@ -216,6 +234,13 @@ cargo test -p egress-corpus --locked             # corpus gate; prints the false
 ```
 
 `docs/adding-a-language.md` is the recipe for adding a language; each mechanical step names the test or conformance finding that enforces it.
+
+## Related tools
+
+- [dyetrace](https://github.com/beardthelion/dyetrace): `dyetrace egress --candidates-format egress-plane` takes this tool's JSON report as leads to prove at runtime
+- [release-surface-diff](https://github.com/beardthelion/release-surface-diff): uses `egress-plane scan --format json` as its outbound-call extractor when diffing two releases
+- [ssrf-guard-audit](https://github.com/beardthelion/ssrf-guard-audit): classifies how the guard in front of a URL fetch is incomplete
+- [autocatalytic-harness](https://github.com/beardthelion/autocatalytic-harness): the audit harness that uses egress-plane for front-door ranking
 
 ## License
 
